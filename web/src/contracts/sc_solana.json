@@ -1,0 +1,1086 @@
+{
+  "address": "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS",
+  "metadata": {
+    "name": "sc_solana",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "approve_role_request",
+      "docs": [
+        "Approve a pending role request (Issue #20 - fixed timestamp)"
+      ],
+      "discriminator": [
+        235,
+        237,
+        25,
+        240,
+        131,
+        166,
+        136,
+        199
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "role_request",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "assign_to_student",
+      "docs": [
+        "Assign netbook to a student (distribution) (Issue #19 - with role check)",
+        "State machine transition: SwValidado (2) -> Distribuida (3)"
+      ],
+      "discriminator": [
+        184,
+        132,
+        205,
+        155,
+        98,
+        51,
+        6,
+        151
+      ],
+      "accounts": [
+        {
+          "name": "netbook",
+          "writable": true
+        },
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "school",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "serial",
+          "type": "string"
+        },
+        {
+          "name": "school_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "student_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "audit_hardware",
+      "docs": [
+        "Audit hardware on a netbook (Issue #19 - with role check)",
+        "State machine transition: Fabricada (0) -> HwAprobado (1) if passed"
+      ],
+      "discriminator": [
+        61,
+        94,
+        28,
+        246,
+        88,
+        208,
+        161,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "netbook",
+          "writable": true
+        },
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "auditor",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "serial",
+          "type": "string"
+        },
+        {
+          "name": "passed",
+          "type": "bool"
+        },
+        {
+          "name": "report_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "grant_role",
+      "docs": [
+        "Grant a role to an account (Issue #19 - stores role authority)"
+      ],
+      "discriminator": [
+        218,
+        234,
+        128,
+        15,
+        82,
+        33,
+        236,
+        253
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "account_to_grant",
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Initialize the supply chain configuration (Issue #19 - expanded)"
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "register_netbook",
+      "docs": [
+        "Register a single netbook in the supply chain (Issue #18 - fixed PDA)",
+        "State machine: Fabricada (0)"
+      ],
+      "discriminator": [
+        17,
+        27,
+        238,
+        17,
+        150,
+        7,
+        84,
+        146
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "manufacturer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "netbook",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "serial",
+          "type": "string"
+        },
+        {
+          "name": "batch_id",
+          "type": "string"
+        },
+        {
+          "name": "model_specs",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "register_netbooks_batch",
+      "docs": [
+        "Batch register netbooks (Issue #17)",
+        "Note: Solana/Anchor requires all accounts to be declared upfront in the context.",
+        "True batch account creation in a single transaction is not supported by Anchor's",
+        "derive macros. This implementation validates inputs and updates config counters.",
+        "For actual batch registration, callers should invoke register_netbook multiple times."
+      ],
+      "discriminator": [
+        157,
+        36,
+        128,
+        7,
+        71,
+        102,
+        86,
+        199
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "manufacturer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "serial_numbers",
+          "type": {
+            "vec": "string"
+          }
+        },
+        {
+          "name": "batch_ids",
+          "type": {
+            "vec": "string"
+          }
+        },
+        {
+          "name": "model_specs",
+          "type": {
+            "vec": "string"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reject_role_request",
+      "docs": [
+        "Reject a pending role request (Issue #20 - fixed timestamp)"
+      ],
+      "discriminator": [
+        119,
+        88,
+        206,
+        216,
+        116,
+        122,
+        116,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "role_request",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "request_role",
+      "docs": [
+        "Request a role (Issue #20 - fixed timestamps and counters)"
+      ],
+      "discriminator": [
+        93,
+        225,
+        205,
+        233,
+        42,
+        66,
+        123,
+        138
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "role_request",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  108,
+                  101,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "revoke_role",
+      "docs": [
+        "Revoke a role from an account (Issue #19 - clears role authority)"
+      ],
+      "discriminator": [
+        179,
+        232,
+        2,
+        180,
+        48,
+        227,
+        82,
+        7
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "account_to_revoke",
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "validate_software",
+      "docs": [
+        "Validate software on a netbook (Issue #19 - with role check)",
+        "State machine transition: HwAprobado (1) -> SwValidado (2) if passed"
+      ],
+      "discriminator": [
+        184,
+        3,
+        20,
+        45,
+        39,
+        216,
+        100,
+        41
+      ],
+      "accounts": [
+        {
+          "name": "netbook",
+          "writable": true
+        },
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "technician",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "serial",
+          "type": "string"
+        },
+        {
+          "name": "os_version",
+          "type": "string"
+        },
+        {
+          "name": "passed",
+          "type": "bool"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Netbook",
+      "discriminator": [
+        39,
+        232,
+        134,
+        241,
+        158,
+        151,
+        119,
+        112
+      ]
+    },
+    {
+      "name": "RoleRequest",
+      "discriminator": [
+        244,
+        149,
+        42,
+        215,
+        188,
+        161,
+        198,
+        119
+      ]
+    },
+    {
+      "name": "SupplyChainConfig",
+      "discriminator": [
+        13,
+        209,
+        36,
+        145,
+        29,
+        172,
+        64,
+        185
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "HardwareAudited",
+      "discriminator": [
+        35,
+        147,
+        11,
+        167,
+        98,
+        215,
+        77,
+        92
+      ]
+    },
+    {
+      "name": "NetbookAssigned",
+      "discriminator": [
+        36,
+        166,
+        191,
+        146,
+        214,
+        162,
+        116,
+        147
+      ]
+    },
+    {
+      "name": "NetbookRegistered",
+      "discriminator": [
+        122,
+        54,
+        74,
+        108,
+        180,
+        53,
+        157,
+        9
+      ]
+    },
+    {
+      "name": "NetbooksRegistered",
+      "discriminator": [
+        208,
+        218,
+        230,
+        157,
+        112,
+        56,
+        72,
+        114
+      ]
+    },
+    {
+      "name": "RoleGranted",
+      "discriminator": [
+        220,
+        183,
+        89,
+        228,
+        143,
+        63,
+        246,
+        58
+      ]
+    },
+    {
+      "name": "RoleRequestUpdated",
+      "discriminator": [
+        251,
+        102,
+        136,
+        83,
+        172,
+        6,
+        160,
+        187
+      ]
+    },
+    {
+      "name": "RoleRequested",
+      "discriminator": [
+        72,
+        80,
+        57,
+        141,
+        207,
+        189,
+        195,
+        134
+      ]
+    },
+    {
+      "name": "RoleRevoked",
+      "discriminator": [
+        167,
+        183,
+        52,
+        229,
+        126,
+        206,
+        62,
+        61
+      ]
+    },
+    {
+      "name": "SoftwareValidated",
+      "discriminator": [
+        139,
+        6,
+        97,
+        32,
+        119,
+        113,
+        246,
+        70
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 12000,
+      "name": "Unauthorized",
+      "msg": "Caller is not authorized"
+    },
+    {
+      "code": 12001,
+      "name": "InvalidStateTransition",
+      "msg": "Invalid state transition"
+    },
+    {
+      "code": 12002,
+      "name": "NetbookNotFound",
+      "msg": "Netbook not found"
+    },
+    {
+      "code": 12003,
+      "name": "InvalidInput",
+      "msg": "Invalid input"
+    },
+    {
+      "code": 12004,
+      "name": "DuplicateSerial",
+      "msg": "Serial number already registered"
+    },
+    {
+      "code": 12005,
+      "name": "ArrayLengthMismatch",
+      "msg": "Array lengths do not match"
+    },
+    {
+      "code": 12006,
+      "name": "RoleAlreadyGranted",
+      "msg": "Role already granted to this account"
+    },
+    {
+      "code": 12007,
+      "name": "RoleNotFound",
+      "msg": "Role not found"
+    },
+    {
+      "code": 12008,
+      "name": "InvalidSignature",
+      "msg": "Invalid signature"
+    },
+    {
+      "code": 12009,
+      "name": "EmptySerial",
+      "msg": "Serial number is empty"
+    },
+    {
+      "code": 12010,
+      "name": "StringTooLong",
+      "msg": "String exceeds maximum length"
+    }
+  ],
+  "types": [
+    {
+      "name": "HardwareAudited",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "serial_number",
+            "type": "string"
+          },
+          {
+            "name": "passed",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Netbook",
+      "docs": [
+        "Main Netbook account - mirrors Solidity Netbook struct",
+        "Bounded strings: serial_number max 200 chars, batch_id max 100 chars, model_specs max 500 chars, os_version max 100 chars",
+        "PII protection via [u8; 32] hashes for student_id_hash and destination_school_hash"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "serial_number",
+            "type": "string"
+          },
+          {
+            "name": "batch_id",
+            "type": "string"
+          },
+          {
+            "name": "initial_model_specs",
+            "type": "string"
+          },
+          {
+            "name": "hw_auditor",
+            "type": "pubkey"
+          },
+          {
+            "name": "hw_integrity_passed",
+            "type": "bool"
+          },
+          {
+            "name": "hw_report_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "sw_technician",
+            "type": "pubkey"
+          },
+          {
+            "name": "os_version",
+            "type": "string"
+          },
+          {
+            "name": "sw_validation_passed",
+            "type": "bool"
+          },
+          {
+            "name": "destination_school_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "student_id_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "distribution_timestamp",
+            "type": "u64"
+          },
+          {
+            "name": "state",
+            "type": "u8"
+          },
+          {
+            "name": "exists",
+            "type": "bool"
+          },
+          {
+            "name": "token_id",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NetbookAssigned",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "serial_number",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NetbookRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "serial_number",
+            "type": "string"
+          },
+          {
+            "name": "batch_id",
+            "type": "string"
+          },
+          {
+            "name": "token_id",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NetbooksRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "count",
+            "type": "u64"
+          },
+          {
+            "name": "start_token_id",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoleGranted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "role",
+            "type": "string"
+          },
+          {
+            "name": "account",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoleRequest",
+      "docs": [
+        "Role request account"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "role",
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoleRequestUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoleRequested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "role",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoleRevoked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "role",
+            "type": "string"
+          },
+          {
+            "name": "account",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SoftwareValidated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "serial_number",
+            "type": "string"
+          },
+          {
+            "name": "os_version",
+            "type": "string"
+          },
+          {
+            "name": "passed",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SupplyChainConfig",
+      "docs": [
+        "Configuration account for the supply chain (Issue #19 - expanded with role authorities)"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "fabricante",
+            "type": "pubkey"
+          },
+          {
+            "name": "auditor_hw",
+            "type": "pubkey"
+          },
+          {
+            "name": "tecnico_sw",
+            "type": "pubkey"
+          },
+          {
+            "name": "escuela",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin_bump",
+            "type": "u8"
+          },
+          {
+            "name": "next_token_id",
+            "type": "u64"
+          },
+          {
+            "name": "total_netbooks",
+            "type": "u64"
+          },
+          {
+            "name": "role_requests_count",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

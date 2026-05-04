@@ -42,6 +42,12 @@ describe("SupplyChainTracker Solana", () => {
     program.programId
   );
 
+  // Serial hash registry PDA (matches lib.rs seeds: [b"serial_hashes", config.key().as_ref()])
+  const [serialHashRegistryPda] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("serial_hashes"), configPda.toBuffer()],
+    program.programId
+  );
+
   // Helper function to get netbook PDA (matches lib.rs seeds: [b"netbook", b"netbook", &token_id[0..7]])
   function getNetbookPda(tokenId: number) {
     const tokenIdBytes = Buffer.alloc(8);
@@ -102,6 +108,7 @@ describe("SupplyChainTracker Solana", () => {
         .accountsStrict({
           admin: admin.publicKey,
           config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
           systemProgram: SystemProgram.programId,
         })
         .signers([admin])
@@ -282,6 +289,7 @@ describe("SupplyChainTracker Solana", () => {
           config: configPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
+          serialHashRegistry: serialHashRegistryPda,
           systemProgram: SystemProgram.programId,
         })
         .signers([fabricante])
@@ -312,6 +320,7 @@ describe("SupplyChainTracker Solana", () => {
           .registerNetbook(`SN-2024-${String(i + 2).padStart(3, "0")}`, "BATCH-2024-Q1", "Intel i5, 16GB RAM, 512GB SSD")
           .accountsStrict({
             config: configPda,
+            serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
             netbook: netbookPda,
             systemProgram: SystemProgram.programId,
@@ -335,6 +344,7 @@ describe("SupplyChainTracker Solana", () => {
           .registerNetbook("", "BATCH", "Specs")
           .accountsStrict({
             config: configPda,
+            serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
             netbook: netbookPda,
             systemProgram: SystemProgram.programId,
@@ -413,6 +423,7 @@ describe("SupplyChainTracker Solana", () => {
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
         .accountsStrict({
           config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
           systemProgram: SystemProgram.programId,
@@ -449,6 +460,7 @@ describe("SupplyChainTracker Solana", () => {
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
         .accountsStrict({
           config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
           systemProgram: SystemProgram.programId,
@@ -505,13 +517,14 @@ describe("SupplyChainTracker Solana", () => {
     it("Cannot validate software from wrong state", async () => {
       // Sync with on-chain state to get correct token ID
       const tokenId = await syncTokenCounter();
-      const serial = "SN-2024-WRONG-STATE";
+      const serial = "SN-2024-ASSIGN-BAD-STATE";
       const netbookPda = getNetbookPda(tokenId);
       
       await program.methods
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
         .accountsStrict({
           config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
           systemProgram: SystemProgram.programId,
@@ -545,6 +558,7 @@ describe("SupplyChainTracker Solana", () => {
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
         .accountsStrict({
           config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
           systemProgram: SystemProgram.programId,
@@ -606,6 +620,7 @@ describe("SupplyChainTracker Solana", () => {
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
         .accountsStrict({
           config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
           systemProgram: SystemProgram.programId,
@@ -668,6 +683,7 @@ describe("SupplyChainTracker Solana", () => {
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
         .accountsStrict({
           config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
           systemProgram: SystemProgram.programId,
@@ -703,6 +719,7 @@ describe("SupplyChainTracker Solana", () => {
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
         .accountsStrict({
           config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
           systemProgram: SystemProgram.programId,
@@ -762,6 +779,7 @@ describe("SupplyChainTracker Solana", () => {
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
         .accountsStrict({
           config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
           systemProgram: SystemProgram.programId,
@@ -851,6 +869,7 @@ describe("SupplyChainTracker Solana", () => {
           )
           .accountsStrict({
             config: configPda,
+            serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -869,6 +888,7 @@ describe("SupplyChainTracker Solana", () => {
           .registerNetbooksBatch([], [], [])
           .accountsStrict({
             config: configPda,
+            serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -891,6 +911,7 @@ describe("SupplyChainTracker Solana", () => {
           .registerNetbook("", "BATCH", "Specs")
           .accountsStrict({
             config: configPda,
+            serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
             netbook: netbookPda,
             systemProgram: SystemProgram.programId,
@@ -921,6 +942,7 @@ describe("SupplyChainTracker Solana", () => {
           .registerNetbook(longSerial, "BATCH", "Specs")
           .accountsStrict({
             config: configPda,
+            serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
             netbook: netbookPda,
             systemProgram: SystemProgram.programId,

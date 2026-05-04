@@ -75,11 +75,24 @@ initialize(ctx: Context<Initialize>)
 
 | Instruction | Description |
 |-------------|-------------|
-| `grantRole(role)` | Grant a role to an account (admin only) |
-| `revokeRole(role)` | Revoke a role from an account (admin only) |
+| `grantRole(role)` | Grant a role to an account (admin only, legacy single-holder) |
+| `revokeRole(role)` | Revoke a role from an account (admin only, legacy single-holder) |
 | `requestRole(role)` | Request a role (requires admin approval) |
 | `approveRoleRequest()` | Approve a pending role request |
 | `rejectRoleRequest()` | Reject a pending role request |
+| `addRoleHolder(role)` | Add an account as a role holder (admin only, Issue #42) |
+| `removeRoleHolder(role)` | Remove a role holder (admin only, Issue #42) |
+
+### Multiple Role Holders (Issue #42)
+
+The system now supports multiple accounts per role type. In addition to the legacy single-holder model
+(`grantRole`/`revokeRole`), administrators can now add multiple role holders using `addRoleHolder`.
+
+| Feature | Description |
+|---------|-------------|
+| `MAX_ROLE_HOLDERS` | Maximum 100 role holders per role type |
+| `RoleHolder` account | Stores individual role assignments with PDA based on role + account |
+| Role holder counts | Tracked in `SupplyChainConfig` (`fabricante_count`, `auditor_hw_count`, etc.) |
 
 ### Netbook Operations
 

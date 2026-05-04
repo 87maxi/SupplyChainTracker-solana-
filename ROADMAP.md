@@ -6,7 +6,31 @@ This document outlines the complete migration plan for transforming the SupplyCh
 
 **Source Contract:** [`sc/src/SupplyChainTracker.sol`](sc/src/SupplyChainTracker.sol)  
 **Target Project:** [`sc-solana/`](sc-solana/)  
-**Program ID:** `CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS`
+**Program ID:** `CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS`  
+**Total Estimated Effort:** ~52 hours  
+**Issues Created:** 16 (see tracking table below)
+
+## Quick Links - All Migration Issues
+
+| Phase | Issue | Priority |
+|-------|-------|----------|
+| Phase 1 | [Analysis & Planning](https://github.com/87maxi/SupplyChainTracker-solana-/issues/1) | P0 |
+| Phase 2 | [Anchor Program Core Structure](https://github.com/87maxi/SupplyChainTracker-solana-/issues/1) | P0 |
+| Phase 3 | [State & Data Structures](https://github.com/87maxi/SupplyChainTracker-solana-/issues/2) | P0 |
+| Phase 4 | [Role Management](https://github.com/87maxi/SupplyChainTracker-solana-/issues/3) | P0 |
+| Phase 5 | [Netbook Registration](https://github.com/87maxi/SupplyChainTracker-solana-/issues/4) | P0 |
+| Phase 6 | [Hardware Audit](https://github.com/87maxi/SupplyChainTracker-solana-/issues/5) | P1 |
+| Phase 7 | [Software Validation](https://github.com/87maxi/SupplyChainTracker-solana-/issues/6) | P1 |
+| Phase 8 | [Student Assignment](https://github.com/87maxi/SupplyChainTracker-solana-/issues/7) | P1 |
+| Phase 9 | [View/Query Instructions](https://github.com/87maxi/SupplyChainTracker-solana-/issues/8) | P2 |
+| Phase 10 | [Testing Framework](https://github.com/87maxi/SupplyChainTracker-solana-/issues/9) | P0 |
+| Phase 11 | [Integration Tests](https://github.com/87maxi/SupplyChainTracker-solana-/issues/10) | P0 |
+| Phase 12 | [Security & Edge Case Tests](https://github.com/87maxi/SupplyChainTracker-solana-/issues/11) | P1 |
+| Phase 13 | [Deployment Scripts](https://github.com/87maxi/SupplyChainTracker-solana-/issues/12) | P1 |
+| Phase 14 | [Complete Migration](https://github.com/87maxi/SupplyChainTracker-solana-/issues/13) | P0 |
+| Phase 15 | [README & Documentation](https://github.com/87maxi/SupplyChainTracker-solana-/issues/14) | P2 |
+| Phase 16 | [CI/CD Pipeline](https://github.com/87maxi/SupplyChainTracker-solana-/issues/15) | P2 |
+| Phase 17 | [IDL & Client Types](https://github.com/87maxi/SupplyChainTracker-solana-/issues/16) | P2 |
 
 ---
 
@@ -473,18 +497,13 @@ FABRICADA ──→ HW_APROBADO ──→ SW_VALIDADO ──→ DISTRIBUIDA
 
 ---
 
-### Phase 14: GitHub Issues Creation & Roadmap
+### Phase 14: Complete Migration Implementation & Integration
 
 **GitHub Issue:** [#13 - Complete Migration Implementation](https://github.com/87maxi/SupplyChainTracker-solana-/issues/13)  
 **Priority:** P0 - Critical  
-**Estimated Effort:** Full project
+**Estimated Effort:** Full project (~52 hours)
 
-**Tasks:**
-1. Create all phase-specific GitHub issues
-2. Link related issues
-3. Add labels: `anchor`, `solana`, `smart-contract`, `testing`, `documentation`
-4. Create GitHub project board with milestones
-5. Update README.md with migration status
+This is the umbrella issue for the entire Ethereum to Solana migration. It encompasses all phases and serves as the master tracking issue.
 
 ---
 
@@ -603,7 +622,11 @@ sha3 = "0.10"
 | Phase 11: Integration Tests | 6h | 38h |
 | Phase 12: Security Tests | 5h | 43h |
 | Phase 13: Deployment | 3h | 46h |
-| **Total** | | **~46 hours** |
+| Phase 14: Complete Migration | - | - |
+| Phase 15: Documentation | 2h | 48h |
+| Phase 16: CI/CD Pipeline | 2h | 50h |
+| Phase 17: IDL & Client Types | 2h | 52h |
+| **Total** | | **~52 hours** |
 
 ---
 
@@ -622,3 +645,116 @@ sha3 = "0.10"
 4. **Role System:** Unlike Ethereum addresses, Solana uses Pubkeys. Role membership stored as `HashMap<Pubkey, HashSet<Pubkey>>`
 
 5. **Token IDs:** Sequential counter in config account (no ERC-1155, just incremental u64)
+
+---
+
+## Issue Tracking Summary
+
+| Issue | Phase | Description | Priority | Status |
+|-------|-------|-------------|----------|--------|
+| [#1](https://github.com/87maxi/SupplyChainTracker-solana-/issues/1) | Phase 2 | Anchor Program Core Structure | P0 | Open |
+| [#2](https://github.com/87maxi/SupplyChainTracker-solana-/issues/2) | Phase 3 | State & Data Structures (Accounts) | P0 | Open |
+| [#3](https://github.com/87maxi/SupplyChainTracker-solana-/issues/3) | Phase 4 | Role Management Implementation | P0 | Open |
+| [#4](https://github.com/87maxi/SupplyChainTracker-solana-/issues/4) | Phase 5 | Netbook Registration Instruction | P0 | Open |
+| [#5](https://github.com/87maxi/SupplyChainTracker-solana-/issues/5) | Phase 6 | Hardware Audit Instruction | P1 | Open |
+| [#6](https://github.com/87maxi/SupplyChainTracker-solana-/issues/6) | Phase 7 | Software Validation Instruction | P1 | Open |
+| [#7](https://github.com/87maxi/SupplyChainTracker-solana-/issues/7) | Phase 8 | Student Assignment Instruction | P1 | Open |
+| [#8](https://github.com/87maxi/SupplyChainTracker-solana-/issues/8) | Phase 9 | View/Query Instructions | P2 | Open |
+| [#9](https://github.com/87maxi/SupplyChainTracker-solana-/issues/9) | Phase 10 | Testing Framework Setup | P0 | Open |
+| [#10](https://github.com/87maxi/SupplyChainTracker-solana-/issues/10) | Phase 11 | Integration Tests (Full Lifecycle) | P0 | Open |
+| [#11](https://github.com/87maxi/SupplyChainTracker-solana-/issues/11) | Phase 12 | Security & Edge Case Tests | P1 | Open |
+| [#12](https://github.com/87maxi/SupplyChainTracker-solana-/issues/12) | Phase 13 | Deployment Scripts & Migration | P1 | Open |
+| [#13](https://github.com/87maxi/SupplyChainTracker-solana-/issues/13) | Phase 14 | Complete Migration Implementation | P0 | Open |
+| [#14](https://github.com/87maxi/SupplyChainTracker-solana-/issues/14) | Phase 15 | README.md & Project Documentation | P2 | Open |
+| [#15](https://github.com/87maxi/SupplyChainTracker-solana-/issues/15) | Phase 16 | CI/CD Pipeline & GitHub Actions | P2 | Open |
+| [#16](https://github.com/87maxi/SupplyChainTracker-solana-/issues/16) | Phase 17 | IDL Generation & TypeScript Client Types | P2 | Open |
+
+---
+
+### Phase 14: Complete Migration Implementation & Integration
+
+**GitHub Issue:** [#13 - Complete Migration Implementation](https://github.com/87maxi/SupplyChainTracker-solana-/issues/13)  
+**Priority:** P0 - Critical  
+**Estimated Effort:** Full project (~52 hours total)
+
+This is the umbrella issue for the entire Ethereum to Solana migration. It encompasses all phases and serves as the master tracking issue.
+
+**Final Deliverables:**
+
+1. Smart Contract (`sc-solana/programs/sc-solana/src/`):
+   - `lib.rs` - Main program entry with instruction dispatch
+   - `accounts.rs` - Account structs and derive macros
+   - `state.rs` - On-chain state definitions
+   - `errors.rs` - Custom error codes
+   - `constants.rs` - Role constants and validation
+   - `instructions.rs` - All instruction handlers
+
+2. Tests (`sc-solana/tests/`):
+   - `sc-solana.ts` - Basic initialization test
+   - `test-helpers.ts` - Test utility functions
+   - `lifecycle.test.ts` - Full lifecycle integration tests
+   - `security.test.ts` - Security and access control tests
+   - `edge-cases.test.ts` - Edge case and fuzzing tests
+
+3. Deployment & CI/CD:
+   - `Anchor.toml` - Anchor configuration
+   - `migrations/deploy.ts` - Deployment migration
+   - `.github/workflows/test.yml` - CI/CD pipeline
+
+---
+
+### Phase 15: README.md & Project Documentation
+
+**GitHub Issue:** [#14 - README.md & Project Documentation](https://github.com/87maxi/SupplyChainTracker-solana-/issues/14)  
+**Priority:** P2 - Medium  
+**Estimated Effort:** 2 hours
+
+**Tasks:**
+1. Create `sc-solana/README.md` with:
+   - Project overview
+   - Architecture diagram (Ethereum -> Solana comparison)
+   - Getting started guide
+   - Installation requirements
+   - Development commands
+   - Project structure
+   - Role definitions
+   - State machine diagram
+   - API reference
+
+2. Add architecture documentation
+3. Create contribution guidelines
+
+---
+
+### Phase 16: CI/CD Pipeline & GitHub Actions
+
+**GitHub Issue:** [#15 - CI/CD Pipeline & GitHub Actions](https://github.com/87maxi/SupplyChainTracker-solana-/issues/15)  
+**Priority:** P2 - Medium  
+**Estimated Effort:** 2 hours
+
+**Tasks:**
+1. Create `.github/workflows/anchor-test.yml`:
+   - Format check (cargo fmt)
+   - Build verification (anchor build)
+   - Test execution (anchor test)
+   - Clippy checks (cargo clippy)
+   - Binary size reporting
+
+2. Add clippy warnings as errors
+3. Add build size check
+
+---
+
+### Phase 17: IDL Generation & TypeScript Client Types
+
+**GitHub Issue:** [#16 - IDL Generation & TypeScript Client Types](https://github.com/87maxi/SupplyChainTracker-solana-/issues/16)  
+**Priority:** P2 - Medium  
+**Estimated Effort:** 2 hours
+
+**Tasks:**
+1. Ensure IDL generation works during `anchor build`
+2. Create TypeScript client type definitions from IDL
+3. Create client service module for future frontend integration
+4. Create IDL export utility
+
+---

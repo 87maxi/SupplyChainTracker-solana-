@@ -15,3 +15,6 @@ anvil-state.json
 variables.txt
 sc/lib/
 .kilocode/
+sc-solana/target/
+sc-solana/.anchor/
+sc-solana/test-ledger/

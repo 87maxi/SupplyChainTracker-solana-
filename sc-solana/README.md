@@ -1,0 +1,277 @@
+# SupplyChainTracker - Solana/Anchor Implementation
+
+## Overview
+
+SupplyChainTracker is a supply chain management system deployed on Solana using the Anchor framework. This is a migration from the original Ethereum (Solidity) implementation to Solana, providing improved performance, lower costs, and better scalability.
+
+**Program ID:** `CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS`
+
+## Features
+
+- **Role-Based Access Control (RBAC)**: Granular permissions for different roles in the supply chain
+- **Netbook Lifecycle Management**: Track devices from manufacturing to distribution
+- **State Machine Enforcement**: Strict state transitions ensure data integrity
+- **PII Protection**: Student and school identifiers stored as cryptographic hashes
+- **Bounded Strings**: Input validation for all string fields to prevent account bloat
+- **Event Logging**: All important actions emit on-chain events
+
+## State Machine
+
+The system enforces the following state transitions for netbooks:
+
+```
+Fabricada (0) → HwAprobado (1) → SwValidado (2) → Distribuida (3)
+```
+
+| State | Description | Transition |
+|-------|-------------|------------|
+| `Fabricada` | Netbook registered, awaiting hardware audit | Initial state |
+| `HwAprobado` | Hardware audit passed | `auditHardware(passed=true)` |
+| `SwValidado` | Software validation passed | `validateSoftware(passed=true)` |
+| `Distribuida` | Assigned to student | `assignToStudent()` |
+
+## Data Structures
+
+### Netbook
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `serialNumber` | String (max 200 chars) | Unique device identifier |
+| `batchId` | String (max 100 chars) | Manufacturing batch identifier |
+| `initialModelSpecs` | String (max 500 chars) | Hardware specifications |
+| `hwAuditor` | Pubkey | Address of hardware auditor |
+| `hwIntegrityPassed` | bool | Hardware audit result |
+| `hwReportHash` | [u8; 32] | Hash of hardware audit report |
+| `swTechnician` | Pubkey | Address of software technician |
+| `osVersion` | String (max 100 chars) | Operating system version |
+| `swValidationPassed` | bool | Software validation result |
+| `destinationSchoolHash` | [u8; 32] | Hash of destination school ID (PII protected) |
+| `studentIdHash` | [u8; 32] | Hash of student ID (PII protected) |
+| `distributionTimestamp` | u64 | Distribution timestamp |
+| `state` | u8 | Current state (0-3) |
+| `exists` | bool | Netbook existence flag |
+| `tokenId` | u64 | Unique token identifier |
+
+### Roles
+
+| Role | Description |
+|------|-------------|
+| `FABRICANTE_ROLE` | Manufacturer - can register netbooks |
+| `AUDITOR_HW_ROLE` | Hardware auditor - can perform hardware audits |
+| `TECNICO_SW_ROLE` | Software technician - can validate software |
+| `ESCUELA_ROLE` | School - can receive netbooks |
+
+## Program Instructions
+
+### Initialize
+
+Initialize the supply chain configuration.
+
+```rust
+initialize(ctx: Context<Initialize>)
+```
+
+### Role Management
+
+| Instruction | Description |
+|-------------|-------------|
+| `grantRole(role)` | Grant a role to an account (admin only) |
+| `revokeRole(role)` | Revoke a role from an account (admin only) |
+| `requestRole(role)` | Request a role (requires admin approval) |
+| `approveRoleRequest()` | Approve a pending role request |
+| `rejectRoleRequest()` | Reject a pending role request |
+
+### Netbook Operations
+
+| Instruction | Description | State Transition |
+|-------------|-------------|------------------|
+| `registerNetbook(serial, batch, specs)` | Register a new netbook | → Fabricada |
+| `auditHardware(serial, passed, reportHash)` | Perform hardware audit | → HwAprobado (if passed) |
+| `validateSoftware(serial, osVersion, passed)` | Validate software | → SwValidado (if passed) |
+| `assignToStudent(serial, schoolHash, studentHash)` | Assign to student | → Distribuida |
+
+## Events
+
+| Event | Description |
+|-------|-------------|
+| `NetbookRegistered` | Emitted when a netbook is registered |
+| `HardwareAudited` | Emitted after hardware audit |
+| `SoftwareValidated` | Emitted after software validation |
+| `NetbookAssigned` | Emitted when netbook is assigned to student |
+| `RoleRequested` | Emitted when a role is requested |
+| `RoleRequestUpdated` | Emitted when role request status changes |
+| `RoleGranted` | Emitted when a role is granted |
+| `RoleRevoked` | Emitted when a role is revoked |
+
+## Project Structure
+
+```
+sc-solana/
+├── Anchor.toml           # Anchor configuration
+├── Cargo.toml            # Rust workspace configuration
+├── rust-toolchain.toml   # Rust toolchain version
+├── programs/
+│   └── sc-solana/
+│       ├── Cargo.toml    # Program dependencies
+│       └── src/
+│           └── lib.rs    # Main program logic
+├── tests/
+│   └── sc-solana.ts      # TypeScript tests
+├── target/
+│   ├── idl/              # Interface Definition Language files
+│   └── types/            # Generated TypeScript types
+└── migrations/
+    └── deploy.ts         # Deployment scripts
+```
+
+## Installation
+
+### Prerequisites
+
+- Rust 1.79+
+- Solana CLI tools 1.18+
+- Anchor CLI 0.32.1
+- Node.js 18+
+
+### Setup
+
+```bash
+# Install Anchor CLI
+cargo install --git https://github.com/coral-xyz/anchor avm --locked
+avm install 0.32.1
+
+# Install Solana CLI
+sh -c "$(curl -sSfL https://release.solana.com/v1.18.18/install)"
+
+# Navigate to project
+cd sc-solana
+
+# Install npm dependencies
+yarn install
+
+# Build the program
+anchor build
+```
+
+## Testing
+
+```bash
+# Start local validator
+anchor localnet
+
+# Run tests
+anchor test --localnet
+```
+
+### Running Tests Individually
+
+```bash
+# Using Mocha
+cd sc-solana
+npx ts-mocha tests/**/*.ts -p tsconfig.json --localnet
+```
+
+## Deployment
+
+### Deploy to Devnet
+
+```bash
+# Set up your Solana CLI to use devnet
+solana config set -u https://api.devnet.solana.com
+
+# Deploy
+anchor deploy --provider.cluster https://api.devnet.solana.com
+```
+
+### Deploy to Mainnet
+
+```bash
+# Set up your Solana CLI to use mainnet
+solana config set -u https://api.mainnet-beta.solana.com
+
+# Deploy (requires signing keypair)
+anchor deploy --provider.cluster https://api.mainnet-beta.solana.com
+```
+
+## IDL (Interface Definition Language)
+
+Generate IDL:
+
+```bash
+anchor idl parse -f programs/sc-solana/src/lib.rs -o target/idl/sc_solana.json
+```
+
+Generate TypeScript types:
+
+```bash
+anchor idl parse -f programs/sc-solana/src/lib.rs -o target/idl/sc_solana.json
+anchor idl build -f target/idl/sc_solana.json
+```
+
+## Security Considerations
+
+### PII Protection
+
+Student and school identifiers are stored as cryptographic hashes (`[u8; 32]`) to protect privacy:
+
+```rust
+// Store hash instead of raw PII
+netbook.student_id_hash = student_hash;
+netbook.destination_school_hash = school_hash;
+```
+
+### Bounded Strings
+
+All string fields have maximum length limits to prevent account bloat:
+
+| Field | Max Length |
+|-------|------------|
+| `serialNumber` | 200 characters |
+| `batchId` | 100 characters |
+| `initialModelSpecs` | 500 characters |
+| `osVersion` | 100 characters |
+| `role` (in RoleRequest) | 256 characters |
+
+### State Machine Validation
+
+The program enforces strict state transitions to prevent unauthorized state changes:
+
+```rust
+// Example: Hardware audit only from Fabricada state
+if netbook.state != NetbookState::Fabricada as u8 {
+    return Err(SupplyChainError::InvalidStateTransition.into());
+}
+```
+
+## Error Codes
+
+| Code | Error | Description |
+|------|-------|-------------|
+| 6000 | `Unauthorized` | Caller is not authorized for this action |
+| 6001 | `InvalidStateTransition` | State transition is not allowed |
+| 6002 | `NetbookNotFound` | Netbook does not exist |
+| 6003 | `InvalidInput` | Input validation failed |
+
+## Comparison: Ethereum vs Solana
+
+| Feature | Ethereum (Solidity) | Solana (Anchor) |
+|---------|---------------------|-----------------|
+| Gas Costs | High per operation | Very low per operation |
+| Transaction Speed | ~15 tx/sec | ~4,000+ tx/sec |
+| Finality | ~13 minutes | ~400ms |
+| Storage Cost | High (EIP-2028) | Low (cost per byte) |
+| Language | Solidity | Rust |
+| Smart Contract Framework | Hardhat/Foundry | Anchor |
+| State Access | Random access | PDA-based |
+
+## License
+
+ISC
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `anchor test`
+5. Submit a pull request

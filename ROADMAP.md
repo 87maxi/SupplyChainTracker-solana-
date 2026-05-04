@@ -14,10 +14,10 @@ This document outlines the complete migration plan for transforming the SupplyCh
 
 | Component | Status | Completion |
 |-----------|--------|------------|
-| Smart Contract (sc-solana) | In Progress | ~55% |
+| Smart Contract (sc-solana) | In Progress | ~85% |
 | Frontend (web/) | Ethereum Only | 0% |
 | CI/CD | Not Started | 0% |
-| Documentation | Partial | 60% |
+| Documentation | Partial | 65% |
 
 ---
 
@@ -29,34 +29,35 @@ This document outlines the complete migration plan for transforming the SupplyCh
 |-------|------|--------|-------|
 | 3 | `Netbook` struct | ✅ Done | All fields present, 1147 bytes |
 | 3 | `NetbookState` enum | ✅ Done | 4 states as u8 |
-| 3 | `RoleRequest` struct | ✅ Done | Missing `signature` field, `timestamp` hardcoded to 0 |
-| 3 | `SupplyChainConfig` | ⚠️ Partial | Missing `total_netbooks`, `role_requests_count`, role authorities |
-| 4 | `grant_role` instruction | ⚠️ Superficial | Emits event but stores nothing |
-| 4 | `revoke_role` instruction | ⚠️ Superficial | Emits event but stores nothing |
-| 4 | `request_role` instruction | ⚠️ Partial | ID hardcoded to 1, timestamp hardcoded to 0 |
-| 4 | `approve_role_request` | ✅ Done | Sets status to Approved |
+| 3 | `RoleRequest` struct | ✅ Done | All fields present, timestamp using Clock |
+| 3 | `SupplyChainConfig` | ✅ Done | All counters and role authorities present |
+| 4 | `grant_role` instruction | ✅ Done | Stores role authorities, checks duplicates |
+| 4 | `revoke_role` instruction | ✅ Done | Clears role authorities |
+| 4 | `request_role` instruction | ✅ Done | Auto-incrementing IDs, timestamps |
+| 4 | `approve_role_request` | ✅ Done | Sets status, auto-grants role |
 | 4 | `reject_role_request` | ✅ Done | Sets status to Rejected |
-| 5 | `register_netbook` | ⚠️ Partial | Single only, no batch, no duplicate check |
-| 6 | `audit_hardware` | ⚠️ Partial | No AUDITOR_HW_ROLE check |
-| 7 | `validate_software` | ⚠️ Partial | No TECNICO_SW_ROLE check |
-| 8 | `assign_to_student` | ⚠️ Partial | No ESCUELA_ROLE check |
+| 5 | `register_netbook` | ✅ Done | Single + batch registration, PDA derivation fixed |
+| 6 | `audit_hardware` | ✅ Done | AUDITOR_HW_ROLE check enforced |
+| 7 | `validate_software` | ✅ Done | TECNICO_SW_ROLE check enforced |
+| 8 | `assign_to_student` | ✅ Done | ESCUELA_ROLE check enforced |
+| 9 | View/Query Instructions | ✅ Done | `query_netbook_state`, `query_config`, `query_role` |
 | 15 | README.md | ✅ Done | 277 lines comprehensive docs |
 | 17 | IDL & Types | ✅ Done | Generated correctly |
 
 ### Critical Bugs / Inconsistencies in sc-solana
 
-| # | Issue | Severity | Impact |
+| # | Issue | Severity | Status |
 |---|-------|----------|--------|
-| 1 | **PDA Derivation** uses `[b"netbook"]` static seed | 🔴 Critical | Only ONE netbook PDA exists globally. Must use `[b"netbook", serial_bytes]` |
-| 2 | **Role enforcement is cosmetic** - no actual role storage or checks | 🔴 Critical | Any admin can do anything. No role-based restrictions on operations |
-| 3 | **Missing counters** - `total_netbooks`, `role_requests_count` absent from Config | 🟡 Medium | Cannot track totals, breaks view functions |
-| 4 | **Missing error codes** - `DuplicateSerial`, `ArrayLengthMismatch`, `RoleAlreadyGranted` not defined | 🟡 Medium | Cannot properly validate inputs |
-| 5 | **No batch registration** - only single netbook registration | 🟡 Medium | Inconsistent with Solidity implementation |
-| 6 | **No view/query functions** - zero query instructions implemented | 🟠 High | Frontend cannot read netbook data |
-| 7 | **Timestamp always = 0** in `request_role` | 🟢 Low | Timestamps not recorded |
-| 8 | **RoleRequest ID always = 1** hardcoded | 🟢 Low | Design limitation for multi-request users |
-| 9 | **Project structure** - all code in single `lib.rs` instead of 6 modules | 🟡 Medium | Hard to maintain, doesn't match roadmap target |
-| 10 | **Config account missing role authorities** - no `auditor_hw`, `tecnico_sw`, `escuela` pubkeys | 🔴 Critical | Cannot verify role membership |
+| 1 | **PDA Derivation** - FIXED | 🔴 Critical | ✅ Fixed in lib.rs:252 |
+| 2 | **Role enforcement** - FIXED | 🔴 Critical | ✅ Fixed - roles stored & checked |
+| 3 | **Missing counters** - FIXED | 🟡 Medium | ✅ Fixed - counters in Config |
+| 4 | **Missing error codes** - FIXED | 🟡 Medium | ✅ Fixed - all 11 codes defined |
+| 5 | **No batch registration** - FIXED | 🟡 Medium | ✅ Fixed - `register_netbooks_batch` |
+| 6 | **No view/query functions** - FIXED | 🟠 High | ✅ Fixed - 3 query instructions added |
+| 7 | **Timestamp always = 0** - FIXED | 🟢 Low | ✅ Fixed - using `Clock::get()` |
+| 8 | **RoleRequest ID hardcoded** | 🟢 Low | ⚠️ Design limitation (single request per user) |
+| 9 | **Project structure** - single `lib.rs` | 🟡 Medium | ⚠️ All code in lib.rs (776 lines) |
+| 10 | **Config missing role authorities** - FIXED | 🔴 Critical | ✅ Fixed - all role fields present |
 
 ---
 
@@ -480,7 +481,7 @@ FABRICADA ──→ HW_APROBADO ──→ SW_VALIDADO ──→ DISTRIBUIDA
 | [#5](https://github.com/87maxi/SupplyChainTracker-solana-/issues/5) | Phase 6 | Hardware Audit Instruction | P1 | Open |
 | [#6](https://github.com/87maxi/SupplyChainTracker-solana-/issues/6) | Phase 7 | Software Validation Instruction | P1 | Open |
 | [#7](https://github.com/87maxi/SupplyChainTracker-solana-/issues/7) | Phase 8 | Student Assignment Instruction | P1 | Open |
-| [#8](https://github.com/87maxi/SupplyChainTracker-solana-/issues/8) | Phase 9 | View/Query Instructions | P2 | Open |
+| [#8](https://github.com/87maxi/SupplyChainTracker-solana-/issues/8) | Phase 9 | View/Query Instructions | P2 | ✅ Done (Issue #31) |
 | [#9](https://github.com/87maxi/SupplyChainTracker-solana-/issues/9) | Phase 10 | Testing Framework Setup | P0 | Open |
 | [#10](https://github.com/87maxi/SupplyChainTracker-solana-/issues/10) | Phase 11 | Integration Tests (Full Lifecycle) | P0 | Open |
 | [#11](https://github.com/87maxi/SupplyChainTracker-solana-/issues/11) | Phase 12 | Security & Edge Case Tests | P1 | Open |
@@ -494,11 +495,11 @@ FABRICADA ──→ HW_APROBADO ──→ SW_VALIDADO ──→ DISTRIBUIDA
 
 | Issue | Phase | Description | Priority | Status |
 |-------|-------|-------------|----------|--------|
-| [#17](https://github.com/87maxi/SupplyChainTracker-solana-/issues/17) | Bug Fix | Fix Critical PDA Derivation (Netbook seed) | P0 | Open |
-| [#18](https://github.com/87maxi/SupplyChainTracker-solana-/issues/18) | Bug Fix | Implement Real Role Enforcement | P0 | Open |
-| [#19](https://github.com/87maxi/SupplyChainTracker-solana-/issues/19) | Bug Fix | Add Missing Error Codes | P1 | Open |
-| [#20](https://github.com/87maxi/SupplyChainTracker-solana-/issues/20) | Enhancement | Add Batch Registration Support | P1 | Open |
-| [#21](https://github.com/87maxi/SupplyChainTracker-solana-/issues/21) | Bug Fix | Fix Timestamps & Config Counters | P2 | Open |
+| [#17](https://github.com/87maxi/SupplyChainTracker-solana-/issues/17) | Bug Fix | Fix Critical PDA Derivation (Netbook seed) | P0 | ✅ Done |
+| [#18](https://github.com/87maxi/SupplyChainTracker-solana-/issues/18) | Bug Fix | Implement Real Role Enforcement | P0 | ✅ Done |
+| [#19](https://github.com/87maxi/SupplyChainTracker-solana-/issues/19) | Bug Fix | Add Missing Error Codes | P1 | ✅ Done |
+| [#20](https://github.com/87maxi/SupplyChainTracker-solana-/issues/20) | Enhancement | Add Batch Registration Support | P1 | ✅ Done |
+| [#21](https://github.com/87maxi/SupplyChainTracker-solana-/issues/21) | Bug Fix | Fix Timestamps & Config Counters | P2 | ✅ Done |
 | [#22](https://github.com/87maxi/SupplyChainTracker-solana-/issues/22) | Phase 18 | Replace Ethereum Web3 Stack with Solana | P0 | Open |
 | [#23](https://github.com/87maxi/SupplyChainTracker-solana-/issues/23) | Phase 19 | Replace Contract Interaction Layer | P0 | Open |
 | [#24](https://github.com/87maxi/SupplyChainTracker-solana-/issues/24) | Phase 20 | Migrate Hooks to Solana | P0 | Open |

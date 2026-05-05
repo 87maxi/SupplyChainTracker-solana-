@@ -91,9 +91,10 @@ export function useSolanaWeb3() {
     }
   }, [disconnect]);
 
-  // Check if address matches admin
-  const adminAddress = process.env.NEXT_PUBLIC_PROGRAM_ID;
-  const isAdmin = address === adminAddress;
+  // Check if address matches admin (Issue #40 fix)
+  // Use dedicated admin pubkey instead of PROGRAM_ID
+  const adminAddress = process.env.NEXT_PUBLIC_ADMIN_PUBKEY;
+  const isAdmin = adminAddress ? address === adminAddress : false;
 
   return {
     address,

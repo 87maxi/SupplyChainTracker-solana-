@@ -10,14 +10,14 @@ This document outlines the complete migration plan for transforming the SupplyCh
 **Frontend:** [`web/`](web/) -- Next.js 16 + React 19 + wagmi/viem → @solana/wallet-adapter  
 **Total Estimated Effort:** ~120 hours (Smart Contract: ~52h + Frontend: ~68h)
 
-## Current Status
+## Current Status (Updated 2026-05-04)
 
 | Component | Status | Completion |
 |-----------|--------|------------|
-| Smart Contract (sc-solana) | In Progress | ~85% |
-| Frontend (web/) | Ethereum Only | 0% |
-| CI/CD | Not Started | 0% |
-| Documentation | Partial | 65% |
+| Smart Contract (sc-solana) | Complete | ~95% |
+| Frontend (web/) | Solana Migrated | ~90% |
+| CI/CD | Complete | 100% |
+| Documentation | Partial | 75% |
 
 ---
 
@@ -55,9 +55,23 @@ This document outlines the complete migration plan for transforming the SupplyCh
 | 5 | **No batch registration** - FIXED | 🟡 Medium | ✅ Fixed - `register_netbooks_batch` |
 | 6 | **No view/query functions** - FIXED | 🟠 High | ✅ Fixed - 3 query instructions added |
 | 7 | **Timestamp always = 0** - FIXED | 🟢 Low | ✅ Fixed - using `Clock::get()` |
-| 8 | **RoleRequest ID hardcoded** | 🟢 Low | ⚠️ Design limitation (single request per user) |
-| 9 | **Project structure** - single `lib.rs` | 🟡 Medium | ⚠️ All code in lib.rs (776 lines) |
+| 8 | **RoleRequest ID hardcoded** | 🟢 Low | ⚠️ Documented limitation (Issue #44) |
+| 9 | **Project structure** - single `lib.rs` | 🟡 Medium | ⚠️ All code in lib.rs (1267 lines) |
 | 10 | **Config missing role authorities** - FIXED | 🔴 Critical | ✅ Fixed - all role fields present |
+
+### Recently Resolved Issues (2026-05-04)
+
+| Issue | Description | Resolution |
+|-------|-------------|------------|
+| [#33](https://github.com/87maxi/SupplyChainTracker-solana-/issues/33) | Batch Registration Limitation | ✅ Documented |
+| [#35](https://github.com/87maxi/SupplyChainTracker-solana-/issues/35) | Hardcoded PDA Index 0 | ✅ Fixed - serial-to-tokenId mapping |
+| [#36](https://github.com/87maxi/SupplyChainTracker-solana-/issues/36) | Empty/Stub IDL | ✅ Verified - valid content |
+| [#38](https://github.com/87maxi/SupplyChainTracker-solana-/issues/38) | Ethereum Block Explorer URLs | ✅ Fixed - Solana Explorer |
+| [#39](https://github.com/87maxi/SupplyChainTracker-solana-/issues/39) | Fake Transaction Simulation | ✅ Fixed - real Solana monitoring |
+| [#40](https://github.com/87maxi/SupplyChainTracker-solana-/issues/40) | isAdmin Check Wrong | ✅ Fixed - admin pubkey |
+| [#43](https://github.com/87maxi/SupplyChainTracker-solana-/issues/43) | CI/CD Anchor Version Mismatch | ✅ Fixed - 0.32.1 |
+| [#44](https://github.com/87maxi/SupplyChainTracker-solana-/issues/44) | RoleRequest Single-Per-User | ✅ Documented |
+| [#45](https://github.com/87maxi/SupplyChainTracker-solana-/issues/45) | Brute-Force Netbook Lookup | ✅ Fixed - parallel batch |
 
 ---
 

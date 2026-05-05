@@ -9,7 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   SOLANA_VERSION: 2.1.19
-  ANCHOR_VERSION: 0.31.1
+  ANCHOR_VERSION: 0.32.1
 
 jobs:
   test:
@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         solana-version: ['2.1.19']
-        anchor-version: ['0.31.1']
+        anchor-version: ['0.32.1']
 
     steps:
       - uses: actions/checkout@v4

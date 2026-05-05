@@ -304,6 +304,15 @@ pub struct RevokeRole<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// Issue #44: RoleRequest Single-Per-User Limitation (DOCUMENTED)
+/// NOTE: PDA seed uses [b"role_request", user.key().as_ref()] which limits
+/// each user to ONE role request at a time. This is a design limitation of
+/// the Anchor framework - instruction parameters aren't available in PDA
+/// seeds during account initialization.
+///
+/// Workaround: Users should call `reject_role_request` first, then create
+/// a new request for the different role. Or, the admin can manually approve
+/// multiple roles via `grant_role`.
 #[derive(Accounts)]
 pub struct RequestRole<'info> {
     #[account(mut)]

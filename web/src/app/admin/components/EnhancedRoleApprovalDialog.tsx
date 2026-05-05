@@ -181,7 +181,7 @@ export function EnhancedRoleApprovalDialog({
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={() => window.open(`https://etherscan.io/tx/${txHash}`, '_blank')}
+                    onClick={() => window.open(`https://explorer.solana.com/tx/${txHash}?cluster=devnet`, '_blank')}
                   >
                     <ExternalLink className="h-3 w-3" />
                   </Button>

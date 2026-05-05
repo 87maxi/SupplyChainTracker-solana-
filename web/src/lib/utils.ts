@@ -43,26 +43,26 @@ export function formatCurrency(amount: number, decimals = 2): string {
   return amount.toFixed(decimals);
 }
 
-// Helper function to get Etherscan URL for a transaction hash
-export function getEtherscanUrl(hash: string, network: string = 'ethereum'): string {
-  const baseUrl = network === 'ethereum' ? 'https://etherscan.io' :
-    network === 'polygon' ? 'https://polygonscan.com' :
-      network === 'sepolia' ? 'https://sepolianscan.io' : 'https://etherscan.io';
-  return `${baseUrl}/tx/${hash}`;
+// Helper function to get Solana Explorer URL for a transaction hash (Issue #38 fix)
+export function getExplorerUrl(hash: string, cluster: 'devnet' | 'mainnet' | 'testnet' = 'devnet'): string {
+  return `https://explorer.solana.com/tx/${hash}?cluster=${cluster}`;
 }
 
-// Helper function to get block explorer URL for an address
-export function getAddressExplorerUrl(address: string, network: string = 'ethereum'): string {
+// Helper function to get Solana Explorer URL for an address (Issue #38 fix)
+export function getAddressExplorerUrl(address: string, cluster: 'devnet' | 'mainnet' | 'testnet' = 'devnet'): string {
   try {
     const normalizedAddress = validateAndNormalizeAddress(address);
-    const baseUrl = network === 'ethereum' ? 'https://etherscan.io' :
-      network === 'polygon' ? 'https://polygonscan.com' :
-        network === 'sepolia' ? 'https://sepolianscan.io' : 'https://etherscan.io';
-    return `${baseUrl}/address/${normalizedAddress}`;
+    return `https://explorer.solana.com/address/${normalizedAddress}?cluster=${cluster}`;
   } catch (error) {
     console.warn('Invalid address provided to getAddressExplorerUrl:', address);
     return '';
   }
+}
+
+// Legacy alias for backward compatibility
+export function getEtherscanUrl(hash: string, _network: string = 'ethereum'): string {
+  console.warn('getEtherscanUrl is deprecated, use getExplorerUrl instead');
+  return getExplorerUrl(hash);
 }
 
 // Helper function to calculate gas cost in ETH

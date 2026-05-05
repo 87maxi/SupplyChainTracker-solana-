@@ -48,6 +48,57 @@ export class SolanaSupplyChainService {
   ) {}
 
   /**
+   * Find netbook by serial number (Issue #35, #45 fix)
+   * Uses parallel batch fetching for O(n/10) performance instead of O(n)
+   * @param serialNumber - The serial number to search for
+   * @param maxSearch - Maximum token IDs to search (default: 1000)
+   * @param batchSize - Number of parallel fetches (default: 10)
+   * @returns NetbookData if found, null otherwise
+   */
+  async findNetbookBySerial(serialNumber: string, maxSearch: number = 1000, batchSize: number = 10): Promise<NetbookData | null> {
+    const [configPda] = findConfigPda();
+    const configAccount = await this.program.account.supplyChainConfig.fetch(configPda);
+    const totalNetbooks = (configAccount as any).totalNetbooks as BN;
+    
+    const searchLimit = Math.min(Number(totalNetbooks), maxSearch);
+    
+    // Process in batches for parallel fetching
+    for (let start = 1; start <= searchLimit; start += batchSize) {
+      const end = Math.min(start + batchSize - 1, searchLimit);
+      const batch = [];
+      
+      for (let i = start; i <= end; i++) {
+        const [netbookPda] = findNetbookPda(i);
+        batch.push(this.program.account.netbook.fetchNullable(netbookPda).catch(() => null));
+      }
+      
+      const results = await Promise.all(batch);
+      
+      for (const result of results) {
+        if (result && (result as any).serialNumber === serialNumber && (result as any).exists) {
+          return result as unknown as NetbookData;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Get netbook PDA by serial number (returns PDA key only, no data)
+   * Issue #35 fix - replaces hardcoded findNetbookPda(0)
+   * @param serialNumber - The serial number to search for
+   * @returns PublicKey of the netbook PDA, or null if not found
+   */
+  async getNetbookPdaBySerial(serialNumber: string): Promise<PublicKey | null> {
+    const netbookData = await this.findNetbookBySerial(serialNumber);
+    if (!netbookData) return null;
+    
+    const [netbookPda] = findNetbookPda(Number(netbookData.tokenId));
+    return netbookPda;
+  }
+
+  /**
    * Initialize the supply chain config (admin only)
    */
   async initialize(): Promise<string> {
@@ -94,13 +145,17 @@ export class SolanaSupplyChainService {
 
   /**
    * Audit hardware on a netbook
+   * Issue #35 fix - uses getNetbookPdaBySerial instead of hardcoded 0
    */
   async auditHardware(
     serialNumber: string,
     passed: boolean,
     reportHash: number[]
   ): Promise<string> {
-    const [netbookPda] = findNetbookPda(0); // Need to find by serial
+    const netbookPda = await this.getNetbookPdaBySerial(serialNumber);
+    if (!netbookPda) {
+      throw new Error(`Netbook with serial ${serialNumber} not found`);
+    }
     
     const tx = await this.program.methods
       .auditHardware(serialNumber, passed, new Uint8Array(reportHash) as any)
@@ -116,13 +171,17 @@ export class SolanaSupplyChainService {
 
   /**
    * Validate software on a netbook
+   * Issue #35 fix - uses getNetbookPdaBySerial instead of hardcoded 0
    */
   async validateSoftware(
     serialNumber: string,
     osVersion: string,
     passed: boolean
   ): Promise<string> {
-    const [netbookPda] = findNetbookPda(0); // Need to find by serial
+    const netbookPda = await this.getNetbookPdaBySerial(serialNumber);
+    if (!netbookPda) {
+      throw new Error(`Netbook with serial ${serialNumber} not found`);
+    }
     
     const tx = await this.program.methods
       .validateSoftware(serialNumber, osVersion, passed)
@@ -138,13 +197,17 @@ export class SolanaSupplyChainService {
 
   /**
    * Assign netbook to student
+   * Issue #35 fix - uses getNetbookPdaBySerial instead of hardcoded 0
    */
   async assignToStudent(
     serialNumber: string,
     schoolHash: number[],
     studentHash: number[]
   ): Promise<string> {
-    const [netbookPda] = findNetbookPda(0); // Need to find by serial
+    const netbookPda = await this.getNetbookPdaBySerial(serialNumber);
+    if (!netbookPda) {
+      throw new Error(`Netbook with serial ${serialNumber} not found`);
+    }
     
     const tx = await this.program.methods
       .assignToStudent(
@@ -164,9 +227,13 @@ export class SolanaSupplyChainService {
 
   /**
    * Query netbook state (using simulateTransaction)
+   * Issue #35 fix - uses getNetbookPdaBySerial instead of hardcoded 0
    */
   async queryNetbookState(serialNumber: string): Promise<any> {
-    const [netbookPda] = findNetbookPda(0); // Need to find by serial
+    const netbookPda = await this.getNetbookPdaBySerial(serialNumber);
+    if (!netbookPda) {
+      throw new Error(`Netbook with serial ${serialNumber} not found`);
+    }
     
     const tx = await this.program.methods
       .queryNetbookState(serialNumber)

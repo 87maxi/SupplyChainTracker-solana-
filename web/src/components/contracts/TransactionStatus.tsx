@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Connection, PublicKey } from '@solana/web3.js';
 
 interface TransactionStatusProps {
   hash: string | null;
@@ -13,22 +14,24 @@ interface TransactionStatusProps {
   showDetails?: boolean;
 }
 
-export function TransactionStatus({ 
-  hash, 
-  onSuccess, 
-  onError, 
-  showDetails = true 
+export function TransactionStatus({
+  hash,
+  onSuccess,
+  onError,
+  showDetails = true
 }: TransactionStatusProps) {
   const [status, setStatus] = useState<'pending' | 'success' | 'error' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<any>(null);
   const { toast } = useToast();
+  const checkCountRef = useRef(0);
 
   // Optimizar validaciones iniciales
   const resetState = useCallback(() => {
     setStatus(null);
     setError(null);
     setReceipt(null);
+    checkCountRef.current = 0;
   }, []);
 
   useEffect(() => {
@@ -40,41 +43,81 @@ export function TransactionStatus({
     setStatus('pending');
     setError(null);
     setReceipt(null);
+    checkCountRef.current = 0;
 
-    // Simulate transaction monitoring
-    const timer = setTimeout(() => {
-      // In a real implementation, you would check the transaction receipt
-      // This is a simulation for demonstration purposes
-      const success = Math.random() > 0.3; // 70% success rate for demo
-      
-      if (success) {
-        setStatus('success');
-        setReceipt({
-          transactionHash: hash,
-          blockNumber: 12345678,
-          gasUsed: 21000,
-          effectiveGasPrice: 1000000000 // 1 gwei
-        });
-        toast({
-          title: "Transacción completada",
-          description: "La operación se completó exitosamente.",
-          variant: "default"
-        });
-        if (onSuccess) onSuccess();
-      } else {
+    // Issue #39 fix: Real Solana transaction confirmation monitoring
+    const connection = new Connection(process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com');
+    const maxChecks = 60; // Check for up to 5 minutes (every 5 seconds)
+    
+    const checkTransaction = async () => {
+      if (checkCountRef.current >= maxChecks) {
         setStatus('error');
-        setError('La transacción fue rechazada por la red');
+        setError('Timeout: La transacción no fue confirmada en el tiempo esperado');
         toast({
-          title: "Error en la transacción",
-          description: "La operación no pudo completarse.",
+          title: "Timeout",
+          description: "La transacción no fue confirmada en el tiempo esperado.",
           variant: "destructive"
         });
         if (onError) onError();
+        return;
       }
-    }, 3000);
+
+      try {
+        const signature = new PublicKey(hash);
+        const result = await connection.getSignatureStatus(signature, {
+          searchTransactionHistory: true
+        });
+
+        if (!result.value) {
+          // Transaction not found yet, check again
+          checkCountRef.current++;
+          setTimeout(checkTransaction, 5000);
+          return;
+        }
+
+        const { confirmations, err, confirmationStatus } = result.value;
+
+        // Check if transaction succeeded
+        if (err) {
+          setStatus('error');
+          setError(`Transacción fallida: ${err.toString()}`);
+          toast({
+            title: "Error en la transacción",
+            description: `La operación no pudo completarse: ${err.toString()}`,
+            variant: "destructive"
+          });
+          if (onError) onError();
+        } else if (confirmationStatus === 'finalized' || (confirmations !== null && confirmations >= 32)) {
+          // Transaction is finalized
+          setStatus('success');
+          setReceipt({
+            signature: hash,
+            confirmations: confirmations || 0,
+            confirmationStatus
+          });
+          toast({
+            title: "Transacción confirmada",
+            description: "La operación fue confirmada y finalizada en la blockchain.",
+            variant: "default"
+          });
+          if (onSuccess) onSuccess();
+        } else {
+          // Still confirming
+          checkCountRef.current++;
+          setTimeout(checkTransaction, 5000);
+        }
+      } catch (err) {
+        console.error('Error checking transaction:', err);
+        checkCountRef.current++;
+        setTimeout(checkTransaction, 5000);
+      }
+    };
+
+    // Start checking after a short delay
+    const timer = setTimeout(checkTransaction, 3000);
 
     return () => clearTimeout(timer);
-  }, [hash, onSuccess, onError, toast]);
+  }, [hash, onSuccess, onError, toast, resetState]);
 
   if (!hash) return null;
 
@@ -111,12 +154,12 @@ export function TransactionStatus({
                   <div><strong>Hash:</strong> {receipt.transactionHash}</div>
                   <div><strong>Bloque:</strong> {receipt.blockNumber}</div>
                   <div><strong>Gas utilizado:</strong> {receipt.gasUsed.toLocaleString()}</div>
-                  <Button 
-                    variant="link" 
+                  <Button
+                    variant="link"
                     className="p-0 h-auto font-normal"
-                    onClick={() => window.open(`https://etherscan.io/tx/${hash}`, '_blank')}
+                    onClick={() => window.open(`https://explorer.solana.com/tx/${hash}?cluster=devnet`, '_blank')}
                   >
-                    Ver en Etherscan →
+                    Ver en Solana Explorer →
                   </Button>
                 </div>
               )}
@@ -134,12 +177,12 @@ export function TransactionStatus({
               {showDetails && (
                 <div className="mt-2 text-sm">
                   <div><strong>Hash:</strong> {hash}</div>
-                  <Button 
-                    variant="link" 
+                  <Button
+                    variant="link"
                     className="p-0 h-auto font-normal"
-                    onClick={() => window.open(`https://etherscan.io/tx/${hash}`, '_blank')}
+                    onClick={() => window.open(`https://explorer.solana.com/tx/${hash}?cluster=devnet`, '_blank')}
                   >
-                    Ver en Etherscan →
+                    Ver en Solana Explorer →
                   </Button>
                 </div>
               )}

@@ -1,6 +1,7 @@
 #!/bin/bash
 # SupplyChainTracker Solana - Deployment Script
 # Program ID: CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS
+# Compatible with Anchor 0.30+ / 0.32+
 
 set -e
 
@@ -16,6 +17,14 @@ PROGRAM_NAME="sc_solana"
 PROGRAM_ID="CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
 KEYPAIR_PATH="${SCOLANA_KEYPAIR_PATH:-$HOME/.config/solana/id.json}"
 CLUSTER="${CLUSTER:-localnet}"
+
+# Detect Anchor version for compatibility
+ANCHOR_VERSION=$(anchor --version 2>/dev/null || echo "unknown")
+USE_MODERN_DEPLOY=false
+
+if echo "$ANCHOR_VERSION" | grep -qE '^0\.(3[0-9]|[4-9])'; then
+    USE_MODERN_DEPLOY=true
+fi
 
 # Print functions
 print_header() {
@@ -91,42 +100,6 @@ build() {
     print_info "Program binary: target/deploy/${PROGRAM_NAME}.so"
     print_info "Program keypair: target/deploy/${PROGRAM_NAME}-keypair.json"
 }
-
-# Generate IDL
-generate_idl() {
-    print_header "Generating IDL"
-    
-    cd "$(dirname "$0")"
-    
-    anchor idl generate -p sc-solana -o target/idl/sc_solana.json
-    
-    if [ -f "target/idl/sc_solana.json" ]; then
-        print_success "IDL generated successfully"
-        print_info "IDL file: target/idl/sc_solana.json"
-    else
-        print_error "IDL generation failed"
-        exit 1
-    fi
-}
-
-# Generate TypeScript types
-generate_types() {
-    print_header "Generating TypeScript Types"
-    
-    cd "$(dirname "$0")"
-    
-    anchor idl ts target/idl/sc_solana.json -o src/types/sc_solana.ts 2>/dev/null || true
-    
-    # Also generate to target/types (where Anchor puts it)
-    print_info "Generating types to target/types..."
-    # This is done automatically by anchor build
-    
-    if [ -f "target/types/sc_solana.ts" ]; then
-        print_success "TypeScript types generated"
-        print_info "Types file: target/types/sc_solana.ts"
-    fi
-}
-
 # Deploy to cluster
 deploy() {
     local cluster=$1
@@ -138,9 +111,9 @@ deploy() {
     
     # Check wallet balance
     print_info "Checking wallet balance..."
-    WALLET=$(solana keygen show -o "$KEYPAIR_PATH" 2>/dev/null || echo "")
-    if [ -n "$WALLET" ]; then
-        BALANCE=$(solana balance "$WALLET" "$cluster" 2>/dev/null || echo "ERROR")
+    WALLET_ADDR=$(solana address -k "$KEYPAIR_PATH" 2>/dev/null || echo "")
+    if [ -n "$WALLET_ADDR" ]; then
+        BALANCE=$(solana balance "$WALLET_ADDR" --cluster "$cluster" 2>/dev/null || echo "ERROR")
         if [[ "$BALANCE" == *"Error"* ]]; then
             print_warning "Could not check balance, continuing..."
         else
@@ -148,13 +121,22 @@ deploy() {
         fi
     fi
     
-    # Deploy command
+    # Deploy command (Anchor 0.30+ uses --network instead of --cluster)
     if [ "$use_program_id" = "true" ]; then
         print_info "Deploying with fixed program ID: $PROGRAM_ID"
-        anchor deploy --program-name sc-solana --program-keypair target/deploy/sc-solana-keypair.json --cluster "$cluster"
+        if [ "$USE_MODERN_DEPLOY" = true ]; then
+            print_info "Using modern Anchor CLI syntax (v0.30+)"
+            anchor deploy --program-name sc-solana --program-keypair target/deploy/sc-solana-keypair.json --network "$cluster"
+        else
+            anchor deploy --program-name sc-solana --program-keypair target/deploy/sc-solana-keypair.json --cluster "$cluster"
+        fi
     else
         print_info "Deploying (new program ID)..."
-        anchor deploy --program-name sc-solana --cluster "$cluster"
+        if [ "$USE_MODERN_DEPLOY" = true ]; then
+            anchor deploy --program-name sc-solana --network "$cluster"
+        else
+            anchor deploy --program-name sc-solana --cluster "$cluster"
+        fi
     fi
     
     print_success "Deployment completed"
@@ -198,6 +180,26 @@ verify_deployment() {
     
     print_success "Program found on cluster"
     echo "$INFO"
+}
+
+# Generate IDL with modern Anchor
+generate_idl() {
+    print_header "Generating IDL"
+    
+    cd "$(dirname "$0")"
+    
+    # Ensure programs are built first
+    if [ ! -f "target/idl/sc_solana.json" ]; then
+        print_info "Building program first to generate IDL..."
+        anchor build 2>/dev/null || true
+    fi
+    
+    if [ -f "target/idl/sc_solana.json" ]; then
+        print_success "IDL found: target/idl/sc_solana.json"
+    else
+        print_error "IDL file not found. Make sure the program is built."
+        exit 1
+    fi
 }
 
 # Show program info
@@ -262,8 +264,6 @@ main() {
             echo ""
             generate_idl
             echo ""
-            generate_types
-            echo ""
             deploy "$CLUSTER" "true"
             echo ""
             verify_deployment "$CLUSTER"
@@ -278,8 +278,7 @@ main() {
             echo "Commands:"
             echo "  prerequisites  - Check prerequisites"
             echo "  build          - Build the program"
-            echo "  idl            - Generate IDL"
-            echo "  types          - Generate TypeScript types"
+            echo "  idl            - Verify/check IDL"
             echo "  test           - Run tests"
             echo "  deploy         - Deploy to cluster"
             echo "  deploy:fixed   - Deploy with fixed program ID"
@@ -293,9 +292,12 @@ main() {
             echo "  SCOLANA_KEYPAIR_PATH - Path to keypair (default: ~/.config/solana/id.json)"
             echo ""
             echo "Clusters:"
-            echo "  localnet       - Local validator"
-            echo "  devnet         - Devnet"
-            echo "  mainnet        - Mainnet Beta"
+            echo "  localnet       - Local validator (Surfpool)"
+            echo "  devnet         - Solana Devnet"
+            echo "  mainnet        - Solana Mainnet Beta"
+            echo ""
+            echo "Anchor Version: $ANCHOR_VERSION"
+            echo "Deploy Mode: $([ "$USE_MODERN_DEPLOY" = true ] && echo 'Modern (--network)' || echo 'Legacy (--cluster)')"
             ;;
         *)
             print_error "Unknown command: $command"

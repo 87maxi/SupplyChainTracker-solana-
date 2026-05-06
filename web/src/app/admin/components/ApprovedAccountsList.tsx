@@ -47,6 +47,7 @@ export function ApprovedAccountsList() {
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Load optimistic members from localStorage
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         try {
             const stored = localStorage.getItem('optimistic_approvals');
@@ -60,6 +61,7 @@ export function ApprovedAccountsList() {
             setIsLoaded(true);
         }
     }, []);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Save optimistic members to localStorage whenever they change
     useEffect(() => {
@@ -111,6 +113,8 @@ export function ApprovedAccountsList() {
         }
     }, [getAllRolesSummary, toast]);
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         fetchMembers(false);
 

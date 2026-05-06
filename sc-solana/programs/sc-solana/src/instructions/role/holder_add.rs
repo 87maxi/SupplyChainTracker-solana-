@@ -1,8 +1,7 @@
 //! AddRoleHolder instruction context
 
 use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, RoleHolder, FABRICANTE_ROLE, AUDITOR_HW_ROLE, TECNICO_SW_ROLE, ESCUELA_ROLE, MAX_ROLE_HOLDERS};
-use crate::SupplyChainError;
+use crate::state::{SupplyChainConfig, RoleHolder};
 use crate::events::RoleHolderAdded;
 
 

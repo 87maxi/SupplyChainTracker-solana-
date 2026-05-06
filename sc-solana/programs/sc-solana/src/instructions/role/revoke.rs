@@ -2,7 +2,6 @@
 
 use anchor_lang::prelude::*;
 use crate::state::SupplyChainConfig;
-use crate::SupplyChainError;
 use crate::events::RoleRevoked;
 
 

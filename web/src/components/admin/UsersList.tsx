@@ -33,16 +33,6 @@ export function UsersList() {
   const [users, setUsers] = useState<UserRoleData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch users when component mounts or connection changes
-  useEffect(() => {
-    if (isConnected) {
-      fetchUsers();
-    } else {
-      setUsers([]);
-      setIsLoading(false);
-    }
-  }, [isConnected]);
-
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
@@ -130,6 +120,17 @@ export function UsersList() {
       setIsLoading(false);
     }
   };
+
+  // Fetch users when component mounts or connection changes
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+  useEffect(() => {
+    if (isConnected) {
+      fetchUsers();
+    } else {
+      setUsers([]);
+      setIsLoading(false);
+    }
+  }, [isConnected]);
   return (
     <Card>
       <CardHeader>

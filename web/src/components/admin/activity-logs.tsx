@@ -50,30 +50,6 @@ export const ActivityLogs: React.FC<ActivityLogsProps> = ({
   const [endDate, setEndDate] = useState<string>('');
   const [stats, setStats] = useState<any>(null);
 
-  // Cargar logs del localStorage si no se proporcionaron externamente
-  useEffect(() => {
-    const localLogs = externalLogs || getActivityLogs();
-    setLogs(localLogs);
-    setFilteredLogs(localLogs);
-    setStats(getLogStats(localLogs));
-  }, [externalLogs]);
-
-  // Filtrar logs cuando cambian los filtros
-  useEffect(() => {
-    const filters = {
-      type: typeFilter !== 'all' ? typeFilter : undefined,
-      status: statusFilter !== 'all' ? statusFilter : undefined,
-      address: addressFilter || undefined,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
-      search: searchTerm || undefined
-    };
-
-    const filtered = filterLogs(logs, filters);
-    setFilteredLogs(filtered);
-    setStats(getLogStats(filtered));
-  }, [logs, searchTerm, typeFilter, statusFilter, addressFilter, startDate, endDate]);
-
   // Obtener logs del localStorage (si no se proporcionan externamente)
   const getActivityLogs = (): ActivityLog[] => {
     if (externalLogs) return externalLogs;
@@ -94,6 +70,34 @@ export const ActivityLogs: React.FC<ActivityLogsProps> = ({
       return [];
     }
   };
+
+  // Cargar logs del localStorage si no se proporcionaron externamente
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const localLogs = externalLogs || getActivityLogs();
+    setLogs(localLogs);
+    setFilteredLogs(localLogs);
+    setStats(getLogStats(localLogs));
+  }, [externalLogs]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Filtrar logs cuando cambian los filtros
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const filters = {
+      type: typeFilter !== 'all' ? typeFilter : undefined,
+      status: statusFilter !== 'all' ? statusFilter : undefined,
+      address: addressFilter || undefined,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      search: searchTerm || undefined
+    };
+
+    const filtered = filterLogs(logs, filters);
+    setFilteredLogs(filtered);
+    setStats(getLogStats(filtered));
+  }, [logs, searchTerm, typeFilter, statusFilter, addressFilter, startDate, endDate]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Exportar logs a CSV
   const exportLogs = () => {

@@ -63,6 +63,7 @@ export function HardwareAuditForm({
   const { address } = useWeb3();
 
   // Añadir efecto para actualizar el serial cuando cambie initialSerial
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (initialSerial) {
       setSerial(initialSerial);

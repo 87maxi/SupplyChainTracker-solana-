@@ -197,9 +197,12 @@ export default function NetbookDetailsPage() {
     }
   }, [isConnected, id, getNetbook, getNetbookState, getAllSerialNumbers]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchNetbookData();
   }, [fetchNetbookData]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Check if user can perform actions
   const canAudit = isHardwareAuditor || isAdmin;

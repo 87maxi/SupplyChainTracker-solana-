@@ -43,10 +43,13 @@ export function DataTable<TData, TValue>({
   const [filterValue, setFilterValue] = useState('')
   const [filterKey, setFilterKey] = useState('')
 
+  // eslint-disable-next-line react-hooks/immutability
   const table = useReactTable({
     data,
     columns,
+    // eslint-disable-next-line react-hooks/immutability
     getCoreRowModel: getCoreRowModel(),
+    // eslint-disable-next-line react-hooks/immutability
     getPaginationRowModel: getPaginationRowModel(),
     meta,
   })

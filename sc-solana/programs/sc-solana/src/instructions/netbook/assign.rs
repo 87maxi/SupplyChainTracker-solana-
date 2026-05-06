@@ -1,8 +1,7 @@
 //! AssignToStudent instruction context
 
 use anchor_lang::prelude::*;
-use crate::state::{Netbook, SupplyChainConfig, NetbookState};
-use crate::SupplyChainError;
+use crate::state::{Netbook, SupplyChainConfig};
 use crate::events::NetbookAssigned;
 
 

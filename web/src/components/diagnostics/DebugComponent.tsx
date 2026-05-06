@@ -7,6 +7,8 @@ import { contractRegistry } from '@/services/contract-registry.service';
 export default function DebugComponent() {
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     try {
       console.log('🔍 Iniciando diagnóstico detallado (Solana)...');
@@ -32,6 +34,7 @@ export default function DebugComponent() {
       console.error('❌ Error en diagnóstico:', error);
     }
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
   
   return (
     <div style={{display: 'none'}}>

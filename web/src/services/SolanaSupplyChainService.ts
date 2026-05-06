@@ -117,8 +117,8 @@ export class SolanaSupplyChainService {
   async initialize(): Promise<string> {
     const [configPda] = findConfigPda();
     
-    // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-    const tx = await this.program.methods
+    // Anchor method builder causes excessively deep type instantiation - cast to bypass
+    const tx = await (this.program.methods as any)
       .initialize()
       .accounts({
         config: configPda,
@@ -153,8 +153,8 @@ export class SolanaSupplyChainService {
       
       const [netbookPda] = findNetbookPda(nextTokenId.toNumber());
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const tx = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const tx = await (this.program.methods as any)
         .registerNetbook(serialNumber, batchId, modelSpecs)
         .accounts({
           config: configPda,
@@ -228,8 +228,8 @@ export class SolanaSupplyChainService {
       }
       const [netbookPda] = findNetbookPda(tokenId);
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const tx = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const tx = await (this.program.methods as any)
         .auditHardware(serialNumber, passed, new Uint8Array(reportHash))
         .accounts({
           netbook: netbookPda,
@@ -261,8 +261,8 @@ export class SolanaSupplyChainService {
       }
       const [netbookPda] = findNetbookPda(tokenId);
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const tx = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const tx = await (this.program.methods as any)
         .validateSoftware(serialNumber, osVersion, passed)
         .accounts({
           netbook: netbookPda,
@@ -294,8 +294,8 @@ export class SolanaSupplyChainService {
       }
       const [netbookPda] = findNetbookPda(tokenId);
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const tx = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const tx = await (this.program.methods as any)
         .assignToStudent(
           serialNumber,
           new Uint8Array(schoolHash),
@@ -328,8 +328,8 @@ export class SolanaSupplyChainService {
       }
       const [netbookPda] = findNetbookPda(tokenId);
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const result = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const result = await (this.program.methods as any)
         .queryNetbookState(serialNumber)
         .accounts({
           netbook: netbookPda,
@@ -363,8 +363,8 @@ export class SolanaSupplyChainService {
     try {
       const [configPda] = findConfigPda();
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const tx = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const tx = await (this.program.methods as any)
         .grantRole(role)
         .accounts({
           config: configPda,
@@ -387,8 +387,8 @@ export class SolanaSupplyChainService {
     try {
       const [configPda] = findConfigPda();
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const tx = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const tx = await (this.program.methods as any)
         .revokeRole(role)
         .accounts({
           config: configPda,
@@ -412,8 +412,8 @@ export class SolanaSupplyChainService {
       const [configPda] = findConfigPda();
       const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const tx = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const tx = await (this.program.methods as any)
         .requestRole(role)
         .accounts({
           config: configPda,
@@ -437,8 +437,8 @@ export class SolanaSupplyChainService {
       const [configPda] = findConfigPda();
       const [roleRequestPda] = findRoleRequestPda(approver);
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const tx = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const tx = await (this.program.methods as any)
         .approveRoleRequest(new BN(requestId))
         .accounts({
           config: configPda,
@@ -462,8 +462,8 @@ export class SolanaSupplyChainService {
       const [configPda] = findConfigPda();
       const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
       
-      // @ts-ignore - Anchor method builder causes excessively deep type instantiation
-      const tx = await this.program.methods
+      // Anchor method builder causes excessively deep type instantiation - cast to bypass
+      const tx = await (this.program.methods as any)
         .rejectRoleRequest(new BN(requestId))
         .accounts({
           config: configPda,

@@ -2,7 +2,6 @@
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, SerialHashRegistry, Netbook, NetbookState};
-use crate::SupplyChainError;
 use crate::events::NetbookRegistered;
 
 
@@ -40,7 +39,7 @@ pub fn register_netbook(
     let config = &mut ctx.accounts.config;
 
     let serial_registry = &mut ctx.accounts.serial_hash_registry;
-    let manufacturer = ctx.accounts.manufacturer.key();
+    let _manufacturer = ctx.accounts.manufacturer.key();
 
     // Validate input lengths
     if serial_number.is_empty() {

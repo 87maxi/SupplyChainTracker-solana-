@@ -8,10 +8,75 @@
   },
   "instructions": [
     {
-      "name": "approve_role_request",
-      "docs": [
-        "Approve a pending role request (Issue #20 - fixed timestamp)"
+      "name": "add_role_holder",
+      "discriminator": [
+        156,
+        205,
+        179,
+        194,
+        136,
+        250,
+        105,
+        95
       ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "role_holder",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  108,
+                  101,
+                  95,
+                  104,
+                  111,
+                  108,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "account_to_add"
+              }
+            ]
+          }
+        },
+        {
+          "name": "account_to_add"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "approve_role_request",
       "discriminator": [
         235,
         237,
@@ -44,10 +109,6 @@
     },
     {
       "name": "assign_to_student",
-      "docs": [
-        "Assign netbook to a student (distribution) (Issue #19 - with role check)",
-        "State machine transition: SwValidado (2) -> Distribuida (3)"
-      ],
       "discriminator": [
         184,
         132,
@@ -99,10 +160,6 @@
     },
     {
       "name": "audit_hardware",
-      "docs": [
-        "Audit hardware on a netbook (Issue #19 - with role check)",
-        "State machine transition: Fabricada (0) -> HwAprobado (1) if passed"
-      ],
       "discriminator": [
         61,
         94,
@@ -149,9 +206,6 @@
     },
     {
       "name": "grant_role",
-      "docs": [
-        "Grant a role to an account (Issue #19 - stores role authority)"
-      ],
       "discriminator": [
         218,
         234,
@@ -193,9 +247,6 @@
     },
     {
       "name": "initialize",
-      "docs": [
-        "Initialize the supply chain configuration (Issue #19 - expanded)"
-      ],
       "discriminator": [
         175,
         175,
@@ -227,6 +278,36 @@
           }
         },
         {
+          "name": "serial_hash_registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  114,
+                  105,
+                  97,
+                  108,
+                  95,
+                  104,
+                  97,
+                  115,
+                  104,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
+        },
+        {
           "name": "admin",
           "writable": true,
           "signer": true
@@ -240,9 +321,6 @@
     },
     {
       "name": "query_config",
-      "docs": [
-        "Query config data (view function for client-side data access)"
-      ],
       "discriminator": [
         64,
         154,
@@ -262,11 +340,6 @@
     },
     {
       "name": "query_netbook_state",
-      "docs": [
-        "Query netbook state (view function for client-side data access)",
-        "Can be called via simulateTransaction to read state without sending a transaction",
-        "Returns: emits NetbookStateQuery event with current state data"
-      ],
       "discriminator": [
         167,
         130,
@@ -291,9 +364,6 @@
     },
     {
       "name": "query_role",
-      "docs": [
-        "Check if an account has a specific role (view function)"
-      ],
       "discriminator": [
         48,
         61,
@@ -321,10 +391,6 @@
     },
     {
       "name": "register_netbook",
-      "docs": [
-        "Register a single netbook in the supply chain (Issue #18 - fixed PDA)",
-        "State machine: Fabricada (0)"
-      ],
       "discriminator": [
         17,
         27,
@@ -338,6 +404,10 @@
       "accounts": [
         {
           "name": "config",
+          "writable": true
+        },
+        {
+          "name": "serial_hash_registry",
           "writable": true
         },
         {
@@ -356,7 +426,7 @@
       ],
       "args": [
         {
-          "name": "serial",
+          "name": "serial_number",
           "type": "string"
         },
         {
@@ -364,20 +434,13 @@
           "type": "string"
         },
         {
-          "name": "model_specs",
+          "name": "initial_model_specs",
           "type": "string"
         }
       ]
     },
     {
       "name": "register_netbooks_batch",
-      "docs": [
-        "Batch register netbooks (Issue #17)",
-        "Note: Solana/Anchor requires all accounts to be declared upfront in the context.",
-        "True batch account creation in a single transaction is not supported by Anchor's",
-        "derive macros. This implementation validates inputs and updates config counters.",
-        "For actual batch registration, callers should invoke register_netbook multiple times."
-      ],
       "discriminator": [
         157,
         36,
@@ -391,6 +454,10 @@
       "accounts": [
         {
           "name": "config",
+          "writable": true
+        },
+        {
+          "name": "serial_hash_registry",
           "writable": true
         },
         {
@@ -426,9 +493,6 @@
     },
     {
       "name": "reject_role_request",
-      "docs": [
-        "Reject a pending role request (Issue #20 - fixed timestamp)"
-      ],
       "discriminator": [
         119,
         88,
@@ -460,10 +524,73 @@
       "args": []
     },
     {
-      "name": "request_role",
-      "docs": [
-        "Request a role (Issue #20 - fixed timestamps and counters)"
+      "name": "remove_role_holder",
+      "discriminator": [
+        25,
+        78,
+        125,
+        133,
+        147,
+        20,
+        6,
+        176
       ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "role_holder",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  108,
+                  101,
+                  95,
+                  104,
+                  111,
+                  108,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "role_holder.account",
+                "account": "RoleHolder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "request_role",
       "discriminator": [
         93,
         225,
@@ -527,9 +654,6 @@
     },
     {
       "name": "revoke_role",
-      "docs": [
-        "Revoke a role from an account (Issue #19 - clears role authority)"
-      ],
       "discriminator": [
         179,
         232,
@@ -571,10 +695,6 @@
     },
     {
       "name": "validate_software",
-      "docs": [
-        "Validate software on a netbook (Issue #19 - with role check)",
-        "State machine transition: HwAprobado (1) -> SwValidado (2) if passed"
-      ],
       "discriminator": [
         184,
         3,
@@ -630,6 +750,19 @@
       ]
     },
     {
+      "name": "RoleHolder",
+      "discriminator": [
+        107,
+        145,
+        245,
+        94,
+        248,
+        36,
+        134,
+        52
+      ]
+    },
+    {
       "name": "RoleRequest",
       "discriminator": [
         244,
@@ -640,6 +773,19 @@
         161,
         198,
         119
+      ]
+    },
+    {
+      "name": "SerialHashRegistry",
+      "discriminator": [
+        222,
+        193,
+        242,
+        41,
+        49,
+        210,
+        135,
+        188
       ]
     },
     {
@@ -746,6 +892,32 @@
         63,
         246,
         58
+      ]
+    },
+    {
+      "name": "RoleHolderAdded",
+      "discriminator": [
+        243,
+        45,
+        214,
+        167,
+        182,
+        251,
+        147,
+        26
+      ]
+    },
+    {
+      "name": "RoleHolderRemoved",
+      "discriminator": [
+        54,
+        207,
+        43,
+        128,
+        31,
+        185,
+        226,
+        222
       ]
     },
     {
@@ -869,6 +1041,16 @@
       "code": 12010,
       "name": "StringTooLong",
       "msg": "String exceeds maximum length"
+    },
+    {
+      "code": 12011,
+      "name": "MaxRoleHoldersReached",
+      "msg": "Maximum role holders reached for this role"
+    },
+    {
+      "code": 12012,
+      "name": "RoleHolderNotFound",
+      "msg": "Account not found in role holders list"
     }
   ],
   "types": [
@@ -907,6 +1089,22 @@
           },
           {
             "name": "role_requests_count",
+            "type": "u64"
+          },
+          {
+            "name": "fabricante_count",
+            "type": "u64"
+          },
+          {
+            "name": "auditor_hw_count",
+            "type": "u64"
+          },
+          {
+            "name": "tecnico_sw_count",
+            "type": "u64"
+          },
+          {
+            "name": "escuela_count",
             "type": "u64"
           }
         ]
@@ -1117,6 +1315,85 @@
       }
     },
     {
+      "name": "RoleHolder",
+      "docs": [
+        "Role holder account - stores individual role assignments for multiple holders per role"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "account",
+            "type": "pubkey"
+          },
+          {
+            "name": "role",
+            "type": "string"
+          },
+          {
+            "name": "granted_by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoleHolderAdded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "role",
+            "type": "string"
+          },
+          {
+            "name": "account",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoleHolderRemoved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "role",
+            "type": "string"
+          },
+          {
+            "name": "account",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "RoleQuery",
       "type": {
         "kind": "struct",
@@ -1220,6 +1497,40 @@
       }
     },
     {
+      "name": "SerialHashRegistry",
+      "docs": [
+        "Serial hash registry account for duplicate detection",
+        "Separate account to avoid stack overflow from large array in SupplyChainConfig"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "config_bump",
+            "type": "u8"
+          },
+          {
+            "name": "serial_hash_count",
+            "type": "u64"
+          },
+          {
+            "name": "registered_serial_hashes",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                10
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "SoftwareValidated",
       "type": {
         "kind": "struct",
@@ -1242,7 +1553,9 @@
     {
       "name": "SupplyChainConfig",
       "docs": [
-        "Configuration account for the supply chain (Issue #19 - expanded with role authorities)"
+        "Configuration account for the supply chain",
+        "Updated for multiple role holders per role",
+        "Note: Serial hash tracking moved to separate SerialHashRegistry account"
       ],
       "type": {
         "kind": "struct",
@@ -1281,6 +1594,22 @@
           },
           {
             "name": "role_requests_count",
+            "type": "u64"
+          },
+          {
+            "name": "fabricante_count",
+            "type": "u64"
+          },
+          {
+            "name": "auditor_hw_count",
+            "type": "u64"
+          },
+          {
+            "name": "tecnico_sw_count",
+            "type": "u64"
+          },
+          {
+            "name": "escuela_count",
             "type": "u64"
           }
         ]

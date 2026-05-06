@@ -16,7 +16,7 @@ import { AlertTriangle, RefreshCw, Settings2 ,
   TrendingUp
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { RoleManager } from '@/components/contracts/RoleManager';
+// Legacy: RoleManager was removed. Use EnhancedPendingRoleRequests or RoleRequestService instead.
 import { Button } from '@/components/ui/button';
 import { NetbookStatusChart } from '@/components/charts/NetbookStatusChart';
 import { UserRolesChart } from '@/components/charts/UserRolesChart';
@@ -329,6 +329,7 @@ export default function PendingRoleRequests({ stats: initialStats }: { stats?: D
   };
 
   // Refresh data when component mounts or connection changes
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     refreshAllData();
 

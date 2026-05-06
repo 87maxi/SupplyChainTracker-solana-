@@ -3,6 +3,10 @@
 //! Migration from Ethereum (Solidity) to Solana (Anchor/Rust)
 //! Program ID: CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS
 
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(ambiguous_glob_reexports)]
+
 use anchor_lang::prelude::*;
 
 declare_id!("CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS");

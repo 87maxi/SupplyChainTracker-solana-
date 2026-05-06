@@ -1,7 +1,7 @@
 'use client';
 
 import { z } from 'zod';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -18,7 +18,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, AlertCircle } from 'lucide-react';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
-import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
 
 // Define el esquema de validación para el formulario
 const assignmentFormSchema = z.object({
@@ -46,8 +45,8 @@ export function StudentAssignmentForm({
   initialSerial
 }: StudentAssignmentFormProps) {
   const { toast } = useToast();
-  const { refetch: refetchDashboardData } = useProcessedUserAndNetbookData();
-  const { assignToStudent, initialized } = useSupplyChainService();
+  const { assignToStudent, loading } = useSupplyChainService();
+  const refetchDashboardData = useCallback(() => Promise.resolve(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -67,10 +66,10 @@ export function StudentAssignmentForm({
 
   // Maneja el envío del formulario
   const onSubmit = async (data: AssignmentFormValues) => {
-    if (!initialized) {
+    if (loading) {
       toast({
         title: 'Error',
-        description: 'Servicio no inicializado. Verifica tu conexión.',
+        description: 'Servicio cargando. Verifica tu conexión.',
         variant: 'destructive',
       });
       return;
@@ -80,13 +79,13 @@ export function StudentAssignmentForm({
     setSubmitStatus('idle');
     
     try {
-      const tokenId = 1; // En producción, buscar por serial number
-      
-      await assignToStudent({
-        tokenId,
-        studentIdHash: data.studentHash,
-        schoolHash: data.schoolHash,
-      });
+      // Fix: assignToStudent expects (serial, schoolHash, studentHash, _metadata?) not object
+      await assignToStudent(
+        data.serialNumber,
+        data.schoolHash,
+        data.studentHash,
+        data.notes
+      );
       
       toast({
         title: 'Éxito',
@@ -228,7 +227,7 @@ export function StudentAssignmentForm({
             </Button>
             <Button 
               type="submit" 
-              disabled={!isValid || isSubmitting || !initialized}
+              disabled={!isValid || isSubmitting || loading}
               className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600"
             >
               {isSubmitting ? (

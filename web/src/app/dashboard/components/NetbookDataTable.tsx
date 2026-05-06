@@ -27,7 +27,7 @@ export function NetbookDataTable({ data, onFilterChange }: { data: Netbook[]; on
         columns={netbookColumns}
         data={data}
         onFilterChange={handleFilterChange}
-        // @ts-ignore - Passing meta to DataTable
+        // Passing meta to DataTable - typed via tableOptions
         meta={{ onViewDetails: handleViewDetails }}
       />
 

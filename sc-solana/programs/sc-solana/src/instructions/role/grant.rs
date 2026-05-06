@@ -1,8 +1,7 @@
 //! GrantRole instruction context
 
 use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, FABRICANTE_ROLE, AUDITOR_HW_ROLE, TECNICO_SW_ROLE, ESCUELA_ROLE};
-use crate::SupplyChainError;
+use crate::state::SupplyChainConfig;
 use crate::events::RoleGranted;
 
 

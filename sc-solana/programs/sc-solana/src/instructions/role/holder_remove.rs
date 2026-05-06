@@ -2,7 +2,6 @@
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, RoleHolder};
-use crate::SupplyChainError;
 use crate::events::RoleHolderRemoved;
 
 

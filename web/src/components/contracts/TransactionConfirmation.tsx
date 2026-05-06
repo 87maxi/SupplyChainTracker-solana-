@@ -14,8 +14,9 @@ import { Loader2, Check, AlertCircle } from 'lucide-react';
 
 // Propiedades del componente
 interface TransactionConfirmationProps {
-  isOpen: boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
+  warning?: string;
   onConfirm?: () => Promise<void>;
   title?: string;
   description?: string;
@@ -26,8 +27,9 @@ interface TransactionConfirmationProps {
 }
 
 export function TransactionConfirmation({
-  isOpen,
+  open,
   onOpenChange,
+  warning,
   onConfirm,
   title = 'Confirmar Transacción',
   description = '¿Estás seguro de que deseas realizar esta acción?',
@@ -66,8 +68,20 @@ export function TransactionConfirmation({
     onOpenChange(false);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      handleClose();
+    } else {
+      // Reset state when opening
+      setInternalLoading(false);
+      setInternalSuccess(false);
+      setInternalError(undefined);
+      onOpenChange(true);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -84,6 +98,12 @@ export function TransactionConfirmation({
             {description}
           </DialogDescription>
         </DialogHeader>
+
+        {warning && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+            <p className="text-sm text-amber-600">{warning}</p>
+          </div>
+        )}
 
         {internalError && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-md">

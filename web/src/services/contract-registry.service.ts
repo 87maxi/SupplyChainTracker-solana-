@@ -1,8 +1,7 @@
 // web/src/services/contract-registry.service.ts
 // Sistema centralizado para registro y gestión de servicios
-// Legacy Ethereum-based registry - migrated to Solana (useSupplyChainService)
-
-import { BaseContractService } from './contracts/base-contract.service';
+// @deprecated Legacy Ethereum-based registry - migrated to Solana (useSupplyChainService)
+// This file is kept for backward compatibility but all functionality has been removed.
 
 // Interfaz para la configuración de un servicio (Solana)
 export interface ServiceConfig {
@@ -10,19 +9,19 @@ export interface ServiceConfig {
   version?: string;
 }
 
-// Registro central de servicios
+// Registro central de servicios - Legacy Ethereum service registry removed
 export class ServiceRegistry {
-  private services = new Map<string, BaseContractService>();
+  private services = new Map<string, unknown>();
   private config = new Map<string, ServiceConfig>();
 
   // Registrar un servicio
-  register(name: string, service: BaseContractService, config: ServiceConfig) {
+  register(name: string, service: unknown, config: ServiceConfig) {
     this.services.set(name, service);
     this.config.set(name, config);
   }
 
   // Obtener un servicio por nombre
-  get(name: string): BaseContractService | undefined {
+  get(name: string): unknown {
     return this.services.get(name);
   }
 

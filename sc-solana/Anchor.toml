@@ -17,3 +17,16 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 \"tests/**/*.ts\""
+
+[test]
+startup_wait = 5000
+shutdown_wait = 2000
+upgradeable = false
+
+[test.validator]
+slots_per_epoch = "64"
+keep_empty_slot_epoch_hashes = true
+
+[[test.genesis]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+program = "./node_modules/@metaplex-foundation/mpl-token-metadata/dist/deps/lib/metaplex-foundation-mpl-token-metadata.so"

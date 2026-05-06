@@ -1,7 +1,7 @@
 //! RequestRole instruction context
 
 use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, RoleRequest, RequestStatus};
+use crate::state::{SupplyChainConfig, RoleRequest};
 use crate::events::{RoleRequested, RoleRequestUpdated};
 
 

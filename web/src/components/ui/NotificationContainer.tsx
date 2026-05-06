@@ -7,12 +7,8 @@ import { useEffect, useState } from 'react';
 
 export function NotificationContainer() {
     const { notifications, removeNotification } = useNotifications();
-    const [mounted, setMounted] = useState(false);
-
-    // Sincroniza el estado del componente con el ciclo de vida del navegador
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    // Initialize mounted directly to avoid set-state-in-effect
+    const [mounted] = useState(() => typeof window !== 'undefined');
 
     if (!mounted) return null;
 

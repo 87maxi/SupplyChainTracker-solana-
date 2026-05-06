@@ -1,7 +1,7 @@
 'use client';
 
 import { z } from 'zod';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -18,7 +18,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, AlertCircle } from 'lucide-react';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
-import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
 
 // Define el esquema de validación para el formulario
 const validationFormSchema = z.object({
@@ -46,8 +45,8 @@ export function SoftwareValidationForm({
   initialSerial
 }: SoftwareValidationFormProps) {
   const { toast } = useToast();
-  const { refetch: refetchDashboardData } = useProcessedUserAndNetbookData();
-  const { validateSoftware, initialized } = useSupplyChainService();
+  const { validateSoftware, loading } = useSupplyChainService();
+  const refetchDashboardData = useCallback(() => Promise.resolve(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -67,10 +66,10 @@ export function SoftwareValidationForm({
 
   // Maneja el envío del formulario
   const onSubmit = async (data: ValidationFormValues) => {
-    if (!initialized) {
+    if (loading) {
       toast({
         title: 'Error',
-        description: 'Servicio no inicializado. Verifica tu conexión.',
+        description: 'Servicio cargando. Verifica tu conexión.',
         variant: 'destructive',
       });
       return;
@@ -80,13 +79,13 @@ export function SoftwareValidationForm({
     setSubmitStatus('idle');
     
     try {
-      const tokenId = 1; // En producción, buscar por serial number
-      
-      await validateSoftware({
-        tokenId,
-        technician: '', // Se obtiene del wallet
-        osVersion: data.osVersion,
-      });
+      // Fix: validateSoftware expects (serial, osVersion, passed, _metadata?) not object
+      await validateSoftware(
+        data.serialNumber,
+        data.osVersion,
+        data.passed,
+        data.notes
+      );
       
       toast({
         title: 'Éxito',
@@ -222,7 +221,7 @@ export function SoftwareValidationForm({
             </Button>
             <Button 
               type="submit" 
-              disabled={!isValid || isSubmitting || !initialized}
+              disabled={!isValid || isSubmitting || loading}
               className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
             >
               {isSubmitting ? (

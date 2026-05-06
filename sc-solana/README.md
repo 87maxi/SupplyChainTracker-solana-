@@ -281,6 +281,40 @@ if netbook.state != NetbookState::Fabricada as u8 {
 
 ISC
 
+## Testing
+
+### Running Tests
+
+```bash
+# Start local validator
+solana-test-validator
+
+# Run all tests
+anchor test
+
+# Run specific test
+anchor test -- --grep "test_initialize"
+```
+
+See [tests/README.md](tests/README.md) for detailed test documentation.
+
+### Test Structure
+
+```
+tests/
+├── sc-solana.ts          # Main integration test suite
+├── test-helpers.ts       # Common test utilities
+└── README.md             # Test documentation
+```
+
+### Test Categories
+
+| Category | Priority | Description |
+|----------|----------|-------------|
+| Critical Path | P0 | Lifecycle, registration, roles |
+| Extended | P1 | Queries, PDA security, state machine |
+| UI Integration | P2 | Frontend integration tests |
+
 ## Contributing
 
 1. Fork the repository

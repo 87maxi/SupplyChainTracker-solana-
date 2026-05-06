@@ -19,12 +19,12 @@ export default function AuditPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [mounted, setMounted] = useState(false);
+  // Initialize mounted directly to avoid set-state-in-effect
+  const [mounted] = useState(() => typeof window !== 'undefined');
 
   // Load audit logs from localStorage (Solana-compatible approach)
   useEffect(() => {
     let isMounted = true;
-    setMounted(true);
 
     const loadAuditLogs = () => {
       try {

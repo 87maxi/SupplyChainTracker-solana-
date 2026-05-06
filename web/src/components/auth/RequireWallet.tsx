@@ -18,15 +18,12 @@ export const RequireWallet = ({ children }: RequireWalletProps) => {
     const { isConnected } = useWeb3();
     const router = useRouter();
     const pathname = usePathname();
-    const [mounted, setMounted] = useState(false);
+    // Initialize mounted directly to avoid set-state-in-effect
+    // See: https://react.dev/reference/react/useEffect
+    const [mounted] = useState(() => typeof window !== 'undefined');
 
     // Rutas públicas que no requieren wallet conectada
     const publicRoutes = ['/'];
-
-    // Sincroniza el estado del componente con el ciclo de vida del navegador
-    useEffect(() => {
-        setMounted(true);
-    }, []);
 
     useEffect(() => {
         // Solo ejecutar en cliente y después del mount

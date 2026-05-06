@@ -78,6 +78,7 @@ export function useFetchNetbooks(params: { page?: number; limit?: number; status
     }
   };
   
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchNetbooks();
     

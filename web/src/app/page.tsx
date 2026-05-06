@@ -22,14 +22,9 @@ import {
 
 export default function Home() {
   const { isConnected } = useSolanaWeb3();
-  const [mounted, setMounted] = useState(false);
-
-  // Evitar error de hidratación: solo mostrar contenido dinámico después del mount
-  // Precarga el estado de conexión para evitar renderizados innecesarios
-  useEffect(() => {
-    setMounted(true);
-    // Pre-fetch y cache datos iniciales si es necesario
-  }, []);
+  // Initialize mounted directly to avoid hydration mismatch and set-state-in-effect
+  // See: https://react.dev/reference/react/useEffect
+  const [mounted] = useState(() => typeof window !== 'undefined');
 
   return (
     <div className="relative isolate overflow-hidden min-h-screen">

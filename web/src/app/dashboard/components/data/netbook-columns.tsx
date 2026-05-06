@@ -52,7 +52,7 @@ export const netbookColumns: ColumnDef<Netbook>[] = [
     header: "Acciones",
     cell: ({ row, table }) => {
       const netbook = row.original;
-      // @ts-ignore - We'll pass this through table meta
+      // Access via table options meta - intentionally using any for table meta type
       const onViewDetails = (table.options.meta as any)?.onViewDetails;
 
       return (

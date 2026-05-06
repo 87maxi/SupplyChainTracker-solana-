@@ -6,7 +6,7 @@ import { Navigation } from './Navigation';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RoleRequestModal } from '@/components/contracts/RoleRequestModal';
+// Legacy: RoleRequestModal was removed. Use RoleRequestService directly.
 import { useState, useEffect } from 'react';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { User, Wallet } from 'lucide-react';
@@ -16,12 +16,8 @@ export const Header = () => {
   const { activeRoleNames, isLoading: rolesLoading } = useUserRoles();
   const { isConnected } = useWeb3();
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  // Sincroniza el estado del componente con el ciclo de vida del navegador
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Initialize mounted directly to avoid set-state-in-effect
+  const [mounted] = useState(() => typeof window !== 'undefined');
 
   // Función para formatear el nombre del rol para mostrar en la UI
   const formatRoleNameForDisplay = (roleName: string) => {
@@ -115,11 +111,7 @@ export const Header = () => {
         </div>
       </div>
 
-      {/* Modal de solicitud de rol */}
-      <RoleRequestModal
-        isOpen={isRequestModalOpen}
-        onOpenChange={setIsRequestModalOpen}
-      />
+      {/* Modal de solicitud de rol - REMOVED: RoleRequestModal component was deleted during Ethereum to Solana migration. Use RoleRequestService directly if needed. */}
     </header>
   );
 };

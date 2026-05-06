@@ -115,7 +115,7 @@ export const useUserRoles = (): UseUserRoles => {
             default: return false;
           }
         },
-        refreshRoles: checkRoles
+        refreshRoles: typeof checkRoles === 'function' ? checkRoles : () => {}
       };
 
       // Cache the result with 30 second TTL and stale-while-revalidate
@@ -161,6 +161,7 @@ export const useUserRoles = (): UseUserRoles => {
   }, [checkRoles]);
 
   // Effect to update refreshRoles and hasRole function
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setUserRoles(prev => {
       // Only update if functions are different

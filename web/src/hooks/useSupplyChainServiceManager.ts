@@ -1,9 +1,9 @@
 // web/src/hooks/useSupplyChainServiceManager.ts
 // Hook para manejar el estado de inicialización del servicio de cadena de suministro
+// @deprecated Legacy Ethereum-based hook - migrated to Solana (use useSupplyChainService instead)
 
 import { useState, useEffect, useCallback } from 'react';
-import { useConnectionStatus } from '@/hooks/useConnectionStatusMock';
-import { SupplyChainService } from '@/services/SupplyChainService';
+// Legacy: useConnectionStatusMock was removed - use useSolanaWeb3 from @/hooks/useSolanaWeb3 instead
 import { useNotifications } from '@/hooks/use-notifications';
 
 interface ServiceStatus {
@@ -12,61 +12,41 @@ interface ServiceStatus {
   retry: () => void;
 }
 
+/**
+ * @deprecated Use useSupplyChainService from @/hooks/useSupplyChainService instead
+ * This hook was removed during Ethereum to Solana migration.
+ */
 export const useSupplyChainServiceManager = (): ServiceStatus => {
   const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const { status: connectionStatus } = useConnectionStatus();
 
   const initializeService = useCallback(async () => {
     try {
-      // Verificar que la dirección del contrato esté disponible
+      // Legacy Ethereum service removed during Solana migration
+      // Use SolanaSupplyChainService from @/services/SolanaSupplyChainService instead
       if (!process.env.NEXT_PUBLIC_SUPPLY_CHAIN_TRACKER_ADDRESS) {
         throw new Error('La dirección del contrato no está configurada');
       }
 
-      // Intentar inicializar el servicio
-      const service = SupplyChainService.getInstance();
-      
-      // Realizar una operación de prueba con el contrato
-      await service.read('getAllSerialNumbers', [], false);
-      
       setInitialized(true);
       setError(null);
-      
-      // Mostrar notificación de éxito si es apropiado
-      if (typeof window !== 'undefined') {
-        const { notify } = useNotifications();
-        notify.success('Conexión establecida', 'Servicio de cadena de suministro listo');
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(`Error al conectar con el contrato: ${errorMessage}`);
-      
-      // Mostrar notificación de error
-      const { notify } = useNotifications();
-      notify.error('Error de conexión', errorMessage);
-      
+    } catch (err: any) {
+      setError(err.message || 'Failed to initialize service');
       setInitialized(false);
     }
-  }, []);
+  }, [retryCount]);
 
   const retry = useCallback(() => {
     setRetryCount(prev => prev + 1);
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    // Reiniciar estado cuando cambia el estado de conexión
-    setInitialized(false);
-    setError(null);
-    
-    // Intentar inicializar después de un breve retraso para permitir la conexión
-    const timeoutId = setTimeout(() => {
-      initializeService();
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [connectionStatus, retryCount, initializeService]);
+    initializeService();
+  }, [initializeService]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return { initialized, error, retry };
 };

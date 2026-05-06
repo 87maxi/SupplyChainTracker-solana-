@@ -1,7 +1,7 @@
 'use client';
 
 import { z } from 'zod';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -18,7 +18,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
-import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
 
 // Define el esquema de validación para una sola netbook
 const netbookSchema = z.object({
@@ -50,8 +49,8 @@ export function NetbookForm({
   onComplete
 }: NetbookFormProps) {
   const { toast } = useToast();
-  const { refetch: refetchDashboardData } = useProcessedUserAndNetbookData();
-  const { registerNetbooksBatch, initialized } = useSupplyChainService();
+  const { registerNetbook, loading } = useSupplyChainService();
+  const refetchDashboardData = useCallback(() => Promise.resolve(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
@@ -78,10 +77,10 @@ export function NetbookForm({
 
   // Maneja el envío del formulario
   const onSubmit = async (data: NetbookFormValues) => {
-    if (!initialized) {
+    if (loading) {
       toast({
         title: 'Error',
-        description: 'Servicio no inicializado. Verifica tu conexión.',
+        description: 'Servicio cargando. Verifica tu conexión.',
         variant: 'destructive',
       });
       return;
@@ -98,7 +97,10 @@ export function NetbookForm({
         manufacturer: 'FABRICANTE',
       }));
 
-      await registerNetbooksBatch({ netbooks });
+      // Note: registerNetbook is used instead of registerNetbooksBatch from legacy Ethereum version
+      for (const netbook of data.netbooks) {
+        await registerNetbook(netbook.serialNumber, netbook.batchId, netbook.initialModelSpecs);
+      }
 
       toast({
         title: 'Éxito',
@@ -256,7 +258,7 @@ export function NetbookForm({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || !initialized}
+              disabled={isSubmitting || loading}
               className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
             >
               {isSubmitting ? (

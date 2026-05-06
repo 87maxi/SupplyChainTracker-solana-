@@ -6,7 +6,6 @@ export { useToast } from './use-toast';
 export { useNotifications } from './use-notifications';
 
 // Hooks de contratos
-export { useSupplyChainContract } from './use-contracts/use-supply-chain.hook';
-export { useRoleContract } from './use-contracts/use-role.hook';
+// Legacy: use-contracts/use-supply-chain.hook and use-contracts/use-role.hook were removed
 export { useRoleRequests } from './useRoleRequests';
 export { useCachedData } from './use-cached-data';

@@ -1,0 +1,86 @@
+// Register a single netbook in the supply chain
+// This is the first step in the netbook lifecycle
+
+// Signers
+signer "admin" "svm::web_wallet" {
+  description = "Admin account"
+  keypair_path = input.admin_keypair
+}
+
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account (must have FABRICANTE role)"
+  keypair_path = input.fabricante_keypair
+}
+
+// Program reference - default from environment
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+// Default values for localnet testing
+variable "serial_number" {
+  description = "Serial number of the netbook"
+  value = "TEST-001"
+}
+
+variable "batch_id" {
+  description = "Batch identifier"
+  value = "BATCH-001"
+}
+
+variable "model_specs" {
+  description = "Initial model specifications"
+  value = "SupplyChainTracker ST-1000"
+}
+
+// PDA derivation
+variable "netbook_pda_seed" {
+  description = "Netbook PDA seed prefix"
+  value = "netbook"
+}
+
+variable "config_pda_seed" {
+  description = "Config PDA seed"
+  value = "config"
+}
+
+variable "serial_hashes_seed_prefix" {
+  description = "Serial hashes PDA seed prefix"
+  value = "serial_hashes"
+}
+
+// Outputs
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "serial_number" {
+  description = "Registered serial number"
+  value = variable.serial_number
+}
+
+output "batch_id" {
+  description = "Batch ID"
+  value = variable.batch_id
+}
+
+output "model_specs" {
+  description = "Model specifications"
+  value = variable.model_specs
+}
+
+output "instruction_name" {
+  description = "Anchor instruction to call"
+  value = "register_netbook"
+}
+
+output "instruction_args" {
+  description = "Instruction arguments"
+  value = [
+    variable.serial_number,
+    variable.batch_id,
+    variable.model_specs
+  ]
+}

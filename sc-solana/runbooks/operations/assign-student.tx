@@ -1,0 +1,55 @@
+// Assign netbook to a student (final step in lifecycle)
+// State transition: SwValidado (2) -> Distribuida (3)
+
+// Signers
+signer "escuela" "svm::web_wallet" {
+  description = "School account (must have ESCUELA role)"
+  keypair_path = input.escuela_keypair
+}
+
+// Program reference - default from environment
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+// Default values for localnet testing
+variable "serial_number" {
+  description = "Serial number of the netbook"
+  value = "TEST-001"
+}
+
+variable "student_id_hash" {
+  description = "Hash of student ID (for privacy)"
+  value = "0xstudent001"
+}
+
+variable "school_hash" {
+  description = "Hash of destination school"
+  value = "0xschool001"
+}
+
+// Outputs
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "serial_number" {
+  description = "Assigned serial number"
+  value = variable.serial_number
+}
+
+output "instruction_name" {
+  description = "Anchor instruction to call"
+  value = "assign_to_student"
+}
+
+output "instruction_args" {
+  description = "Instruction arguments"
+  value = [
+    variable.serial_number,
+    variable.student_id_hash,
+    variable.school_hash
+  ]
+}

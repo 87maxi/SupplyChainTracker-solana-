@@ -1,0 +1,108 @@
+// Full lifecycle test: Manufacturing -> Audit -> Validation -> Distribution
+// This runbook tests the complete netbook lifecycle
+
+// Signers for all roles
+signer "admin" "svm::web_wallet" {
+  description = "Admin account"
+  keypair_path = input.admin_keypair
+}
+
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account"
+  keypair_path = input.fabricante_keypair
+}
+
+signer "auditor_hw" "svm::web_wallet" {
+  description = "Hardware auditor account"
+  keypair_path = input.auditor_hw_keypair
+}
+
+signer "tecnico_sw" "svm::web_wallet" {
+  description = "Software technician account"
+  keypair_path = input.tecnico_sw_keypair
+}
+
+signer "escuela" "svm::web_wallet" {
+  description = "School account"
+  keypair_path = input.escuela_keypair
+}
+
+// Program reference - default from environment
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+// Default values for localnet testing
+variable "serial_number" {
+  description = "Test serial number"
+  value = "TEST-LIFECYCLE-001"
+}
+
+variable "batch_id" {
+  description = "Batch ID"
+  value = "BATCH-LC-001"
+}
+
+variable "model_specs" {
+  description = "Model specifications"
+  value = "SupplyChainTracker ST-1000"
+}
+
+// Lifecycle steps
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "lifecycle_steps" {
+  description = "Complete lifecycle test steps"
+  value = {
+    step_1: {
+      name: "Initialize Config",
+      instruction: "initialize",
+      signer: "admin",
+      args: []
+    },
+    step_2: {
+      name: "Grant FABRICANTE Role",
+      instruction: "grant_role",
+      signer: "admin",
+      args: ["FABRICANTE"]
+    },
+    step_3: {
+      name: "Register Netbook",
+      instruction: "register_netbook",
+      signer: "fabricante",
+      args: [variable.serial_number, variable.batch_id, variable.model_specs]
+    },
+    step_4: {
+      name: "Audit Hardware",
+      instruction: "audit_hardware",
+      signer: "auditor_hw",
+      args: [variable.serial_number, "true", ""]
+    },
+    step_5: {
+      name: "Validate Software",
+      instruction: "validate_software",
+      signer: "tecnico_sw",
+      args: [variable.serial_number, "Ubuntu 22.04", "true"]
+    },
+    step_6: {
+      name: "Assign to Student",
+      instruction: "assign_to_student",
+      signer: "escuela",
+      args: [variable.serial_number, "student_hash", "school_hash"]
+    }
+  }
+}
+
+output "state_transitions" {
+  description = "Netbook state transitions"
+  value = {
+    Fabricada: "0 -> Initial state after registration",
+    HwAprobado: "1 -> After hardware audit passes",
+    SwValidado: "2 -> After software validation passes",
+    Distribuida: "3 -> Final state after student assignment"
+  }
+}

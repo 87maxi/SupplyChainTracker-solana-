@@ -1,0 +1,60 @@
+// Perform hardware audit on a netbook
+// State transition: Fabricada (0) -> HwAprobado (1)
+
+// Signers
+signer "auditor" "svm::web_wallet" {
+  description = "Hardware auditor account (must have AUDITOR_HW role)"
+  keypair_path = input.auditor_keypair
+}
+
+// Program reference - default from environment
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+// Default values for localnet testing
+variable "serial_number" {
+  description = "Serial number of the netbook to audit"
+  value = "TEST-001"
+}
+
+variable "passed" {
+  description = "Whether the hardware audit passed"
+  value = true
+}
+
+variable "report_hash" {
+  description = "Hash of the audit report"
+  value = "0x"
+}
+
+// Outputs
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "serial_number" {
+  description = "Audited serial number"
+  value = variable.serial_number
+}
+
+output "passed" {
+  description = "Audit result"
+  value = variable.passed
+}
+
+output "instruction_name" {
+  description = "Anchor instruction to call"
+  value = "audit_hardware"
+}
+
+output "instruction_args" {
+  description = "Instruction arguments"
+  value = [
+    variable.serial_number,
+    string(variable.passed),
+    variable.report_hash
+  ]
+}

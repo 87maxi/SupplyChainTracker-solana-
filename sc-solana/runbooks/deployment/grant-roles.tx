@@ -1,0 +1,101 @@
+// Grant initial roles to administrators
+// Grants FABRICANTE role to manufacturer account
+
+// Signers
+signer "admin" "svm::web_wallet" {
+  description = "Admin account granting roles (must be config admin)"
+  keypair_path = "~/.config/solana/id.json"
+}
+
+signer "fabricante" "svm::web_wallet" {
+  description = "Fabricante (manufacturer) account receiving FABRICANTE role"
+  keypair_path = "~/.config/solana/fabricante.json"
+}
+
+// Program reference
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+variable "idl_path" {
+  description = "Path to IDL file"
+  value = "./target/idl/sc_solana.json"
+}
+
+variable "idl" {
+  description = "Program IDL data"
+  value = svm::get_idl_from_path(variable.idl_path)
+}
+
+// Get Config PDA
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(["config"], variable.program_id)
+}
+
+// Role to grant
+variable "fabricante_role" {
+  description = "Fabricante role name"
+  value = "FABRICANTE"
+}
+
+// Grant FABRICANTE role
+action "grant_fabricante" "svm::process_instructions" {
+  description = "Grant FABRICANTE role to manufacturer account"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "grant_role"
+    instruction_args = [variable.fabricante_role]
+    
+    accounts = [
+      {
+        public_key = variable.config_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.fabricante.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin, signer.fabricante]
+}
+
+// Outputs
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "admin_address" {
+  description = "Admin address"
+  value = signer.admin.public_key
+}
+
+output "fabricante_address" {
+  description = "Fabricante address"
+  value = signer.fabricante.public_key
+}
+
+output "role_granted" {
+  description = "Role being granted"
+  value = variable.fabricante_role
+}
+
+output "grant_signature" {
+  description = "Grant role transaction signature"
+  value = action.grant_fabricante.signatures[0]
+}

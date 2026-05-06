@@ -1,0 +1,93 @@
+---
+name: supply-chain-tracker
+id: sc-solana
+version: 0.1.0
+description: SupplyChainTracker - Solana/Anchor Program Deployment and Operations
+
+addons:
+  svm:
+    description: "Solana Virtual Machine addon for program deployment and operations"
+
+runbooks:
+  # === Deployment Runbooks ===
+  - name: deploy-program
+    description: Deploy SupplyChainTracker program to network
+    location: runbooks/deployment/deploy-program.tx
+    state:
+      location: runbooks/states/deploy
+
+  - name: initialize-config
+    description: Initialize supply chain configuration
+    location: runbooks/deployment/initialize-config.tx
+    state:
+      location: runbooks/states/deploy
+
+  - name: grant-roles
+    description: Grant initial roles to administrators
+    location: runbooks/deployment/grant-roles.tx
+    state:
+      location: runbooks/states/deploy
+
+  # === Operations Runbooks ===
+  - name: register-netbook
+    description: Register a single netbook in the supply chain
+    location: runbooks/operations/register-netbook.tx
+
+  - name: register-netbooks-batch
+    description: Register multiple netbooks in batch
+    location: runbooks/operations/register-netbooks-batch.tx
+
+  - name: audit-hardware
+    description: Perform hardware audit on a netbook
+    location: runbooks/operations/audit-hardware.tx
+
+  - name: validate-software
+    description: Validate software on a netbook
+    location: runbooks/operations/validate-software.tx
+
+  - name: assign-student
+    description: Assign netbook to a student
+    location: runbooks/operations/assign-student.tx
+
+  # === Testing Runbooks ===
+  - name: setup-test-env
+    description: Setup complete test environment with all accounts
+    location: runbooks/testing/setup-test-env.tx
+    state:
+      location: runbooks/states/test
+
+  - name: full-lifecycle
+    description: Complete lifecycle test from manufacturing to distribution
+    location: runbooks/testing/full-lifecycle.tx
+
+  - name: edge-cases
+    description: Edge cases and error handling tests
+    location: runbooks/testing/edge-cases.tx
+
+  # === Examples ===
+  - name: basic-deploy
+    description: Basic program deployment example
+    location: runbooks/examples/basic-deploy.tx
+
+  - name: hello-world
+    description: Hello world example for learning txtx
+    location: runbooks/examples/hello-world.tx
+
+environments:
+  localnet:
+    network_id: localnet
+    rpc_api_url: http://localhost:8899
+    ws_url: ws://localhost:8900
+    description: Local development network (Surfpool)
+
+  devnet:
+    network_id: devnet
+    rpc_api_url: https://api.devnet.solana.com
+    ws_url: wss://api.devnet.solana.com
+    description: Solana devnet for testing
+
+  mainnet:
+    network_id: mainnet
+    rpc_api_url: https://api.mainnet-beta.solana.com
+    ws_url: wss://api.mainnet-beta.solana.com
+    description: Solana mainnet production

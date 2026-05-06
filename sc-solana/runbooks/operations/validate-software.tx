@@ -1,0 +1,60 @@
+// Validate software on a netbook
+// State transition: HwAprobado (1) -> SwValidado (2)
+
+// Signers
+signer "tecnico" "svm::web_wallet" {
+  description = "Software technician account (must have TECNICO_SW role)"
+  keypair_path = input.tecnico_keypair
+}
+
+// Program reference - default from environment
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+// Default values for localnet testing
+variable "serial_number" {
+  description = "Serial number of the netbook"
+  value = "TEST-001"
+}
+
+variable "os_version" {
+  description = "OS version installed"
+  value = "Ubuntu 22.04 LTS"
+}
+
+variable "passed" {
+  description = "Whether the software validation passed"
+  value = true
+}
+
+// Outputs
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "serial_number" {
+  description = "Validated serial number"
+  value = variable.serial_number
+}
+
+output "os_version" {
+  description = "OS version"
+  value = variable.os_version
+}
+
+output "instruction_name" {
+  description = "Anchor instruction to call"
+  value = "validate_software"
+}
+
+output "instruction_args" {
+  description = "Instruction arguments"
+  value = [
+    variable.serial_number,
+    variable.os_version,
+    string(variable.passed)
+  ]
+}

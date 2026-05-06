@@ -1,0 +1,47 @@
+// Register multiple netbooks in batch
+// Note: Due to Solana constraints, this validates serial hashes but
+// individual netbook PDAs should be created via individual register_netbook calls
+
+// Signers
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account"
+  keypair_path = input.fabricante_keypair
+}
+
+// Program reference - default from environment
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+// Default values for localnet testing
+variable "serial_numbers" {
+  description = "Array of serial numbers"
+  value = ["TEST-001", "TEST-002", "TEST-003"]
+}
+
+variable "batch_ids" {
+  description = "Array of batch IDs"
+  value = ["BATCH-001", "BATCH-001", "BATCH-001"]
+}
+
+variable "model_specs" {
+  description = "Array of model specifications"
+  value = ["ST-1000", "ST-1000", "ST-1000"]
+}
+
+// Outputs
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "batch_count" {
+  description = "Number of netbooks in batch"
+  value = array_length(variable.serial_numbers)
+}
+
+output "instruction_name" {
+  description = "Anchor instruction to call"
+  value = "register_netbooks_batch"
+}

@@ -1,0 +1,88 @@
+// Edge cases and error handling tests
+// Tests various error conditions and edge cases
+
+// Signers
+signer "admin" "svm::web_wallet" {
+  description = "Admin account"
+  keypair_path = input.admin_keypair
+}
+
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account"
+  keypair_path = input.fabricante_keypair
+}
+
+// Program reference - default from environment
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+// Default values for localnet testing
+variable "serial_number" {
+  description = "Test serial number"
+  value = "TEST-EDGE-001"
+}
+
+// Edge case tests
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "edge_case_tests" {
+  description = "Edge case test definitions"
+  value = {
+    test_1_duplicate_serial: {
+      name: "Duplicate Serial Number",
+      instruction: "register_netbook",
+      args: [variable.serial_number, "batch1", "model1"],
+      expected_error: "DuplicateSerial",
+      description: "Should fail when registering duplicate serial number"
+    },
+    test_2_invalid_state_transition: {
+      name: "Invalid State Transition",
+      instruction: "validate_software",
+      args: [variable.serial_number, "Ubuntu 22.04", "true"],
+      expected_error: "InvalidStateTransition",
+      description: "Should fail when trying to validate before hardware audit"
+    },
+    test_3_unauthorized_access: {
+      name: "Unauthorized Access",
+      instruction: "grant_role",
+      args: ["AUDITOR_HW"],
+      expected_error: "Unauthorized",
+      description: "Should fail when non-admin tries to grant roles"
+    },
+    test_4_empty_serial: {
+      name: "Empty Serial Number",
+      instruction: "register_netbook",
+      args: ["", "batch1", "model1"],
+      expected_error: "EmptySerial",
+      description: "Should fail when serial number is empty"
+    },
+    test_5_string_too_long: {
+      name: "String Too Long",
+      instruction: "register_netbook",
+      args: ["<256+char_string>", "batch1", "model1"],
+      expected_error: "StringTooLong",
+      description: "Should fail when string exceeds max length"
+    }
+  }
+}
+
+output "error_codes" {
+  description = "SupplyChainError codes to test"
+  value = {
+    InvalidRoleType: "0",
+    RoleAlreadyGranted: "1",
+    RoleNotGranted: "2",
+    Unauthorized: "3",
+    DuplicateSerial: "4",
+    SerialNotFound: "5",
+    StringTooLong: "6",
+    EmptySerial: "7",
+    InvalidStateTransition: "8",
+    NetbookNotAssigned: "9"
+  }
+}

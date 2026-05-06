@@ -1,0 +1,19 @@
+// Hello World example for learning txtx
+// This is the simplest possible runbook
+
+// Variable definition
+variable "greeting" {
+  description = "Greeting message"
+  value = "Hello, SupplyChainTracker!"
+}
+
+// Output definition
+output "message" {
+  description = "Hello world message"
+  value = variable.greeting
+}
+
+output "timestamp" {
+  description = "Current timestamp (Unix)"
+  value = 0  // Will be replaced by txtx runtime
+}

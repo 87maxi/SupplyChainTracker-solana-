@@ -1,0 +1,99 @@
+// Setup complete test environment with all required accounts
+// This runbook defines the test accounts and configuration
+
+// Test signers
+signer "tester" "svm::web_wallet" {
+  description = "Test operator account"
+  keypair_path = input.tester_keypair
+}
+
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account"
+  keypair_path = input.fabricante_keypair
+}
+
+signer "auditor_hw" "svm::web_wallet" {
+  description = "Hardware auditor account"
+  keypair_path = input.auditor_hw_keypair
+}
+
+signer "tecnico_sw" "svm::web_wallet" {
+  description = "Software technician account"
+  keypair_path = input.tecnico_sw_keypair
+}
+
+signer "escuela" "svm::web_wallet" {
+  description = "School account"
+  keypair_path = input.escuela_keypair
+}
+
+// Program reference - default from environment
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+// Default airdrop amounts
+variable "test_airdrop_amount" {
+  description = "Airdrop amount in lamports (10 SOL)"
+  value = 10000000000
+}
+
+variable "standard_airdrop_amount" {
+  description = "Standard airdrop amount in lamports (5 SOL)"
+  value = 5000000000
+}
+
+// Default addresses for localnet testing
+variable "tester_address" {
+  description = "Tester wallet address"
+  value = ""
+}
+
+variable "fabricante_address" {
+  description = "Fabricante wallet address"
+  value = ""
+}
+
+variable "auditor_hw_address" {
+  description = "Auditor HW wallet address"
+  value = ""
+}
+
+variable "tecnico_sw_address" {
+  description = "Tecnico SW wallet address"
+  value = ""
+}
+
+variable "escuela_address" {
+  description = "Escuela wallet address"
+  value = ""
+}
+
+// Outputs
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "test_accounts" {
+  description = "Test wallet addresses"
+  value = {
+    tester: variable.tester_address,
+    fabricante: variable.fabricante_address,
+    auditor_hw: variable.auditor_hw_address,
+    tecnico_sw: variable.tecnico_sw_address,
+    escuela: variable.escuela_address
+  }
+}
+
+output "test_commands" {
+  description = "Commands to setup test environment"
+  value = {
+    airdrop_tester: "solana airdrop 10 <tester_address> --url http://localhost:8899",
+    airdrop_fabricante: "solana airdrop 5 <fabricante_address> --url http://localhost:8899",
+    airdrop_auditor: "solana airdrop 5 <auditor_address> --url http://localhost:8899",
+    airdrop_tecnico: "solana airdrop 5 <tecnico_address> --url http://localhost:8899",
+    airdrop_escuela: "solana airdrop 5 <escuela_address> --url http://localhost:8899"
+  }
+}

@@ -1,0 +1,97 @@
+// Initialize SupplyChainTracker configuration
+// Called after program deployment to set up initial state
+// Initializes Config and SerialHashRegistry accounts
+
+// Signers
+signer "admin" "svm::web_wallet" {
+  description = "Initial admin account (also becomes FABRICANTE)"
+  keypair_path = "~/.config/solana/id.json"
+}
+
+// Program reference - from deployment output or default
+variable "program_id" {
+  description = "Deployed program ID"
+  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+}
+
+// Get IDL for instruction encoding
+variable "idl_path" {
+  description = "Path to IDL file"
+  value = "./target/idl/sc_solana.json"
+}
+
+variable "idl" {
+  description = "Program IDL data"
+  value = svm::get_idl_from_path(variable.idl_path)
+}
+
+// Derive PDAs
+variable "config_pda" {
+  description = "Config account PDA (seed: config)"
+  value = svm::find_pda(["config"], variable.program_id)
+}
+
+variable "serial_hashes_pda" {
+  description = "Serial hashes registry PDA (seed: serial_hashes + config)"
+  value = svm::find_pda(["serial_hashes", variable.config_pda[0]], variable.program_id)
+}
+
+// Initialize instruction
+action "initialize" "svm::process_instructions" {
+  description = "Initialize supply chain configuration (creates Config and SerialHashRegistry)"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "initialize"
+    instruction_args = []
+    
+    accounts = [
+      {
+        public_key = variable.config_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.serial_hashes_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+// Outputs
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "admin_address" {
+  description = "Admin address"
+  value = signer.admin.public_key
+}
+
+output "config_pda" {
+  description = "Config PDA address"
+  value = variable.config_pda[0]
+}
+
+output "serial_hashes_pda" {
+  description = "Serial hashes registry PDA"
+  value = variable.serial_hashes_pda[0]
+}
+
+output "initialization_signature" {
+  description = "Initialize transaction signature"
+  value = action.initialize.signatures[0]
+}

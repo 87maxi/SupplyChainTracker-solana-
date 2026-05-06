@@ -1,0 +1,26 @@
+//! QueryRole instruction context
+
+use anchor_lang::prelude::*;
+use crate::state::SupplyChainConfig;
+use crate::events::RoleQuery;
+
+
+#[derive(Accounts)]
+pub struct QueryRole<'info> {
+    pub config: Account<'info, SupplyChainConfig>,
+    /// CHECK: This account is only read for role checking, not mutated
+    pub account_to_check: UncheckedAccount<'info>,
+}
+
+/// Check if an account has a specific role (view function)
+pub fn query_role(ctx: Context<QueryRole>, role: String) -> Result<()> {
+    let config = &ctx.accounts.config;
+    let account = ctx.accounts.account_to_check.key();
+    let has_role = config.has_role(&role, &account);
+    emit!(RoleQuery {
+        account,
+        role,
+        has_role,
+    });
+    Ok(())
+}

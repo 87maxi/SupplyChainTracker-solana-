@@ -1,13 +1,14 @@
 // web/src/app/dashboard/page.tsx
 "use client";
 
-// Importaciones actualizadas para Solana/Anchor
-import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
-import { useSupplyChainService } from '@/hooks/useSupplyChainService';
-import { Netbook, NetbookState } from '@/types/supply-chain-types';
+// Importaciones actualizadas
+import { useWeb3 } from '@/hooks/useWeb3'; // Usar el contexto correcto
+import { useSupplyChainService } from '@/hooks/useSupplyChainService'; // Usar el hook del servicio
+import { SupplyChainService } from '@/services/SupplyChainService';
+import { Netbook, NetbookState } from '@/types/supply-chain-types'; // Usar el tipo correcto
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react'; // Asegurar useCallback para funciones
 import { RoleActions } from './components/RoleActions';
 import { PendingRoleApprovals } from './components/role-approval/PendingRoleApprovals';
 
@@ -19,14 +20,7 @@ import {
   Search,
   LayoutDashboard,
   Loader2,
-  Users,
-  Shield,
-  Building2,
-  Clock,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle2,
-  XCircle
+  RefreshCw
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -37,31 +31,20 @@ import { SoftwareValidationForm } from '@/components/contracts/SoftwareValidatio
 import { StudentAssignmentForm } from '@/components/contracts/StudentAssignmentForm';
 
 // Importar componentes de estadísticas y tablas
+import { UserStats } from '@/app/dashboard/components/UserStats';
+import { NetbookStats } from '@/app/dashboard/components/NetbookStats';
 import { UserDataTable } from '@/app/dashboard/components/UserDataTable';
 import { NetbookDataTable } from '@/app/dashboard/components/NetbookDataTable';
 
-// Importar Solana service directamente
-import { SolanaSupplyChainService } from '@/services/SolanaSupplyChainService';
-import { PublicKey } from '@solana/web3.js';
+// Importar hooks para obtener datos de MongoDB
+import { useUserStats } from '@/hooks/useUserStats';
+import { useNetbookStats } from '@/hooks/useNetbookStats';
+import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
 
 import { TrackingCard } from './components/TrackingCard';
 
-// Interface for complete config data with role counts
-interface ExtendedConfigData {
-  admin: PublicKey;
-  fabricante: PublicKey;
-  auditorHw: PublicKey;
-  tecnicoSw: PublicKey;
-  escuela: PublicKey;
-  adminBump: number;
-  nextTokenId: any;
-  totalNetbooks: any;
-  roleRequestsCount: any;
-  fabricanteCount: number;
-  auditorHwCount: number;
-  tecnicoSwCount: number;
-  escuelaCount: number;
-}
+// Importar Event Provider para eventos en tiempo real
+import { useSolanaEventContext } from '@/lib/solana/event-provider';
 
 // Summary Card Component
 function SummaryCard({ title, count, description, icon: Icon, color }: { title: string, count: number, description: string, icon: any, color: string }) {
@@ -76,26 +59,6 @@ function SummaryCard({ title, count, description, icon: Icon, color }: { title: 
       <CardContent>
         <div className="text-4xl font-bold mb-1">{count}</div>
         <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Stat Card for role holders
-function RoleHolderCard({ title, count, description, icon: Icon, color }: { title: string, count: number, description: string, icon: any, color: string }) {
-  return (
-    <Card className="relative overflow-hidden">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          <div className={cn("rounded-full p-2", color)}>
-            <Icon className="h-4 w-4" />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{count}</div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
       </CardContent>
     </Card>
   );
@@ -125,54 +88,16 @@ function TempDashboard({ onConnect }: { onConnect: () => void }) {
   );
 }
 
-// Network Status Badge
-function NetworkStatusBadge({ isConnected, isSyncing }: { isConnected: boolean, isSyncing: boolean }) {
-  return (
-    <div className="flex items-center gap-3 bg-gradient-subtle p-2 rounded-xl border border-white/10 shadow-lg">
-      <div className={cn("h-2 w-2 rounded-full", isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500")}>
-      </div>
-      <span className="text-sm font-medium">
-        {isSyncing ? "Sincronizando..." : isConnected ? "Sistema en línea" : "Desconectado"}
-      </span>
-    </div>
-  );
-}
-
-// Error Banner Component
-function ErrorBanner({ message, onDismiss }: { message: string, onDismiss: () => void }) {
-  return (
-    <Card className="border-red-500/50 bg-red-500/10">
-      <CardContent className="py-4">
-        <div className="flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-          <p className="text-sm text-red-400 flex-1">{message}</p>
-          <Button variant="ghost" size="sm" onClick={onDismiss}>
-            <XCircle className="h-4 w-4" />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function ManagerDashboard() {
-  // Obtener datos desde Solana program
-  const [netbooks, setNetbooks] = useState<Netbook[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  // New state for extended dashboard data
-  const [configData, setConfigData] = useState<ExtendedConfigData | null>(null);
-  const [roleHolderCounts, setRoleHolderCounts] = useState({
-    fabricante: 0,
-    auditorHw: 0,
-    tecnicoSw: 0,
-    escuela: 0
-  });
-  const [totalRoleRequests, setTotalRoleRequests] = useState(0);
-  const [systemUptime, setSystemUptime] = useState<number | null>(null);
+  // Obtener estadísticas desde MongoDB usando los nuevos endpoints
+  const { stats: userStatsData, isLoading: usersLoading } = useUserStats();
+  const { stats: netbookStatsData, isLoading: netbooksLoading } = useNetbookStats();
+
+  // Obtener datos procesados combinados de usuarios y netbooks
+  const { users, netbooks: netbooksTable, isLoading: dataLoading, refetch: fetchDashboardData } = useProcessedUserAndNetbookData();
+
+  // Combinar estados de carga
+  const isLoading = usersLoading || netbooksLoading || dataLoading;
 
   // Funciones para manejar filtros
   const handleUserFilterChange = (filter: { key: string; value: string }) => {
@@ -182,121 +107,53 @@ export default function ManagerDashboard() {
   const handleNetbookFilterChange = (filter: { key: string; value: string }) => {
     console.log('Netbook filter changed:', filter);
   };
-
-  const { isConnected, connectWallet, publicKey } = useSolanaWeb3();
-  const { getAllSerialNumbers, getNetbookState, getNetbookReport, getConfig } = useSupplyChainService();
+  
+  const { connected: isConnected, connectWallet } = useWeb3();
+  const { getAllSerialNumbers, getNetbookState, getNetbookReport, clearCaches } = useSupplyChainService();
   const { isHardwareAuditor, isSoftwareTechnician, isSchool, isAdmin } = useUserRoles();
-
-  // Fetch netbooks from Solana program
-  const fetchDashboardData = useCallback(async () => {
-    if (!isConnected) {
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setIsSyncing(true);
-    setError(null);
-    
-    try {
-      // Fetch config data first
-      const config = await getConfig();
-      if (config) {
-        const extendedConfig = config as ExtendedConfigData;
-        setConfigData(extendedConfig);
-        
-        // Extract role holder counts
-        setRoleHolderCounts({
-          fabricante: extendedConfig.fabricanteCount || 0,
-          auditorHw: extendedConfig.auditorHwCount || 0,
-          tecnicoSw: extendedConfig.tecnicoSwCount || 0,
-          escuela: extendedConfig.escuelaCount || 0
-        });
-        
-        setTotalRoleRequests(extendedConfig.roleRequestsCount?.toNumber() || 0);
-        
-        // Calculate system uptime from initialization (if we had timestamp)
-        // For now, we'll just track the total netbooks count
-        const totalNetbooks = extendedConfig.totalNetbooks?.toNumber() || 0;
-      }
-
-      const serials = await getAllSerialNumbers();
-      const stateMap: Record<number, NetbookState> = {
-        0: 'FABRICADA',
-        1: 'HW_APROBADO',
-        2: 'SW_VALIDADO',
-        3: 'DISTRIBUIDA'
-      };
-
-      const netbooksData: Netbook[] = [];
-      for (const serial of serials) {
-        const state = await getNetbookState(serial);
-        const rawReport = await getNetbookReport(serial);
-        const report = rawReport ? { hwAuditor: (rawReport as any).hwAuditor || '', swTechnician: (rawReport as any).swTechnician || '' } : { hwAuditor: '', swTechnician: '' };
-
-        netbooksData.push({
-          serialNumber: serial,
-          batchId: "N/A",
-          initialModelSpecs: "N/A",
-          hwAuditor: report.hwAuditor,
-          hwIntegrityPassed: false,
-          hwReportHash: "0x0",
-          swTechnician: report.swTechnician,
-          osVersion: "N/A",
-          swValidationPassed: false,
-          destinationSchoolHash: "0x0",
-          studentIdHash: "0x0",
-          distributionTimestamp: "0",
-          currentState: stateMap[Number(state)] || 'FABRICADA',
-        });
-      }
-
-      setNetbooks(netbooksData);
-
-      // Fetch users from Solana config
-      try {
-        const service = SolanaSupplyChainService.getInstance();
-        const config = await service.getConfig();
-        if (config) {
-          const userList: any[] = [];
-          if (config.fabricante) userList.push({ address: config.fabricante.toBase58(), role: 'FABRICANTE' });
-          if (config.auditorHw) userList.push({ address: config.auditorHw.toBase58(), role: 'AUDITOR_HW' });
-          if (config.tecnicoSw) userList.push({ address: config.tecnicoSw.toBase58(), role: 'TECNICO_SW' });
-          if (config.escuela) userList.push({ address: config.escuela.toBase58(), role: 'ESCUELA' });
-          setUsers(userList);
-        }
-      } catch {
-        // Config not initialized or error fetching
-      }
-    } catch (err: any) {
-      console.error('Error fetching dashboard data:', err);
-      setError(`Error al cargar datos: ${err.message || 'Desconocido'}`);
-    } finally {
-      setIsLoading(false);
-      setIsSyncing(false);
-    }
-  }, [isConnected, getAllSerialNumbers, getNetbookState, getNetbookReport, getConfig]);
-
-  /* eslint-disable react-hooks/set-state-in-effect */
+  
+  // Event listener integration for real-time updates
+  const { events, isConnected: isEventConnected } = useSolanaEventContext();
+  const hasFetchedRef = useRef(false);
+  
+  // Listen for blockchain events and refresh dashboard data
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+    if (!isConnected || events.length === 0) return;
 
-  // Calcular estadísticas desde Solana
+    for (const event of events) {
+      if (event.type === 'success' && event.signature) {
+        // Invalidate caches and refresh data
+        clearCaches();
+        
+        // Refresh dashboard data with a delay
+        // eslint-disable-next-line no-restricted-globals
+        setTimeout(() => {
+          fetchDashboardData();
+        }, 100);
+        break;
+      }
+    }
+  }, [events, isConnected, clearCaches, fetchDashboardData]);
+
+  // Utilizar los datos cargados desde MongoDB
+  // const [netbooks, setNetbooks] = useState<Netbook[]>([]);
+  // const [loading, setLoading] = useState(true);
+
+  // Utilizar datos de estadísticas desde MongoDB en lugar del conteo directo
+  // Calcular estadísticas reales desde los datos de la blockchain
   const summary = {
-    FABRICADA: netbooks.filter(n => n.currentState === 'FABRICADA').length,
-    HW_APROBADO: netbooks.filter(n => n.currentState === 'HW_APROBADO').length,
-    SW_VALIDADO: netbooks.filter(n => n.currentState === 'SW_VALIDADO').length,
-    DISTRIBUIDA: netbooks.filter(n => n.currentState === 'DISTRIBUIDA').length
+    FABRICADA: netbooksTable.filter(n => n.currentState === 'FABRICADA').length,
+    HW_APROBADO: netbooksTable.filter(n => n.currentState === 'HW_APROBADO').length,
+    SW_VALIDADO: netbooksTable.filter(n => n.currentState === 'SW_VALIDADO').length,
+    DISTRIBUIDA: netbooksTable.filter(n => n.currentState === 'DISTRIBUIDA').length
   };
 
-  // Total netbooks from config
-  const totalNetbooksFromConfig = configData?.totalNetbooks?.toNumber() || 0;
-  const nextTokenId = configData?.nextTokenId?.toNumber() || 0;
+  // Utilizar usuarios y netbooks ya definidos anteriormente
+  // const { users } = useFetchUsers();
+  // const { netbooks } = useProcessedUserAndNetbookData();
 
   // Filtrar tareas pendientes basado en roles
-  const pendingTasks = netbooks.filter((n: Netbook) => {
+  const pendingTasks = netbooksTable.filter((n: Netbook) => {
     if (!n) return false;
     if ((n.currentState === 'FABRICADA') && (isHardwareAuditor || isAdmin)) return true;
     if ((n.currentState === 'HW_APROBADO') && (isSoftwareTechnician || isAdmin)) return true;
@@ -304,7 +161,10 @@ export default function ManagerDashboard() {
     return false;
   });
 
-  const netbooksForTable = netbooks;
+  // Usar los datos de netbookStatsData para las estadísticas
+  // y los datos de fetch para las tablas con paginación
+  // Establecer netbooksForTable con los datos obtenidos de useFetchNetbooks
+  const netbooksForTable = netbooksTable;
 
   // Form states
   const [selectedSerial, setSelectedSerial] = useState<string>('');
@@ -317,29 +177,23 @@ export default function ManagerDashboard() {
       return;
     }
 
-    if (!publicKey) {
-      alert('Conecta tu wallet primero');
-      return;
-    }
-
     try {
-      const service = SolanaSupplyChainService.getInstance();
-      const targetAddress = new PublicKey(address);
-      // Revoke all roles for the target address
-      await service.revokeRole('FABRICANTE_ROLE', targetAddress);
-      await service.revokeRole('AUDITOR_HW_ROLE', targetAddress);
-      await service.revokeRole('TECNICO_SW_ROLE', targetAddress);
-      await service.revokeRole('ESCUELA_ROLE', targetAddress);
-      
-      fetchDashboardData();
-    } catch (error: any) {
-      console.error('Error revoking roles:', error);
-      alert(`Error al eliminar roles: ${error.message}`);
+      const service = SupplyChainService.getInstance();
+      const result = await service.revokeAllRoles(address);
+
+      if (result.success) {
+        console.log('User roles revoked successfully');
+        fetchDashboardData();
+      } else {
+        alert(`Error al eliminar roles: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('Error inesperado al eliminar el usuario');
     }
   };
 
   // Enhanced action handler with debugging
-  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/rules-of-hooks
   const handleAction = useCallback((action: string, serial: string) => {
     console.log('Handling action:', { action, serial });
     setSelectedSerial(serial);
@@ -358,9 +212,13 @@ export default function ManagerDashboard() {
         console.log('Assignment form state set to:', true);
         break;
     }
-  }, [setSelectedSerial, setShowAuditForm, setShowValidationForm, setShowAssignmentForm]);
+  }, []);
 
 
+
+  // El efecto para actualizar datos del dashboard se ha eliminado porque los datos
+  // ya vienen del hook useProcessedUserAndNetbookData
+  // y se actualizan automáticamente cada 30 segundos
 
   if (!isConnected) {
     return <TempDashboard onConnect={connectWallet} />;
@@ -376,13 +234,11 @@ export default function ManagerDashboard() {
           <h1 className="text-4xl font-bold tracking-tight mb-2">Resumen General</h1>
           <p className="text-muted-foreground">Estado actual de la cadena de suministro de netbooks.</p>
         </div>
-        <NetworkStatusBadge isConnected={isConnected} isSyncing={isSyncing} />
+        <div className="flex items-center gap-3 bg-gradient-subtle p-2 rounded-xl border border-white/10 shadow-lg">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-sm font-medium">Sistema en línea</span>
+        </div>
       </div>
-
-      {/* Error Banner */}
-      {error && (
-        <ErrorBanner message={error} onDismiss={() => setError(null)} />
-      )}
 
       <RoleActions />
 
@@ -403,64 +259,6 @@ export default function ManagerDashboard() {
             <SummaryCard title="HW Aprobado" count={summary.HW_APROBADO} description="Hardware verificado por auditores." icon={ShieldCheck} color="text-emerald-400" />
             <SummaryCard title="SW Validado" count={summary.SW_VALIDADO} description="Software instalado y certificado." icon={Monitor} color="text-purple-400" />
             <SummaryCard title="Entregadas" count={summary.DISTRIBUIDA} description="Distribuidas a instituciones finales." icon={Truck} color="text-amber-400" />
-          </div>
-
-          {/* System Statistics */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                <TrendingUp className="h-6 w-6 text-primary" />
-                Estadísticas del Sistema
-              </h2>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <RoleHolderCard 
-                title="Total Registradas" 
-                count={totalNetbooksFromConfig} 
-                description={`Próximo ID: ${nextTokenId}`}
-                icon={Package}
-                color="bg-blue-500/20 text-blue-500"
-              />
-              <RoleHolderCard 
-                title="Fabricantes" 
-                count={roleHolderCounts.fabricante} 
-                description="Cuentas con rol FABRICANTE"
-                icon={Building2}
-                color="bg-blue-500/20 text-blue-500"
-              />
-              <RoleHolderCard 
-                title="Auditores HW" 
-                count={roleHolderCounts.auditorHw} 
-                description="Cuentas con rol AUDITOR_HW"
-                icon={ShieldCheck}
-                color="bg-emerald-500/20 text-emerald-500"
-              />
-              <RoleHolderCard 
-                title="Técnicos SW" 
-                count={roleHolderCounts.tecnicoSw} 
-                description="Cuentas con rol TECNICO_SW"
-                icon={Monitor}
-                color="bg-purple-500/20 text-purple-500"
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <RoleHolderCard 
-                title="Escuelas" 
-                count={roleHolderCounts.escuela} 
-                description="Cuentas con rol ESCUELA"
-                icon={Building2}
-                color="bg-amber-500/20 text-amber-500"
-              />
-              <RoleHolderCard 
-                title="Solicitudes de Rol" 
-                count={totalRoleRequests} 
-                description="Solicitudes pendientes o procesadas"
-                icon={Users}
-                color="bg-orange-500/20 text-orange-500"
-              />
-            </div>
           </div>
 
           {/* Pending Tasks Section */}

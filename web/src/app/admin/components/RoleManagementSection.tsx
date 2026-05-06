@@ -48,7 +48,7 @@ export const RoleManagementSection = () => {
     try {
       // Use roleMapper to convert role name to hash
       const roleHash = await roleMapper.getRoleHash(selectedRole);
-      const result = await grantRole(selectedRole as RoleName, newMemberAddress as `0x${string}`);
+      const result = await grantRole(selectedRole as RoleName, newMemberAddress);
 
       if (result.success) {
         toast({

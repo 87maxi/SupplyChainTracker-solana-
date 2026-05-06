@@ -1,392 +1,482 @@
-// web/src/hooks/useSupplyChainService.ts
-// Migrated to Solana - uses SolanaSupplyChainService and useSolanaWeb3
-import { useCallback } from 'react';
+'use client';
+
+/**
+ * Hook para el servicio de cadena de suministro
+ * Wrapper que expone las funciones del UnifiedSupplyChainService
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { AnchorProvider, BN } from '@coral-xyz/anchor';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
-import { SolanaSupplyChainService, TransactionResult, NetbookInfo } from '@/services/SolanaSupplyChainService';
-import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
+import { UnifiedSupplyChainService, TransactionResult, NetbookReport } from '@/services/UnifiedSupplyChainService';
 
-// Netbook state constants
-export const NetbookState = {
-  Fabricada: 0,
-  HwAprobado: 1,
-  SwValidado: 2,
-  Distribuida: 3,
-} as const;
+// ==================== Types ====================
 
-export type NetbookStateType = typeof NetbookState[keyof typeof NetbookState];
+export interface RegisterNetbookParams {
+  tokenId: number;
+  serialNumber: string;
+  model: string;
+  manufacturer: string;
+}
 
-export const useSupplyChainService = () => {
-  const { publicKey } = useWallet();
-  const { sendTransaction, transactionLoading } = useSolanaWeb3();
-  
-  // Helper to get current user's public key
-  const getUserPublicKey = useCallback((): PublicKey | null => {
-    if (!publicKey) return null;
-    return publicKey;
-  }, [publicKey]);
+export interface AuditHardwareParams {
+  tokenId: number;
+  auditor: string;
+  reportHash: string;
+}
 
-  // Helper to create error result
-  const errorResult = (message: string): TransactionResult => ({
-    signature: '',
-    success: false,
-    error: message
-  });
+export interface ValidateSoftwareParams {
+  tokenId: number;
+  technician: string;
+  osVersion: string;
+}
 
-  // Helper to create success result
-  const successResult = (signature: string): TransactionResult => ({
-    signature,
-    success: true
-  });
+export interface AssignToStudentParams {
+  tokenId: number;
+  studentIdHash: string;
+  schoolHash: string;
+}
 
-  // Register netbook
-  const registerNetbook = useCallback(async (
-    serial: string,
-    batchId: string,
-    modelSpecs: string
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
+export interface NetbookData {
+  serialNumber: string;
+  batchId: string;
+  modelSpecs: string;
+  hwAuditor: PublicKey;
+  hwIntegrityPassed: boolean;
+  hwReportHash: number[];
+  swTechnician: PublicKey;
+  osVersion: string;
+  swValidationPassed: boolean;
+  destinationSchoolHash: number[];
+  studentIdHash: number[];
+  distributionTimestamp: BN;
+  state: number;
+  exists: boolean;
+  tokenId: BN;
+}
+
+/**
+ * Hook principal para interactuar con el programa SupplyChain
+ */
+export function useSupplyChainService() {
+  const { connection } = useConnection();
+  const { publicKey, wallet } = useWallet();
+  const [initialized, setInitialized] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const service = UnifiedSupplyChainService.getInstance();
+
+  /**
+   * Inicializar el servicio con el provider de wallet
+   */
+  const initialize = useCallback(async () => {
+    if (!wallet || !publicKey) {
+      setInitialized(false);
+      return;
     }
 
     try {
-      const service = SolanaSupplyChainService.getInstance();
-      const result = await service.registerNetbook(serial, batchId, modelSpecs);
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to register netbook');
-    }
-  }, [getUserPublicKey]);
+      const provider = new AnchorProvider(
+        connection,
+        wallet as any,
+        { commitment: 'confirmed' }
+      );
 
-  // Batch register netbooks
-  const registerNetbooks = useCallback(async (
-    serials: string[],
-    batches: string[],
-    specs: string[],
-    metadata: string[]
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
-    }
-
-    try {
-      const service = SolanaSupplyChainService.getInstance();
-      const result = await service.registerNetbooks(serials, batches, specs, metadata, userPubkey);
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to register netbooks');
-    }
-  }, [getUserPublicKey]);
-
-  // Audit hardware
-  const auditHardware = useCallback(async (
-    serial: string,
-    passed: boolean,
-    reportHash: string,
-    _metadata?: string
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
-    }
-
-    try {
-      // Convert hash string to bytes
-      let hashBytes: number[];
-      if (reportHash.startsWith('0x')) {
-        const hex = reportHash.slice(2);
-        hashBytes = Array.from({ length: hex.length / 2 }, (_, i) => 
-          parseInt(hex.substr(i * 2, 2), 16)
-        );
-      } else {
-        hashBytes = Array.from({ length: reportHash.length / 2 }, (_, i) => 
-          parseInt(reportHash.substr(i * 2, 2), 16)
-        );
-      }
-      while (hashBytes.length < 32) hashBytes.unshift(0);
-      if (hashBytes.length > 32) hashBytes = hashBytes.slice(0, 32);
-
-      const service = SolanaSupplyChainService.getInstance();
-      const result = await service.auditHardware(serial, passed, hashBytes);
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to audit hardware');
-    }
-  }, [getUserPublicKey]);
-
-  // Validate software
-  const validateSoftware = useCallback(async (
-    serial: string,
-    osVersion: string,
-    passed: boolean,
-    _metadata?: string
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
-    }
-
-    try {
-      const service = SolanaSupplyChainService.getInstance();
-      const result = await service.validateSoftware(serial, osVersion, passed);
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to validate software');
-    }
-  }, [getUserPublicKey]);
-
-  // Assign to student
-  const assignToStudent = useCallback(async (
-    serial: string,
-    schoolHash: string,
-    studentHash: string,
-    _metadata?: string
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
-    }
-
-    try {
-      const parseHash = (hash: string): number[] => {
-        let hex = hash;
-        if (hex.startsWith('0x')) hex = hex.slice(2);
-        const bytes = Array.from({ length: hex.length / 2 }, (_, i) => 
-          parseInt(hex.substr(i * 2, 2), 16)
-        );
-        while (bytes.length < 32) bytes.unshift(0);
-        return bytes.slice(0, 32);
-      };
-
-      const service = SolanaSupplyChainService.getInstance();
-      const result = await service.assignToStudent(serial, parseHash(schoolHash), parseHash(studentHash));
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to assign to student');
-    }
-  }, [getUserPublicKey]);
-
-  // Grant role
-  const grantRole = useCallback(async (
-    role: string,
-    targetAddress: string
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
-    }
-
-    try {
-      const targetPubkey = new PublicKey(targetAddress);
-      const service = SolanaSupplyChainService.getInstance();
-      const result = await service.grantRole(role, targetPubkey);
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to grant role');
-    }
-  }, [getUserPublicKey]);
-
-  // Revoke role
-  const revokeRole = useCallback(async (
-    role: string,
-    targetAddress: string
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
-    }
-
-    try {
-      const targetPubkey = new PublicKey(targetAddress);
-      const service = SolanaSupplyChainService.getInstance();
-      const result = await service.revokeRole(role, targetPubkey);
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to revoke role');
-    }
-  }, [getUserPublicKey]);
-
-  // Request role
-  const requestRole = useCallback(async (
-    role: string
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
-    }
-
-    try {
-      const service = SolanaSupplyChainService.getInstance();
-      const result = await service.requestRole(role);
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to request role');
-    }
-  }, [getUserPublicKey]);
-
-  // Approve role request
-  const approveRoleRequest = useCallback(async (
-    userAddress: string
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
-    }
-
-    try {
-      const targetPubkey = new PublicKey(userAddress);
-      const service = SolanaSupplyChainService.getInstance();
-      // Use a placeholder request ID - this should be updated based on actual request ID
-      const result = await service.approveRoleRequest(0, targetPubkey);
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to approve role request');
-    }
-  }, [getUserPublicKey]);
-
-  // Reject role request
-  const rejectRoleRequest = useCallback(async (
-    userAddress: string
-  ): Promise<TransactionResult> => {
-    const userPubkey = getUserPublicKey();
-    if (!userPubkey) {
-      return errorResult('Wallet not connected');
-    }
-
-    try {
-      const service = SolanaSupplyChainService.getInstance();
-      // Use a placeholder request ID - this should be updated based on actual request ID
-      const result = await service.rejectRoleRequest(0);
-      return result;
-    } catch (error: any) {
-      return errorResult(error.message || 'Failed to reject role request');
-    }
-  }, [getUserPublicKey]);
-
-  // Check if user has role
-  const hasRole = useCallback(async (role: string, userAddress: string): Promise<boolean> => {
-    try {
-      const pubkey = new PublicKey(userAddress);
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.hasRole(role, pubkey);
+      service.initialize(provider, publicKey);
+      setInitialized(true);
+      setError(null);
     } catch {
-      return false;
+      setInitialized(false);
+      setError('Error al inicializar servicio');
     }
-  }, []);
+  }, [connection, wallet, publicKey, service]);
 
-  // Check if user has role by hash (backward compatibility)
-  const hasRoleByHash = useCallback(async (roleName: string, userAddress: string): Promise<boolean> => {
-    return hasRole(roleName, userAddress);
-  }, [hasRole]);
+  // Auto-inicializar cuando se conecta la wallet
+  useEffect(() => {
+    let mounted = true;
+    
+    const init = async () => {
+      if (wallet && publicKey) {
+        await initialize();
+      } else if (mounted) {
+        setInitialized(false);
+      }
+    };
+    
+    init();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [wallet, publicKey, initialize]);
 
-  // Get account balance
-  const getAccountBalance = useCallback(async (userAddress: string): Promise<number> => {
+  // ==================== Query Functions ====================
+
+  /**
+   * Obtener todos los serial numbers registrados
+   */
+  const getAllSerialNumbers = useCallback(async (maxSearch?: number): Promise<string[]> => {
     try {
-      const pubkey = new PublicKey(userAddress);
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.getAccountBalance(pubkey);
+      return await service.getAllSerialNumbers(maxSearch ?? 10000);
+    } catch (err) {
+      console.error('Error in getAllSerialNumbers:', err);
+      return [];
+    }
+  }, [service]);
+
+  /**
+   * Obtener el estado actual de una netbook
+   */
+  const getNetbookState = useCallback(async (serial: string): Promise<number> => {
+    try {
+      return await service.getNetbookState(serial);
     } catch {
       return 0;
     }
-  }, []);
+  }, [service]);
 
-  // Get all roles summary
-  const getAllRolesSummary = useCallback(async () => {
+  /**
+   * Obtener netbooks por estado
+   */
+  const getNetbooksByState = useCallback(async (state: number, maxSearch?: number): Promise<string[]> => {
     try {
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.getAllRolesSummary();
+      return await service.getNetbooksByState(state, maxSearch ?? 10000);
     } catch {
-      return {};
+      return [];
     }
-  }, []);
+  }, [service]);
 
-  // Get role by name
-  const getRoleByName = useCallback(async (roleName: string): Promise<string | null> => {
+  /**
+   * Obtener reporte detallado de una netbook
+   */
+  const getNetbookReport = useCallback(async (serial: string): Promise<NetbookReport | null> => {
     try {
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.getRoleByName(roleName);
-    } catch {
-      return null;
-    }
-  }, []);
-
-  // Get role hash
-  const getRoleHash = useCallback(async (roleName: string): Promise<string> => {
-    try {
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.getRoleHash(roleName);
-    } catch {
-      return '';
-    }
-  }, []);
-
-  // Read operations
-  const getNetbook = useCallback(async (serial: string): Promise<NetbookInfo | null> => {
-    try {
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.getNetbook(serial);
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const getNetbookReport = useCallback(async (serial: string): Promise<NetbookInfo | null> => {
-    try {
-      const service = SolanaSupplyChainService.getInstance();
       return await service.getNetbookReport(serial);
     } catch {
       return null;
     }
-  }, []);
+  }, [service]);
 
-  const getNetbookState = useCallback(async (serial: string): Promise<number | null> => {
+  /**
+   * Buscar netbook por serial number
+   */
+  const findNetbookBySerial = useCallback(async (serial: string): Promise<NetbookData | null> => {
     try {
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.getNetbookState(serial);
+      return await service.findNetbookBySerial(serial);
     } catch {
       return null;
     }
-  }, []);
+  }, [service]);
 
-  const getAllSerialNumbers = useCallback(async (): Promise<string[]> => {
+  /**
+   * Obtener PDA de netbook por serial
+   */
+  const getNetbookPdaBySerial = useCallback(async (serial: string): Promise<PublicKey | null> => {
     try {
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.getAllSerialNumbers();
+      return await service.getNetbookPdaBySerial(serial);
+    } catch {
+      return null;
+    }
+  }, [service]);
+
+  /**
+   * Obtener datos de configuración
+   */
+  const queryConfig = useCallback(async () => {
+    try {
+      return await service.queryConfig();
+    } catch {
+      return null;
+    }
+  }, [service]);
+
+  /**
+   * Obtener total de netbooks
+   */
+  const getTotalNetbooks = useCallback(async (): Promise<number> => {
+    try {
+      return await service.getTotalNetbooks();
+    } catch {
+      return 0;
+    }
+  }, [service]);
+
+  /**
+   * Obtener próximo token ID
+   */
+  const getNextTokenId = useCallback(async (): Promise<bigint> => {
+    try {
+      return await service.getNextTokenId();
+    } catch {
+      return BigInt(0);
+    }
+  }, [service]);
+
+  // ==================== Role Functions ====================
+
+  /**
+   * Obtener todos los miembros de un rol
+   */
+  const getAllMembers = useCallback(async (role: string): Promise<string[]> => {
+    try {
+      return await service.getAllMembers(role);
     } catch {
       return [];
     }
-  }, []);
+  }, [service]);
 
-  const getConfig = useCallback(async () => {
+  /**
+   * Obtener conteo de miembros de un rol
+   */
+  const getRoleMemberCount = useCallback(async (role: string): Promise<number> => {
     try {
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.getConfig();
+      return await service.getRoleMemberCount(role);
     } catch {
-      return null;
+      return 0;
     }
-  }, []);
+  }, [service]);
 
-  const getRoleRequest = useCallback(async (userAddress: string) => {
+  /**
+   * Verificar si una dirección tiene un rol específico
+   */
+  const hasRole = useCallback(async (role: string, address: string): Promise<boolean> => {
     try {
-      const pubkey = new PublicKey(userAddress);
-      const service = SolanaSupplyChainService.getInstance();
-      return await service.getRoleRequest(pubkey);
+      return await service.hasRole(role, address);
     } catch {
-      return null;
+      return false;
     }
-  }, []);
+  }, [service]);
 
-  // Check if wallet is connected
-  const isWalletConnected = useCallback((): boolean => {
-    return publicKey !== null;
-  }, [publicKey]);
+  /**
+   * Obtener role requests
+   */
+  const getRoleRequests = useCallback(async () => {
+    try {
+      return await service.getRoleRequests();
+    } catch {
+      return [];
+    }
+  }, [service]);
 
+  // ==================== Transaction Functions ====================
+
+  /**
+   * Registrar una netbook
+   */
+  const registerNetbook = useCallback(async (params: {
+    serialNumber: string;
+    batchId: string;
+    modelSpecs: string;
+  }): Promise<{ signature: string; tokenId: bigint }> => {
+    try {
+      return await service.registerNetbook(params.serialNumber, params.batchId, params.modelSpecs);
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Registrar netbooks en batch
+   */
+  const registerNetbooksBatch = useCallback(async (params: {
+    netbooks: Array<{
+      tokenId: number;
+      serialNumber: string;
+      model: string;
+      manufacturer: string;
+    }>;
+  }): Promise<TransactionResult> => {
+    try {
+      return await service.registerNetbooksBatch(params);
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  }, [service]);
+
+  /**
+   * Auditar hardware
+   */
+  const auditHardware = useCallback(async (params: {
+    serialNumber: string;
+    passed: boolean;
+    reportHash: number[];
+  }): Promise<string> => {
+    try {
+      return await service.auditHardware(params.serialNumber, params.passed, params.reportHash);
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Validar software
+   */
+  const validateSoftware = useCallback(async (params: {
+    serialNumber: string;
+    osVersion: string;
+    passed: boolean;
+  }): Promise<string> => {
+    try {
+      return await service.validateSoftware(params.serialNumber, params.osVersion, params.passed);
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Asignar a estudiante
+   */
+  const assignToStudent = useCallback(async (params: {
+    serialNumber: string;
+    schoolHash: number[];
+    studentHash: number[];
+  }): Promise<string> => {
+    try {
+      return await service.assignToStudent(params.serialNumber, params.schoolHash, params.studentHash);
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Otorgar rol
+   */
+  const grantRole = useCallback(async (params: {
+    role: string;
+    account: string;
+  }): Promise<string> => {
+    try {
+      return await service.grantRole(params.role, new PublicKey(params.account));
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Revocar rol
+   */
+  const revokeRole = useCallback(async (params: {
+    role: string;
+    account: string;
+  }): Promise<string> => {
+    try {
+      return await service.revokeRole(params.role, new PublicKey(params.account));
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Solicitar rol
+   */
+  const requestRole = useCallback(async (params: {
+    role: string;
+  }): Promise<string> => {
+    try {
+      return await service.requestRole(params.role);
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Aprobar solicitud de rol
+   */
+  const approveRoleRequest = useCallback(async (params: {
+    role: string;
+  }): Promise<string> => {
+    try {
+      return await service.approveRoleRequest(params.role);
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Rechazar solicitud de rol
+   */
+  const rejectRoleRequest = useCallback(async (params: {
+    role: string;
+  }): Promise<string> => {
+    try {
+      return await service.rejectRoleRequest(params.role);
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Agregar titular de rol
+   */
+  const addRoleHolder = useCallback(async (params: {
+    role: string;
+    holder: string;
+  }): Promise<string> => {
+    try {
+      return await service.addRoleHolder(params.role, new PublicKey(params.holder));
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  /**
+   * Remover titular de rol
+   */
+  const removeRoleHolder = useCallback(async (params: {
+    role: string;
+    holder: string;
+  }): Promise<string> => {
+    try {
+      return await service.removeRoleHolder(params.role, new PublicKey(params.holder));
+    } catch (err) {
+      throw err;
+    }
+  }, [service]);
+
+  // ==================== Cache Management ====================
+
+  /**
+   * Limpiar todos los caches
+   */
+  const clearCaches = useCallback(() => {
+    service.clearCaches();
+  }, [service]);
+
+  /**
+   * Invalidar cache por prefijo
+   */
+  const invalidateCachePrefix = useCallback((prefix: string) => {
+    service.invalidateCachePrefix(prefix);
+  }, [service]);
+
+  // Exponer todas las funciones del servicio
   return {
-    // Write operations
+    service,
+    initialized,
+    error,
+    refresh: initialize,
+
+    // Query Functions
+    getAllSerialNumbers,
+    getNetbookState,
+    getNetbooksByState,
+    getNetbookReport,
+    findNetbookBySerial,
+    getNetbookPdaBySerial,
+    queryConfig,
+    getTotalNetbooks,
+    getNextTokenId,
+
+    // Role Functions
+    getAllMembers,
+    getRoleMemberCount,
+    hasRole,
+    getRoleRequests,
+
+    // Transaction Functions
     registerNetbook,
-    registerNetbooks,
+    registerNetbooksBatch,
     auditHardware,
     validateSoftware,
     assignToStudent,
@@ -395,23 +485,11 @@ export const useSupplyChainService = () => {
     requestRole,
     approveRoleRequest,
     rejectRoleRequest,
-    // Read operations
-    getNetbook,
-    getNetbookReport,
-    getNetbookState,
-    getAllSerialNumbers,
-    getConfig,
-    getRoleRequest,
-    // Role management
-    hasRole,
-    hasRoleByHash,
-    getAccountBalance,
-    getAllRolesSummary,
-    getRoleByName,
-    getRoleHash,
-    // Wallet status
-    isWalletConnected,
-    // Loading state
-    loading: transactionLoading,
+    addRoleHolder,
+    removeRoleHolder,
+
+    // Cache Management
+    clearCaches,
+    invalidateCachePrefix,
   };
-};
+}

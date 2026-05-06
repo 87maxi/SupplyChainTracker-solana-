@@ -153,7 +153,7 @@ export function ApprovedAccountsList() {
             const roleHash = await roleMapper.getRoleHash(role);
             
             // 2. Send transaction with the proper role hash
-            const hash = await revokeRole(roleHash, address as `0x${string}`);
+            const hash = await revokeRole(roleHash, address);
             console.log('[ApprovedAccountsList] Revoke TX submitted:', hash);
 
             toast({

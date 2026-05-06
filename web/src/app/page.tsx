@@ -1,13 +1,12 @@
 // web/src/app/page.tsx
 "use client";
 
-import { useWeb3 } from '@/hooks/useWeb3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useEffect, useState } from 'react';
 
 import {
@@ -21,14 +20,20 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
-  const { isConnected } = useWeb3();
   const [mounted, setMounted] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   // Evitar error de hidratación: solo mostrar contenido dinámico después del mount
-  // Precarga el estado de conexión para evitar renderizados innecesarios
   useEffect(() => {
     setMounted(true);
-    // Pre-fetch y cache datos iniciales si es necesario
+    
+    // Check wallet connection status
+    const checkConnection = () => {
+      // This would be integrated with Solana wallet adapter in a real implementation
+      setIsConnected(false);
+    };
+    
+    checkConnection();
   }, []);
 
   return (
@@ -48,14 +53,14 @@ export default function Home() {
         <div className="flex flex-col items-center text-center space-y-10">
           {/* Hero Section */}
           <div className="space-y-6 max-w-4xl animate-float">
-            <Badge variant="outline-glow" className="px-4 py-1.5 text-sm uppercase tracking-widest">
-              Web3 Supply Chain Solution
+            <Badge variant="outline" className="px-4 py-1.5 text-sm uppercase tracking-widest">
+              Solana Supply Chain Solution
             </Badge>
             <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight">
               Trazabilidad <span className="text-gradient">Inmutable</span> para la Educación
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Garantiza la transparencia y seguridad en la distribución de netbooks educativas utilizando tecnología blockchain de última generación.
+              Garantiza la transparencia y seguridad en la distribución de netbooks educativas utilizando tecnología blockchain Solana de última generación.
             </p>
           </div>
 
@@ -65,7 +70,7 @@ export default function Home() {
               <div className="h-12 w-48" />
             ) : !isConnected ? (
               <div className="scale-110">
-                <ConnectButton />
+                <WalletMultiButton className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 rounded-lg px-6 py-3 font-medium transition-all duration-200 shadow-lg hover:shadow-xl" />
               </div>
             ) : (
               <Button asChild size="lg" variant="gradient" className="h-12 px-8 text-lg font-semibold">
@@ -81,7 +86,7 @@ export default function Home() {
             <FeatureCard
               icon={Cpu}
               title="Fabricación"
-              description="Registro inicial de netbooks con huella digital única en la blockchain."
+              description="Registro inicial de netbooks con huella digital única en la blockchain Solana."
               color="text-blue-400"
             />
             <FeatureCard
@@ -105,7 +110,7 @@ export default function Home() {
             <FeatureCard
               icon={Settings2}
               title="Administración"
-              description="Control granular de roles y permisos mediante Smart Contracts."
+              description="Control granular de roles y permisos mediante Smart Contracts en Solana."
               color="text-rose-400"
             />
             <FeatureCard

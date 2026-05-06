@@ -90,6 +90,9 @@ export const findNetbookPda = (tokenId: number | bigint): [PublicKey, number] =>
 
 /**
  * Find PDA for role request
+ * NOTE: Due to PDA seed design, each user can only have ONE role request at a time.
+ * To request a different role, the existing request must be rejected first.
+ * @see https://github.com/87maxi/SupplyChainTracker-solana-/issues/44
  */
 export const findRoleRequestPda = (userPubkey: PublicKey): [PublicKey, number] => {
   return PublicKey.findProgramAddressSync(

@@ -16,12 +16,6 @@ export default {
     '!src/app/globals.css',
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(wagmi|viem|@wagmi|@tanstack|@radix-ui)/)',
+    'node_modules/(?!(@solana|@coral-xyz|@tanstack|@radix-ui)/)',
   ],
-  // Fallback transformer for ESM modules
-  transform: {
-    '^.+\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
-    // Transform any problematic ESM modules
-    'node_modules/(?!.*\.mjs$)': 'babel-jest',
-  },
 };

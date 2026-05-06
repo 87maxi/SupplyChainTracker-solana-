@@ -1,21 +1,36 @@
 // web/src/components/layout/Header.tsx
 "use client";
 
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Navigation } from './Navigation';
-import { useUserRoles } from '@/hooks/useUserRoles';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RoleRequestModal } from '@/components/contracts/RoleRequestModal';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useState, useEffect } from 'react';
-import { useWeb3 } from '@/hooks/useWeb3';
 import { User, Wallet } from 'lucide-react';
 import Link from 'next/link';
 
-export const Header = () => {
-  const { activeRoleNames, isLoading: rolesLoading } = useUserRoles();
-  const { isConnected } = useWeb3();
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+// Roles constants
+const ROLE_NAMES = [
+  'DEFAULT_ADMIN_ROLE',
+  'FABRICANTE_ROLE',
+  'AUDITOR_HW_ROLE',
+  'TECNICO_SW_ROLE',
+  'ESCUELA_ROLE'
+] as const;
+
+type RoleName = typeof ROLE_NAMES[number];
+
+interface HeaderProps {
+  activeRoles?: RoleName[];
+  isLoadingRoles?: boolean;
+  isConnected?: boolean;
+}
+
+export const Header = ({ 
+  activeRoles = [], 
+  isLoadingRoles = false,
+  isConnected = false 
+}: HeaderProps) => {
   const [mounted, setMounted] = useState(false);
 
   // Sincroniza el estado del componente con el ciclo de vida del navegador
@@ -61,29 +76,16 @@ export const Header = () => {
           {/* Sección de roles y acciones - Solo si está conectado */}
           {mounted && isConnected && (
             <>
-              {/* Botón solicitar rol - Solo si no tiene roles */}
-              {!rolesLoading && activeRoleNames.length === 0 && (
-                <Button
-                  variant="gradient"
-                  size="sm"
-                  onClick={() => setIsRequestModalOpen(true)}
-                  className="hidden sm:flex"
-                >
-                  <User className="h-4 w-4 mr-1" />
-                  Solicitar Rol
-                </Button>
-              )}
-
               {/* Badges de roles - Solo en desktop */}
-              {!rolesLoading && activeRoleNames.length > 0 && (
+              {!isLoadingRoles && activeRoles.length > 0 && (
                 <div className="hidden lg:flex items-center space-x-2">
                   {/* Mostrar solo el rol principal según prioridad */}
                   {(() => {
-                    const primaryRole = activeRoleNames.find(r => r === 'DEFAULT_ADMIN_ROLE') ||
-                      activeRoleNames.find(r => r === 'FABRICANTE_ROLE') ||
-                      activeRoleNames.find(r => r === 'AUDITOR_HW_ROLE') ||
-                      activeRoleNames.find(r => r === 'TECNICO_SW_ROLE') ||
-                      activeRoleNames.find(r => r === 'ESCUELA_ROLE');
+                    const primaryRole = activeRoles.find(r => r === 'DEFAULT_ADMIN_ROLE') ||
+                      activeRoles.find(r => r === 'FABRICANTE_ROLE') ||
+                      activeRoles.find(r => r === 'AUDITOR_HW_ROLE') ||
+                      activeRoles.find(r => r === 'TECNICO_SW_ROLE') ||
+                      activeRoles.find(r => r === 'ESCUELA_ROLE');
 
                     if (!primaryRole) return null;
 
@@ -110,23 +112,10 @@ export const Header = () => {
             </div>
           )}
 
-          {/* Botón de conexión - Siempre visible */}
-          <ConnectButton
-            showBalance={false}
-            chainStatus="icon"
-            accountStatus={{
-              smallScreen: 'avatar',
-              largeScreen: 'full',
-            }}
-          />
+          {/* Botón de conexión Solana */}
+          <WalletMultiButton className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 shadow-lg hover:shadow-xl" />
         </div>
       </div>
-
-      {/* Modal de solicitud de rol */}
-      <RoleRequestModal
-        isOpen={isRequestModalOpen}
-        onOpenChange={setIsRequestModalOpen}
-      />
     </header>
   );
 };

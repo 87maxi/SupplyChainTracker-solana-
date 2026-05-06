@@ -25,13 +25,17 @@ if (typeof window !== 'undefined') {
     })),
   });
 
-  // Mock para window.ethereum
-  Object.defineProperty(window, 'ethereum', {
+  // Mock para Solana wallet adapter
+  Object.defineProperty(window, 'solana', {
     writable: true,
     value: {
-      request: jest.fn(),
+      connect: jest.fn().mockResolvedValue({ publicKey: null }),
+      disconnect: jest.fn().mockResolvedValue(undefined),
+      isConnected: false,
       on: jest.fn(),
-      removeListener: jest.fn(),
+      off: jest.fn(),
+      signTransaction: jest.fn(),
+      signMessage: jest.fn(),
     },
   });
 }
@@ -40,3 +44,57 @@ if (typeof window !== 'undefined') {
 if (typeof global !== 'undefined') {
   global.fetch = jest.fn();
 }
+
+// Mock para Solana web3.js
+jest.mock('@solana/web3.js', () => ({
+  Connection: jest.fn().mockImplementation(() => ({
+    getSlot: jest.fn().mockResolvedValue(1n),
+    getBalance: jest.fn().mockResolvedValue(1000000000n),
+    getLatestBlockhash: jest.fn().mockResolvedValue({ blockhash: 'mockBlockhash', lastValidBlockHeight: 1000 }),
+  })),
+  PublicKey: jest.fn().mockImplementation((address) => ({
+    toString: () => address,
+    toBase58: () => address,
+    equals: jest.fn(),
+  })),
+  Transaction: jest.fn().mockImplementation(() => ({
+    sign: jest.fn(),
+    serialize: jest.fn(),
+  })),
+  SystemProgram: {
+    createAccount: jest.fn(),
+    transfer: jest.fn(),
+  },
+  LAMPORTS_PER_SOL: 1000000000,
+}));
+
+// Mock para Anchor
+jest.mock('@coral-xyz/anchor', () => ({
+  Program: jest.fn().mockImplementation(() => ({
+    methods: {
+      registerNetbook: jest.fn().mockReturnThis(),
+      registerNetbooksBatch: jest.fn().mockReturnThis(),
+      auditHardware: jest.fn().mockReturnThis(),
+      validateSoftware: jest.fn().mockReturnThis(),
+      assignToStudent: jest.fn().mockReturnThis(),
+      grantRole: jest.fn().mockReturnThis(),
+      revokeRole: jest.fn().mockReturnThis(),
+      requestRole: jest.fn().mockReturnThis(),
+      approveRoleRequest: jest.fn().mockReturnThis(),
+      rejectRoleRequest: jest.fn().mockReturnThis(),
+      addRoleHolder: jest.fn().mockReturnThis(),
+      removeRoleHolder: jest.fn().mockReturnThis(),
+      rpc: jest.fn().mockResolvedValue('mockSignature'),
+    },
+    account: {
+      netbook: {
+        fetch: jest.fn().mockResolvedValue(null),
+      },
+      supplyChainConfig: {
+        fetch: jest.fn().mockResolvedValue({ roleHolders: [] }),
+      },
+    },
+    programId: new (require('@solana/web3.js').PublicKey)('CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS'),
+  })),
+  AnchorProvider: jest.fn().mockImplementation(() => ({})),
+}));

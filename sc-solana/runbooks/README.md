@@ -30,6 +30,14 @@ For detailed instructions, troubleshooting, and reference documentation, see [DE
 
 > **Important**: Use `surfpool run` (not `txtx run`) for all svm addon operations. The `txtx run` command does not include the svm addon.
 
+## Deployment Guides
+
+| Guide | Description |
+|-------|-------------|
+| [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md) | Complete deployment guide with Surfpool/txtx runbooks |
+| [devnet-deployment.md](devnet-deployment.md) | Step-by-step devnet deployment runbook |
+| [mainnet-deployment.md](mainnet-deployment.md) | Mainnet deployment runbook with security procedures |
+
 ## Runbooks available
 
 ### Deployment Runbooks

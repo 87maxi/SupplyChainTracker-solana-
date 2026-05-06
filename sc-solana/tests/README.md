@@ -101,17 +101,19 @@ yarn ts-mocha -p ./tsconfig.json -w "tests/**/*.ts"
 
 | File | Lines | Issues | Status |
 |------|-------|--------|--------|
-| `test-helpers.ts` | ~590 | #65 | ✅ Complete |
-| `unit-tests.ts` | ~450 | #66 | ✅ Complete |
-| `lifecycle.ts` | ~260 | #67 | ✅ Complete |
-| `integration-full-lifecycle.ts` | ~837 | #81 | ✅ Complete |
-| `batch-registration.ts` | ~368 | #68 | ✅ Complete |
-| `role-management.ts` | ~319 | #69 | ✅ Complete |
-| `query-instructions.ts` | ~342 | - | ✅ Complete |
-| `pda-derivation.ts` | ~252 | - | ✅ Complete |
-| `role-enforcement.ts` | ~370 | #72 | ✅ Complete |
-| `state-machine.ts` | ~460 | #73 | ✅ Complete |
-| `overflow-protection.ts` | ~410 | #74 | ✅ Complete |
+| `test-helpers.ts` | 590 | #65 | ✅ Complete |
+| `unit-tests.ts` | 449 | #66 | ✅ Complete |
+| `lifecycle.ts` | 891 | #67 | ✅ Complete |
+| `integration-full-lifecycle.ts` | 836 | #81 | ✅ Complete |
+| `batch-registration.ts` | 1015 | #68 | ✅ Complete |
+| `role-management.ts` | 981 | #69 | ✅ Complete |
+| `query-instructions.ts` | 1210 | - | ✅ Complete |
+| `pda-derivation.ts` | 697 | - | ✅ Complete |
+| `role-enforcement.ts` | 1133 | #72 | ✅ Complete |
+| `state-machine.ts` | 1409 | #73 | ✅ Complete |
+| `overflow-protection.ts` | 1156 | #74 | ✅ Complete |
+| `sc-solana.ts` | 989 | - | ✅ Complete |
+| **Total** | **11,356** | | |
 
 ## Test Helpers
 
@@ -167,52 +169,84 @@ The [`test-helpers.ts`](test-helpers.ts) module provides comprehensive test util
 
 ### Test Naming
 
-- Use descriptive test names: `test_initialize_config`
+- Use descriptive test names that explain the scenario
 - Group related tests with `describe()` blocks
-- Follow pattern: `test_<instruction>_<scenario>`
+- Follow pattern: `"<description>"` for describe, `"<scenario>"` for it()
+
+Example:
+```typescript
+describe("Batch Registration Integration Tests", () => {
+  it("registers a single netbook via batch instruction", async () => { ... });
+  it("registers a batch of 5 netbooks", async () => { ... });
+  it("rejects batch with mismatched serial_numbers and batch_ids lengths", async () => { ... });
+});
+```
 
 ### Test Structure
 
 ```typescript
-describe("<feature>", () => {
+/**
+ * JSDoc Header - File description and purpose
+ *
+ * Related Issues:
+ * - Issue #XX: Feature Description
+ */
+
+import * as anchor from "@coral-xyz/anchor";
+import { Program, AnchorProvider } from "@coral-xyz/anchor";
+import { ScSolana } from "../target/types/sc_solana";
+import { expect } from "chai";
+import { helperFunctions } from "./test-helpers";
+
+describe("<Feature> Tests", () => {
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+  const program = anchor.workspace.scSolana as Program<ScSolana>;
+
   before(async () => {
-    // Setup: fund accounts, initialize program
+    // Setup: fund accounts, initialize program, grant roles
   });
 
-  beforeEach(() => {
-    // Reset state if needed
-  });
-
-  it("test_<scenario>", async () => {
-    // Test logic
-  });
-
-  after(async () => {
-    // Cleanup if needed
+  it("<scenario description>", async () => {
+    // Test logic with descriptive assertions
   });
 });
 ```
 
 ### Error Testing
 
-Always test error conditions:
+Always test error conditions with clear error code verification:
 
 ```typescript
-it("test_initialize_duplicate", async () => {
-  // Attempt to initialize again
-  await expect(...).to.be.rejectedWith(SupplyChainError.DuplicateConfig);
+it("rejects hardware audit from wrong state", async () => {
+  const tx = await program.methods
+    .hardwareAudit(auditData)
+    .accounts({
+      // ... accounts
+    })
+    .signers([auditor])
+    .rpc();
+
+  // Verify specific error code is returned
 });
 ```
 
 ### PDA Testing
 
-Always verify PDA derivation:
+Always verify PDA derivation using helper functions:
 
 ```typescript
-const [expectedPda, expectedBump] = PublicKey.findProgramAddressSync(
-  [Buffer.from("config")],
-  program.programId
-);
+const [configPda, configBump] = getConfigPda(program);
+const [netbookPda, netbookBump] = getNetbookPda(tokenId, program.programId);
+```
+
+### Provider Pattern
+
+Use `AnchorProvider.env()` with explicit `setProvider` call:
+
+```typescript
+const provider = anchor.AnchorProvider.env();
+anchor.setProvider(provider);
 ```
 
 ## CI/CD Integration

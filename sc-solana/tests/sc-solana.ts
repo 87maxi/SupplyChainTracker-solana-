@@ -62,8 +62,10 @@ describe("SupplyChainTracker Solana", () => {
     } else {
       // Manual test run - load from IDL
       const idl = require("../target/idl/sc_solana.json");
-      const programId = new anchor.web3.PublicKey("CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS");
-      program = new anchor.Program({ ...idl, address: programId.toString() }, provider);
+      // Use program address from IDL or fallback to deployed program
+      const programIdStr = idl.address || "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS";
+      const programId = new anchor.web3.PublicKey(programIdStr);
+      program = new anchor.Program({ ...idl, address: programIdStr }, provider);
     }
     
     // Calculate PDAs after program is loaded
@@ -183,10 +185,15 @@ describe("SupplyChainTracker Solana", () => {
                 "Tecnico:", config.tecnicoSw.toString(),
                 "Escuela:", config.escuela.toString());
     
-    // Only grant roles if the config role holders are default (zero) pubkeys
-    const defaultPubkey = anchor.web3.PublicKey.default;
+    // FIX for Issue #96: Always grant roles to test accounts after initialization.
+    // Previously, the code checked if config role holders were default (zero) pubkeys
+    // before granting. However, initialize() sets config.fabricante = admin.publicKey,
+    // so the FABRICANTE role was never granted to the fabricante keypair.
+    // This caused tests using fabricante as manufacturer to fail with Unauthorized errors
+    // when run in isolation (with --grep) because the role was missing.
     
-    if (config.fabricante.equals(defaultPubkey)) {
+    // Always grant FABRICANTE role to fabricante keypair (overwrites admin holder from initialize)
+    try {
       await program.methods.grantRole(FABRICANTE_ROLE)
         .accountsStrict({
           config: configPda,
@@ -197,11 +204,12 @@ describe("SupplyChainTracker Solana", () => {
         .signers([admin, fabricante])
         .rpc();
       console.log("Granted FABRICANTE role to", fabricante.publicKey.toString());
-    } else {
-      console.log("FABRICANTE role already held by", config.fabricante.toString());
+    } catch (err: any) {
+      console.log("FABRICANTE role grant skipped:", err.message);
     }
     
-    if (config.auditorHw.equals(defaultPubkey)) {
+    // Grant AUDITOR_HW role to auditor keypair
+    try {
       await program.methods.grantRole(AUDITOR_HW_ROLE)
         .accountsStrict({
           config: configPda,
@@ -212,11 +220,12 @@ describe("SupplyChainTracker Solana", () => {
         .signers([admin, auditor])
         .rpc();
       console.log("Granted AUDITOR_HW role to", auditor.publicKey.toString());
-    } else {
-      console.log("AUDITOR_HW role already held by", config.auditorHw.toString());
+    } catch (err: any) {
+      console.log("AUDITOR_HW role grant skipped:", err.message);
     }
     
-    if (config.tecnicoSw.equals(defaultPubkey)) {
+    // Grant TECNICO_SW role to technician keypair
+    try {
       await program.methods.grantRole(TECNICO_SW_ROLE)
         .accountsStrict({
           config: configPda,
@@ -227,11 +236,12 @@ describe("SupplyChainTracker Solana", () => {
         .signers([admin, technician])
         .rpc();
       console.log("Granted TECNICO_SW role to", technician.publicKey.toString());
-    } else {
-      console.log("TECNICO_SW role already held by", config.tecnicoSw.toString());
+    } catch (err: any) {
+      console.log("TECNICO_SW role grant skipped:", err.message);
     }
     
-    if (config.escuela.equals(defaultPubkey)) {
+    // Grant ESCUELA role to school keypair
+    try {
       await program.methods.grantRole(ESCUELA_ROLE)
         .accountsStrict({
           config: configPda,
@@ -242,8 +252,8 @@ describe("SupplyChainTracker Solana", () => {
         .signers([admin, school])
         .rpc();
       console.log("Granted ESCUELA role to", school.publicKey.toString());
-    } else {
-      console.log("ESCUELA role already held by", config.escuela.toString());
+    } catch (err: any) {
+      console.log("ESCUELA role grant skipped:", err.message);
     }
   });
 

@@ -33,32 +33,28 @@ describe("Unit Tests - Anchor Format", () => {
 
   describe("Netbook Space Verification", () => {
     it("verifies Netbook INIT_SPACE calculation", async () => {
-      // Expected space breakdown:
+      // Expected space breakdown (matches Netbook struct in state/netbook.rs):
       // 8 (discriminator) +
-      // 4 (serial_number len + data) +
-      // 200 (serial_number max) +
-      // 4 (batch_id len + data) +
-      // 100 (batch_id max) +
-      // 4 (initial_model_specs len + data) +
-      // 500 (initial_model_specs max) +
-      // 32 (hw_auditor) +
-      // 1 (hw_integrity_passed) +
-      // 32 (hw_report_hash) +
-      // 32 (destination_school_hash) +
-      // 4 (os_version len + data) +
-      // 100 (os_version max) +
-      // 1 (sw_validation_passed) +
-      // 32 (student_id_hash) +
-      // 32 (distribution_timestamp high) +
-      // 8 (distribution_timestamp) +
-      // 1 (state) +
-      // 1 (exists) +
-      // 8 (token_id)
+      // 4 + 200 (serial_number: String, max 200 chars) +
+      // 4 + 100 (batch_id: String, max 100 chars) +
+      // 4 + 500 (initial_model_specs: String, max 500 chars) +
+      // 32 (hw_auditor: Pubkey) +
+      // 1 (hw_integrity_passed: bool) +
+      // 32 (hw_report_hash: [u8; 32]) +
+      // 32 (sw_technician: Pubkey) +
+      // 4 + 100 (os_version: String, max 100 chars) +
+      // 1 (sw_validation_passed: bool) +
+      // 32 (destination_school_hash: [u8; 32]) +
+      // 32 (student_id_hash: [u8; 32]) +
+      // 8 (distribution_timestamp: u64) +
+      // 1 (state: u8) +
+      // 1 (exists: bool) +
+      // 8 (token_id: u64)
       // = 8 + 4 + 200 + 4 + 100 + 4 + 500 + 32 + 1 + 32 + 32 + 4 + 100 + 1 + 32 + 32 + 8 + 1 + 1 + 8
-      // = 1005 bytes
+      // = 1104 bytes
 
       const expectedSpace = 8 + 4 + 200 + 4 + 100 + 4 + 500 + 32 + 1 + 32 + 32 + 4 + 100 + 1 + 32 + 32 + 8 + 1 + 1 + 8;
-      expect(expectedSpace).to.equal(1005);
+      expect(expectedSpace).to.equal(1104);
 
       // Verify the calculation components
       const components = {
@@ -69,9 +65,10 @@ describe("Unit Tests - Anchor Format", () => {
         hwAuditor: 32,
         hwIntegrityPassed: 1,
         hwReportHash: 32,
-        destinationSchoolHash: 32,
+        swTechnician: 32,
         osVersion: 4 + 100,
         swValidationPassed: 1,
+        destinationSchoolHash: 32,
         studentIdHash: 32,
         distributionTimestamp: 8,
         state: 1,
@@ -175,25 +172,25 @@ describe("Unit Tests - Anchor Format", () => {
 
   describe("SupplyChainConfig Space Verification", () => {
     it("verifies SupplyChainConfig INIT_SPACE calculation", async () => {
-      // Expected space breakdown:
+      // Expected space breakdown (matches SupplyChainConfig struct in state/config.rs):
       // 8 (discriminator) +
-      // 32 (admin) +
-      // 32 (fabricante) +
-      // 32 (auditor_hw) +
-      // 32 (tecnico_sw) +
-      // 32 (escuela) +
-      // 1 (admin_bump) +
-      // 8 (next_token_id) +
-      // 8 (total_netbooks) +
-      // 8 (role_requests_count) +
-      // 8 (fabricante_count) +
-      // 8 (auditor_hw_count) +
-      // 8 (tecnico_sw_count) +
-      // 8 (escuela_count)
-      // = 8 + 32 + 32 + 32 + 32 + 32 + 1 + 8 + 8 + 8 + 8 + 8 + 8 = 185 bytes
+      // 32 (admin: Pubkey) +
+      // 32 (fabricante: Pubkey) +
+      // 32 (auditor_hw: Pubkey) +
+      // 32 (tecnico_sw: Pubkey) +
+      // 32 (escuela: Pubkey) +
+      // 1 (admin_bump: u8) +
+      // 8 (next_token_id: u64) +
+      // 8 (total_netbooks: u64) +
+      // 8 (role_requests_count: u64) +
+      // 8 (fabricante_count: u64) +
+      // 8 (auditor_hw_count: u64) +
+      // 8 (tecnico_sw_count: u64) +
+      // 8 (escuela_count: u64)
+      // = 8 + 160 + 1 + 56 = 225 bytes
 
-      const expectedSpace = 8 + 32 + 32 + 32 + 32 + 32 + 1 + 8 + 8 + 8 + 8 + 8 + 8;
-      expect(expectedSpace).to.equal(185);
+      const expectedSpace = 8 + 32 + 32 + 32 + 32 + 32 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8;
+      expect(expectedSpace).to.equal(225);
 
       // Verify component breakdown
       const components = {
@@ -219,7 +216,7 @@ describe("Unit Tests - Anchor Format", () => {
 
     it("verifies config account size is reasonable", async () => {
       // Config account should be under 1KB
-      const configSpace = 185;
+      const configSpace = 225;
       expect(configSpace).to.be.lessThan(1024);
       expect(configSpace).to.be.greaterThan(100);
     });

@@ -55,6 +55,6 @@ output "instruction_args" {
   value = [
     variable.serial_number,
     variable.os_version,
-    string(variable.passed)
+    variable.passed            // bool directamente, no string
   ]
 }

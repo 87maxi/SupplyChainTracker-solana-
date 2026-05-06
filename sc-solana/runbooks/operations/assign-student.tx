@@ -49,7 +49,7 @@ output "instruction_args" {
   description = "Instruction arguments"
   value = [
     variable.serial_number,
-    variable.student_id_hash,
-    variable.school_hash
+    variable.school_hash,      // school_hash como segundo argumento
+    variable.student_id_hash   // student_id_hash como tercer argumento
   ]
 }

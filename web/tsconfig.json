@@ -41,6 +41,9 @@
       ],
       "@/app/*": [
         "src/app/*"
+      ],
+      "@/contracts/*": [
+        "src/contracts/*"
       ]
     },
     "target": "ES2017",

@@ -1,10 +1,10 @@
 // Edge cases and error handling tests
 // Tests various error conditions and edge cases
 
-// Signers
-signer "admin" "svm::web_wallet" {
-  description = "Admin account"
-  keypair_path = input.admin_keypair
+// Signers - Using escuela role for tests (no admin role exists)
+signer "escuela" "svm::web_wallet" {
+  description = "School account (used for unauthorized tests)"
+  keypair_path = input.escuela_keypair
 }
 
 signer "fabricante" "svm::web_wallet" {
@@ -74,15 +74,18 @@ output "edge_case_tests" {
 output "error_codes" {
   description = "SupplyChainError codes to test"
   value = {
-    InvalidRoleType: "0",
-    RoleAlreadyGranted: "1",
-    RoleNotGranted: "2",
-    Unauthorized: "3",
-    DuplicateSerial: "4",
-    SerialNotFound: "5",
-    StringTooLong: "6",
-    EmptySerial: "7",
-    InvalidStateTransition: "8",
-    NetbookNotAssigned: "9"
+    Unauthorized: "6000",
+    InvalidStateTransition: "6001",
+    NetbookNotFound: "6002",
+    InvalidInput: "6003",
+    DuplicateSerial: "6004",
+    ArrayLengthMismatch: "6005",
+    RoleAlreadyGranted: "6006",
+    RoleNotFound: "6007",
+    InvalidSignature: "6008",
+    EmptySerial: "6009",
+    StringTooLong: "6010",
+    MaxRoleHoldersReached: "6011",
+    RoleHolderNotFound: "6012"
   }
 }

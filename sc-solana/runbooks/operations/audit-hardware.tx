@@ -54,7 +54,7 @@ output "instruction_args" {
   description = "Instruction arguments"
   value = [
     variable.serial_number,
-    string(variable.passed),
+    variable.passed,           // bool directamente, no string
     variable.report_hash
   ]
 }

@@ -1,82 +1,74 @@
-import { AuditLog } from '@/types/audit';
-import { publicClient } from '@/lib/blockchain/client';
-import { NEXT_PUBLIC_SUPPLY_CHAIN_TRACKER_ADDRESS } from '@/lib/env';
-import { SupplyChainTrackerABI } from '@/lib/contracts/abi';
+/**
+ * Servicio para gestionar eventos y logs de auditoría desde Solana
+ * Migrado de Ethereum/Viem a Solana/Anchor
+ */
 
-// Servicio para gestionar eventos y logs de auditoría desde la blockchain
+import { AuditLog } from '@/types/audit';
+import { connection } from '@/lib/solana/connection';
+import { PROGRAM_ID } from '@/lib/contracts/solana-program';
+
+/**
+ * Obtener eventos del programa SupplyChain
+ */
 export const getEventService = async () => {
   return {
+    /**
+     * Obtener logs de auditoría desde eventos de Solana
+     */
     getAuditLogs: async (): Promise<AuditLog[]> => {
       try {
-        // Filter only events from the ABI
-        // Convert the JSON ABI to array format if it's an object
-        const abiArray = Array.isArray(SupplyChainTrackerABI) ? SupplyChainTrackerABI : Object.values(SupplyChainTrackerABI).flat();
-        const eventAbis = abiArray.filter((item: any) => item.type === 'event');
-        
-        // Fetch events from the blockchain
-        const logs = await publicClient.getLogs({
-          address: NEXT_PUBLIC_SUPPLY_CHAIN_TRACKER_ADDRESS as `0x${string}`,
-          event: {
-            name: 'RoleGranted',
-            type: 'event',
-            inputs: [
-              { name: 'role', type: 'bytes32', indexed: true },
-              { name: 'account', type: 'address', indexed: true },
-              { name: 'sender', type: 'address', indexed: true }
-            ]
-          },
-          fromBlock: 0n,
-          toBlock: 'latest'
-        });
-        
-        // Also fetch RoleRevoked events
-        const revokedLogs = await publicClient.getLogs({
-          address: NEXT_PUBLIC_SUPPLY_CHAIN_TRACKER_ADDRESS as `0x${string}`,
-          event: {
-            name: 'RoleRevoked',
-            type: 'event',
-            inputs: [
-              { name: 'role', type: 'bytes32', indexed: true },
-              { name: 'account', type: 'address', indexed: true },
-              { name: 'sender', type: 'address', indexed: true }
-            ]
-          },
-          fromBlock: 0n,
-          toBlock: 'latest'
-        });
-        
-        // Combine all logs
-        const allLogs = [...logs, ...revokedLogs];
-        
-        // Transform blockchain logs to AuditLog format
-        const auditLogs: AuditLog[] = await Promise.all(allLogs.map(async (log: any) => {
-          // Get block timestamp
-          let timestamp = new Date().toISOString();
-          try {
-            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-            timestamp = new Date(Number(block.timestamp) * 1000).toISOString();
-          } catch (error) {
-            console.warn('Could not fetch block timestamp:', error);
-          }
-          
-          return {
-            id: `${log.blockNumber}-${log.logIndex}`,
-            transactionHash: log.transactionHash,
-            action: log.eventName || 'UNKNOWN_EVENT',
-            actor: log.args?.account || log.args?.sender || '0x0000000000000000000000000000000000000000',
-            timestamp,
-            details: JSON.stringify(log.args || {})
-          };
-        }));
-        
-        // Sort by timestamp descending (newest first)
-        return auditLogs.sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        // Buscar transactions del programa en los últimos bloques
+        const programSignatures = await connection.getSignaturesForAddress(
+          PROGRAM_ID,
+          { limit: 100 },
+          'confirmed'
         );
-      } catch (error) {
-        console.error('Error fetching audit logs from blockchain:', error);
+
+        // Transformar signatures a AuditLog format
+        const auditLogs: AuditLog[] = programSignatures
+          .map((sigInfo, index) => ({
+            id: `${sigInfo.signature}-${index}`,
+            transactionHash: sigInfo.signature,
+            action: sigInfo.err ? 'ERROR' : 'TRANSACTION',
+            actor: sigInfo.memo || 'UNKNOWN',
+            timestamp: new Date(sigInfo.blockTime ? sigInfo.blockTime * 1000 : Date.now()).toISOString(),
+            details: {
+              slot: sigInfo.slot,
+              err: sigInfo.err,
+              confirmationStatus: sigInfo.confirmationStatus,
+            }
+          }))
+          .sort((a, b) => 
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          );
+
+        return auditLogs;
+      } catch {
         return [];
       }
-    }
+    },
+
+    /**
+     * Obtener eventos específicos del programa
+     */
+    getProgramEvents: async () => {
+      try {
+        // Obtener account changes para el programa
+        const signatures = await connection.getSignaturesForAddress(
+          PROGRAM_ID,
+          { limit: 50 },
+          'confirmed'
+        );
+
+        return signatures.map((sig) => ({
+          signature: sig.signature,
+          slot: sig.slot,
+          blockTime: sig.blockTime,
+          err: sig.err,
+        }));
+      } catch {
+        return [];
+      }
+    },
   };
 };

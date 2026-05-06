@@ -92,8 +92,8 @@ output "test_commands" {
   value = {
     airdrop_tester: "solana airdrop 10 <tester_address> --url http://localhost:8899",
     airdrop_fabricante: "solana airdrop 5 <fabricante_address> --url http://localhost:8899",
-    airdrop_auditor: "solana airdrop 5 <auditor_address> --url http://localhost:8899",
-    airdrop_tecnico: "solana airdrop 5 <tecnico_address> --url http://localhost:8899",
+    airdrop_auditor_hw: "solana airdrop 5 <auditor_hw_address> --url http://localhost:8899",
+    airdrop_tecnico_sw: "solana airdrop 5 <tecnico_sw_address> --url http://localhost:8899",
     airdrop_escuela: "solana airdrop 5 <escuela_address> --url http://localhost:8899"
   }
 }

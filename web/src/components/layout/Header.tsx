@@ -112,8 +112,10 @@ export const Header = ({
             </div>
           )}
 
-          {/* Botón de conexión Solana */}
-          <WalletMultiButton className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 shadow-lg hover:shadow-xl" />
+          {/* Botón de conexión Solana - Solo renderizar después del mount para evitar hydration mismatch */}
+          {mounted && (
+            <WalletMultiButton className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 rounded-lg px-4 py-2 font-medium transition-all duration-200 shadow-lg hover:shadow-xl" />
+          )}
         </div>
       </div>
     </header>

@@ -3,7 +3,7 @@
 
 // Importaciones actualizadas para Solana/Anchor
 import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
-import { useSupplyChainService } from '@/hooks/useSupplyChainService'; // Usar el hook del servicio
+import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { Netbook, NetbookState } from '@/types/supply-chain-types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,15 @@ import {
   Truck,
   Search,
   LayoutDashboard,
-  Loader2
+  Loader2,
+  Users,
+  Shield,
+  Building2,
+  Clock,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -38,6 +46,23 @@ import { PublicKey } from '@solana/web3.js';
 
 import { TrackingCard } from './components/TrackingCard';
 
+// Interface for complete config data with role counts
+interface ExtendedConfigData {
+  admin: PublicKey;
+  fabricante: PublicKey;
+  auditorHw: PublicKey;
+  tecnicoSw: PublicKey;
+  escuela: PublicKey;
+  adminBump: number;
+  nextTokenId: any;
+  totalNetbooks: any;
+  roleRequestsCount: any;
+  fabricanteCount: number;
+  auditorHwCount: number;
+  tecnicoSwCount: number;
+  escuelaCount: number;
+}
+
 // Summary Card Component
 function SummaryCard({ title, count, description, icon: Icon, color }: { title: string, count: number, description: string, icon: any, color: string }) {
   return (
@@ -51,6 +76,26 @@ function SummaryCard({ title, count, description, icon: Icon, color }: { title: 
       <CardContent>
         <div className="text-4xl font-bold mb-1">{count}</div>
         <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Stat Card for role holders
+function RoleHolderCard({ title, count, description, icon: Icon, color }: { title: string, count: number, description: string, icon: any, color: string }) {
+  return (
+    <Card className="relative overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <div className={cn("rounded-full p-2", color)}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{count}</div>
+        <p className="text-xs text-muted-foreground mt-1">{description}</p>
       </CardContent>
     </Card>
   );
@@ -80,11 +125,54 @@ function TempDashboard({ onConnect }: { onConnect: () => void }) {
   );
 }
 
+// Network Status Badge
+function NetworkStatusBadge({ isConnected, isSyncing }: { isConnected: boolean, isSyncing: boolean }) {
+  return (
+    <div className="flex items-center gap-3 bg-gradient-subtle p-2 rounded-xl border border-white/10 shadow-lg">
+      <div className={cn("h-2 w-2 rounded-full", isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500")}>
+      </div>
+      <span className="text-sm font-medium">
+        {isSyncing ? "Sincronizando..." : isConnected ? "Sistema en línea" : "Desconectado"}
+      </span>
+    </div>
+  );
+}
+
+// Error Banner Component
+function ErrorBanner({ message, onDismiss }: { message: string, onDismiss: () => void }) {
+  return (
+    <Card className="border-red-500/50 bg-red-500/10">
+      <CardContent className="py-4">
+        <div className="flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-400 flex-1">{message}</p>
+          <Button variant="ghost" size="sm" onClick={onDismiss}>
+            <XCircle className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ManagerDashboard() {
   // Obtener datos desde Solana program
   const [netbooks, setNetbooks] = useState<Netbook[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // New state for extended dashboard data
+  const [configData, setConfigData] = useState<ExtendedConfigData | null>(null);
+  const [roleHolderCounts, setRoleHolderCounts] = useState({
+    fabricante: 0,
+    auditorHw: 0,
+    tecnicoSw: 0,
+    escuela: 0
+  });
+  const [totalRoleRequests, setTotalRoleRequests] = useState(0);
+  const [systemUptime, setSystemUptime] = useState<number | null>(null);
 
   // Funciones para manejar filtros
   const handleUserFilterChange = (filter: { key: string; value: string }) => {
@@ -96,15 +184,42 @@ export default function ManagerDashboard() {
   };
 
   const { isConnected, connectWallet, publicKey } = useSolanaWeb3();
-  const { getAllSerialNumbers, getNetbookState, getNetbookReport } = useSupplyChainService();
+  const { getAllSerialNumbers, getNetbookState, getNetbookReport, getConfig } = useSupplyChainService();
   const { isHardwareAuditor, isSoftwareTechnician, isSchool, isAdmin } = useUserRoles();
 
   // Fetch netbooks from Solana program
   const fetchDashboardData = useCallback(async () => {
-    if (!isConnected) return;
+    if (!isConnected) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
+    setIsSyncing(true);
+    setError(null);
+    
     try {
+      // Fetch config data first
+      const config = await getConfig();
+      if (config) {
+        const extendedConfig = config as ExtendedConfigData;
+        setConfigData(extendedConfig);
+        
+        // Extract role holder counts
+        setRoleHolderCounts({
+          fabricante: extendedConfig.fabricanteCount || 0,
+          auditorHw: extendedConfig.auditorHwCount || 0,
+          tecnicoSw: extendedConfig.tecnicoSwCount || 0,
+          escuela: extendedConfig.escuelaCount || 0
+        });
+        
+        setTotalRoleRequests(extendedConfig.roleRequestsCount?.toNumber() || 0);
+        
+        // Calculate system uptime from initialization (if we had timestamp)
+        // For now, we'll just track the total netbooks count
+        const totalNetbooks = extendedConfig.totalNetbooks?.toNumber() || 0;
+      }
+
       const serials = await getAllSerialNumbers();
       const stateMap: Record<number, NetbookState> = {
         0: 'FABRICADA',
@@ -153,12 +268,14 @@ export default function ManagerDashboard() {
       } catch {
         // Config not initialized or error fetching
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching dashboard data:', err);
+      setError(`Error al cargar datos: ${err.message || 'Desconocido'}`);
     } finally {
       setIsLoading(false);
+      setIsSyncing(false);
     }
-  }, [isConnected, getAllSerialNumbers, getNetbookState, getNetbookReport]);
+  }, [isConnected, getAllSerialNumbers, getNetbookState, getNetbookReport, getConfig]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -171,6 +288,10 @@ export default function ManagerDashboard() {
     SW_VALIDADO: netbooks.filter(n => n.currentState === 'SW_VALIDADO').length,
     DISTRIBUIDA: netbooks.filter(n => n.currentState === 'DISTRIBUIDA').length
   };
+
+  // Total netbooks from config
+  const totalNetbooksFromConfig = configData?.totalNetbooks?.toNumber() || 0;
+  const nextTokenId = configData?.nextTokenId?.toNumber() || 0;
 
   // Filtrar tareas pendientes basado en roles
   const pendingTasks = netbooks.filter((n: Netbook) => {
@@ -252,11 +373,13 @@ export default function ManagerDashboard() {
           <h1 className="text-4xl font-bold tracking-tight mb-2">Resumen General</h1>
           <p className="text-muted-foreground">Estado actual de la cadena de suministro de netbooks.</p>
         </div>
-        <div className="flex items-center gap-3 bg-gradient-subtle p-2 rounded-xl border border-white/10 shadow-lg">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-sm font-medium">Sistema en línea</span>
-        </div>
+        <NetworkStatusBadge isConnected={isConnected} isSyncing={isSyncing} />
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+      )}
 
       <RoleActions />
 
@@ -277,6 +400,64 @@ export default function ManagerDashboard() {
             <SummaryCard title="HW Aprobado" count={summary.HW_APROBADO} description="Hardware verificado por auditores." icon={ShieldCheck} color="text-emerald-400" />
             <SummaryCard title="SW Validado" count={summary.SW_VALIDADO} description="Software instalado y certificado." icon={Monitor} color="text-purple-400" />
             <SummaryCard title="Entregadas" count={summary.DISTRIBUIDA} description="Distribuidas a instituciones finales." icon={Truck} color="text-amber-400" />
+          </div>
+
+          {/* System Statistics */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                <TrendingUp className="h-6 w-6 text-primary" />
+                Estadísticas del Sistema
+              </h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <RoleHolderCard 
+                title="Total Registradas" 
+                count={totalNetbooksFromConfig} 
+                description={`Próximo ID: ${nextTokenId}`}
+                icon={Package}
+                color="bg-blue-500/20 text-blue-500"
+              />
+              <RoleHolderCard 
+                title="Fabricantes" 
+                count={roleHolderCounts.fabricante} 
+                description="Cuentas con rol FABRICANTE"
+                icon={Building2}
+                color="bg-blue-500/20 text-blue-500"
+              />
+              <RoleHolderCard 
+                title="Auditores HW" 
+                count={roleHolderCounts.auditorHw} 
+                description="Cuentas con rol AUDITOR_HW"
+                icon={ShieldCheck}
+                color="bg-emerald-500/20 text-emerald-500"
+              />
+              <RoleHolderCard 
+                title="Técnicos SW" 
+                count={roleHolderCounts.tecnicoSw} 
+                description="Cuentas con rol TECNICO_SW"
+                icon={Monitor}
+                color="bg-purple-500/20 text-purple-500"
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <RoleHolderCard 
+                title="Escuelas" 
+                count={roleHolderCounts.escuela} 
+                description="Cuentas con rol ESCUELA"
+                icon={Building2}
+                color="bg-amber-500/20 text-amber-500"
+              />
+              <RoleHolderCard 
+                title="Solicitudes de Rol" 
+                count={totalRoleRequests} 
+                description="Solicitudes pendientes o procesadas"
+                icon={Users}
+                color="bg-orange-500/20 text-orange-500"
+              />
+            </div>
           </div>
 
           {/* Pending Tasks Section */}

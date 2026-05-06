@@ -17,7 +17,6 @@ export default function DiagnosticRunner() {
     
     // Verificar tipo de instancia
     console.log('¿Es instancia de SupplyChainService?', instance1 instanceof SupplyChainService);
-    console.log('¿Es instancia de BaseContractService?', instance1 instanceof (BaseContractService as any));
     
     // Verificar métodos
     console.log('¿Tiene método readContract?', typeof instance1.readContract === 'function');
@@ -35,6 +34,3 @@ export default function DiagnosticRunner() {
   
   return null;
 }
-
-// Importar BaseContractService para la verificación de instancia
-import { BaseContractService } from '@/services/contracts/base-contract.service';

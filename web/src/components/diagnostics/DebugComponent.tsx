@@ -10,60 +10,38 @@ export default function DebugComponent() {
 
   useEffect(() => {
     try {
-      console.log('🔍 Iniciando diagnóstico detallado...');
-      
       // Obtener instancia singleton
       const instance = SupplyChainService.getInstance();
-      console.log('🎯 Instancia obtenida:', instance);
       
       // Verificar propiedades básicas
-      console.log('🏠 contractAddress:', instance.contractAddress);
-      console.log('📋 abi:', instance.abi ? 'presente' : 'falta');
-      console.log('🔖 cachePrefix:', instance.cachePrefix);
+      const hasService = !!instance;
+      const isSingleton = instance === SupplyChainService.getInstance();
       
-      // Verificar métodos
-      console.log('🔧 ¿readContract es función?', typeof instance.readContract === 'function');
-      console.log('📝 ¿writeContract es función?', typeof instance.writeContract === 'function');
-      console.log('⏳ ¿waitForTransactionReceipt es función?', typeof instance.waitForTransactionReceipt === 'function');
-      console.log('📍 ¿getAddress es función?', typeof instance.getAddress === 'function');
-      
-      // Verificar prototipo
-      console.log('🧪 Prototipo de readContract:', Object.getPrototypeOf(instance).hasOwnProperty('readContract'));
-      
-      // Verificar herencia
-      console.log('👨‍👦 ¿Instancia de SupplyChainService?', instance instanceof SupplyChainService);
-      console.log('🧬 ¿Instancia de BaseContractService?', instance instanceof (BaseContractService as any));
+      // Verificar métodos disponibles
+      const hasRegisterNetbook = typeof instance?.registerNetbook === 'function';
+      const hasAuditHardware = typeof instance?.auditHardware === 'function';
+      const hasValidateSoftware = typeof instance?.validateSoftware === 'function';
+      const hasAssignToStudent = typeof instance?.assignToStudent === 'function';
+      const hasHasRole = typeof instance?.hasRole === 'function';
       
       // Verificar registro
       const isRegistered = contractRegistry.has('SupplyChainTracker');
-      console.log('📝 ¿Registrado en contractRegistry?', isRegistered);
-      
-      if (isRegistered) {
-        const registryInstance = contractRegistry.get('SupplyChainTracker');
-        console.log('🔗 ¿Misma instancia que en registro?', instance === registryInstance);
-      }
-      
-      // Intentar llamar a un método para forzar el error
-      console.log('💥 Intentando método que causa error...');
-      try {
-        // Usar un método que eventualmente llama a readContract
-        instance.read('getRoleByName', ['ADMIN']).catch(console.error);
-      } catch (error) {
-        console.error('❌ Error al intentar método:', error);
-      }
-      
-      console.log('✅ Diagnóstico completado');
       
       // Guardar datos para posible inspección en UI
       setDiagnosticData({
-        instance: instance ? 'presente' : 'nula',
-        contractAddress: instance?.contractAddress,
-        hasReadContract: typeof instance?.readContract === 'function',
+        instance: hasService ? 'presente' : 'nula',
+        singleton: isSingleton,
+        hasRegisterNetbook,
+        hasAuditHardware,
+        hasValidateSoftware,
+        hasAssignToStudent,
+        hasHasRole,
         registered: isRegistered
       });
       
     } catch (error) {
-      console.error('❌ Error en diagnóstico:', error);
+      // eslint-disable-next-line no-console
+      console.error('Error en diagnóstico:', error);
     }
   }, []);
   
@@ -73,6 +51,3 @@ export default function DebugComponent() {
     </div>
   );
 }
-
-// Importar BaseContractService para la verificación de instancia
-import { BaseContractService } from '@/services/contracts/base-contract.service';

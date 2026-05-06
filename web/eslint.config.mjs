@@ -33,6 +33,9 @@ export default [
       globals: {
         browser: true,
         node: true,
+        console: true,
+        process: true,
+        Buffer: true,
       },
     },
     plugins: {

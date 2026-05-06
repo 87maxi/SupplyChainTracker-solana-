@@ -9,6 +9,7 @@ import { Program, AnchorProvider } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { connection } from '@/lib/solana/connection';
 import { PROGRAM_ID, getProgram } from '@/lib/contracts/solana-program';
+import { Buffer } from 'buffer';
 
 // Tipos para solicitudes de roles
 export interface RoleRequest {
@@ -69,6 +70,7 @@ export class RoleRequestService {
 
       return { success: true, signature: tx };
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error creating role request:', error);
       return {
         success: false,
@@ -96,6 +98,7 @@ export class RoleRequestService {
 
       return { success: true, signature: tx };
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error approving role request:', error);
       return {
         success: false,
@@ -123,6 +126,7 @@ export class RoleRequestService {
 
       return { success: true, signature: tx };
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error rejecting role request:', error);
       return {
         success: false,

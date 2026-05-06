@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { connection } from '@/lib/solana/connection';
 import { PROGRAM_ID } from '@/lib/contracts/solana-program';
 import { PublicKey } from '@solana/web3.js';
+import { Buffer } from 'buffer';
 
 // Tipos de roles del programa
 export enum UserRole {

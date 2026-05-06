@@ -8,7 +8,7 @@ import { ReactNode, useMemo } from 'react';
 import { clusterApiUrl } from '@solana/web3.js';
 
 // Default styles that can be overridden by your app
-require('@solana/wallet-adapter-react-ui/styles.css');
+import '@solana/wallet-adapter-react-ui/styles.css';
 
 export function SolanaWalletProvider({ children }: { children: ReactNode }) {
   const network = (process.env.NEXT_PUBLIC_CLUSTER || 'devnet') as WalletAdapterNetwork;

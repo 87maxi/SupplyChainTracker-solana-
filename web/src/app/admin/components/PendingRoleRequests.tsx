@@ -16,7 +16,7 @@ import { AlertTriangle, RefreshCw, Settings2 ,
   TrendingUp
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import RoleManager from '@/components/contracts/RoleManager';
+import { RoleManager } from '@/components/contracts/RoleManager';
 import { Button } from '@/components/ui/button';
 import { NetbookStatusChart } from '@/components/charts/NetbookStatusChart';
 import { UserRolesChart } from '@/components/charts/UserRolesChart';
@@ -333,7 +333,7 @@ export default function PendingRoleRequests({ stats: initialStats }: { stats?: D
     refreshAllData();
 
     // Listen for global refresh events
-    const unsubscribe = eventBus.on(EVENTS.REFRESH_DATA || 'REFRESH_DATA', () => {
+    const unsubscribe = eventBus.on('REFRESH_DATA', () => {
       console.log('[PendingRoleRequests] Global refresh detected...');
       refreshAllData(true);
     });

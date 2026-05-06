@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useProcessedUserAndNetbookData } from './useProcessedUserAndNetbookData';
+import { useSupplyChainService } from './useSupplyChainService';
 
 // Interfaces para los datos de analytics
 export interface AnalyticsData {
@@ -19,47 +19,69 @@ export interface AnalyticsStats {
   };
 }
 
-// Custom hook para obtener datos de analytics desde MongoDB
+// Custom hook para obtener datos de analytics desde Solana Blockchain
 export function useAnalyticsData() {
-  const { users, netbooks, isLoading: dataLoading } = useProcessedUserAndNetbookData();
+  const { getAllRolesSummary, getAllSerialNumbers, getNetbook } = useSupplyChainService();
   const [stats, setStats] = useState<AnalyticsStats | null>(null);
   const [data, setData] = useState<AnalyticsData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const processData = () => {
+    const processData = async () => {
       try {
         setIsLoading(true);
         setError(null);
 
-        // Procesar estadísticas
+        // Get all serial numbers from blockchain
+        const serials = await getAllSerialNumbers();
+        
+        // Query netbooks
+        const netbooks: any[] = [];
+        for (const serial of serials) {
+          try {
+            const netbook = await getNetbook(serial);
+            if (netbook) {
+              netbooks.push({ serialNumber: serial, currentState: (netbook as any).currentState, auditTimestamp: (netbook as any).auditTimestamp, distributionTimestamp: (netbook as any).distributionTimestamp });
+            }
+          } catch {
+            // Skip netbooks that can't be loaded
+          }
+        }
+
+        // Get role summary
+        const roleSummary = await getAllRolesSummary();
+        
+        // Count users by role
+        const users: any[] = [];
+        const usersByRole: Record<string, number> = {};
+        Object.entries(roleSummary).forEach(([roleName, data]) => {
+          const members = (data as any).members || [];
+          usersByRole[roleName.replace('_ROLE', '')] = members.length;
+          members.forEach((addr: string) => {
+            users.push({ role: roleName, address: addr });
+          });
+        });
+
+        // Count netbooks by status
+        const netbooksByStatus: Record<string, number> = {};
+        netbooks.forEach((netbook) => {
+          const status = netbook.currentState || 'UNKNOWN';
+          netbooksByStatus[status] = (netbooksByStatus[status] || 0) + 1;
+        });
+
         const analyticsStats: AnalyticsStats = {
           totalUsers: users.length,
           totalNetbooks: netbooks.length,
-          usersByRole: {},
-          netbooksByStatus: {}
+          usersByRole,
+          netbooksByStatus,
         };
 
-        // Contar usuarios por rol
-        users.forEach((user) => {
-          const role = user.role.replace('_ROLE', '');
-          analyticsStats.usersByRole[role] = (analyticsStats.usersByRole[role] || 0) + 1;
-        });
-
-        // Contar netbooks por estado
-        netbooks.forEach((netbook) => {
-          analyticsStats.netbooksByStatus[netbook.currentState] = 
-            (analyticsStats.netbooksByStatus[netbook.currentState] || 0) + 1;
-        });
-
-        // Crear datos para gráfico (agrupados por mes)
+        // Create chart data (grouped by month)
         const monthlyData: { [key: string]: { fabricadas: number, distribuidas: number } } = {};
         
-        // Combinar datos de usuarios y netbooks para el análisis de crecimiento
-        [...users, ...netbooks].forEach((item) => {
-          const timestamp = item.distributionTimestamp ? 
-            item.distributionTimestamp : Date.now();
+        netbooks.forEach((netbook) => {
+          const timestamp = netbook.distributionTimestamp || netbook.auditTimestamp || Date.now();
           const date = new Date(Number(timestamp) * 1000);
           const monthYear = date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
           
@@ -67,19 +89,14 @@ export function useAnalyticsData() {
             monthlyData[monthYear] = { fabricadas: 0, distribuidas: 0 };
           }
           
-          // Clasificar según tipo de registro
-          if ('serialNumber' in item) {
-            // Es una netbook
-            if (item.currentState === 'FABRICADA') {
-              monthlyData[monthYear].fabricadas++;
-            }
-          } else if (['FABRICANTE_ROLE', 'AUDITOR_HW_ROLE', 'TECNICO_SW_ROLE', 'ESCUELA_ROLE'].includes(item.role)) {
-            // Es un usuario con rol específico en el sistema
+          if (netbook.currentState === 'FABRICADA') {
+            monthlyData[monthYear].fabricadas++;
+          } else if (netbook.currentState === 'DISTRIBUIDA') {
             monthlyData[monthYear].distribuidas++;
           }
         });
 
-        // Convertir a array ordenada por fecha
+        // Sort by date
         const chartData = Object.entries(monthlyData)
           .map(([date, counts]) => ({ date, fabricadas: counts.fabricadas, distribuidas: counts.distribuidas }))
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -96,10 +113,8 @@ export function useAnalyticsData() {
       }
     };
 
-    if (!dataLoading) {
-      processData();
-    }
-  }, [users, netbooks, dataLoading]);
+    processData();
+  }, [getAllRolesSummary, getAllSerialNumbers, getNetbook]);
 
   return { data, stats, isLoading, error };
 }

@@ -54,7 +54,7 @@ export const RoleManagementSection = () => {
         toast({
           title: "Éxito",
           description: `Rol otorgado correctamente al usuario ${newMemberAddress}.`,
-          action: result.hash ? <ToastAction altText="Ver transacción" onClick={() => window.open(`https://explorer.solana.com/tx/${result.hash}?cluster=devnet`, '_blank')}>Ver TX</ToastAction> : undefined
+          action: result.hash ? <ToastAction altText="Ver transacción" onClick={() => window.open(`https://explorer.solana.com/tx/${result.hash}${window.location.search.includes('cluster=devnet') ? '?cluster=devnet' : ''}`, '_blank')}>Ver TX</ToastAction> : undefined
         });
         setNewMemberAddress('');
         eventBus.emit(EVENTS.ROLE_UPDATED);

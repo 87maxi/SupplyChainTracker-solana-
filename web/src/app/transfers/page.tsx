@@ -1,6 +1,6 @@
 "use client";
 
-import { useWeb3 } from '@/hooks/useWeb3';
+import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,7 +8,7 @@ import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { useState, useEffect } from 'react';
 
 export default function TransfersPage() {
-  const { address, isConnected } = useWeb3();
+  const { isConnected } = useSolanaWeb3();
   const { getAllSerialNumbers, getNetbookState } = useSupplyChainService();
   const [transfers, setTransfers] = useState<Array<{ serial: string, from: string, to: string, status: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -22,12 +22,8 @@ export default function TransfersPage() {
       setError('');
 
       try {
-        // Get all serial numbers
+        // Get all serial numbers from Solana program
         const serials = await getAllSerialNumbers();
-
-        // Filter for transfers that are pending approval
-        // In a real implementation, we'd have a pending transfers mapping in the contract
-        // For now, we'll simulate pending transfers based on state transitions
 
         const pendingTransfers: Array<{ serial: string, from: string, to: string, status: string }> = [];
 
@@ -35,12 +31,8 @@ export default function TransfersPage() {
           const stateValue = await getNetbookState(serial);
           const state = ['FABRICADA', 'HW_APROBADO', 'SW_VALIDADO', 'DISTRIBUIDA'][Number(stateValue)];
 
-          // In our state machine, transfers happen when moving from SW_VALIDADO to DISTRIBUIDA
-          // We'll consider these as "pending" until confirmed
-          if (state === 'DISTRIBUIDA') { // DISTRIBUIDA
-            // This is a completed transfer, not pending
-            // In a real implementation, we'd have a separate pending transfers mapping
-            // For now, we'll show all transfers as completed
+          // DISTRIBUIDA state means the netbook was assigned to a student/school
+          if (state === 'DISTRIBUIDA') {
             pendingTransfers.push({
               serial,
               from: 'Fabricante',
@@ -67,8 +59,10 @@ export default function TransfersPage() {
       <div className="container mx-auto px-4 py-12">
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-lg mb-4">Por favor, conecta tu wallet para ver las transferencias pendientes.</p>
-            <Button onClick={() => window.location.reload()}>Conectar Wallet</Button>
+            <p className="text-lg mb-4">Conecta tu wallet de Solana para ver las transferencias pendientes.</p>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => window.location.reload()}>
+              Conectar Wallet
+            </Button>
           </CardContent>
         </Card>
       </div>

@@ -1,249 +1,331 @@
-'use client';
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useSupplyChainService } from "@/hooks/useSupplyChainService";
+import { useWeb3 } from "@/hooks/useWeb3";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-import { z } from 'zod';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, AlertCircle } from 'lucide-react';
-import { useSupplyChainService } from '@/hooks/useSupplyChainService';
-import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
+interface AuditFormData {
+  serial: string;
+  deviceModel: string;
+  auditDate: string;
+  auditorName: string;
+  components: {
+    cpu: boolean;
+    ram: boolean;
+    storage: boolean;
+    display: boolean;
+    keyboard: boolean;
+    ports: boolean;
+    battery: boolean;
+  };
+  observations: string;
+  timestamp: string;
+}
 
-// Define el esquema de validación para el formulario
-const auditFormSchema = z.object({
-  serialNumber: z.string().min(1, 'El número de serie es requerido').max(50, 'El número de serie es demasiado largo'),
-  reportHash: z.string().min(66, 'El hash del reporte debe ser un hash SHA256 válido (66 caracteres con prefijo 0x)').max(66, 'El hash del reporte debe ser un hash SHA256 válido (66 caracteres con prefijo 0x)'),
-  passed: z.boolean().default(true),
-  notes: z.string().max(1000, 'Las notas no pueden exceder 1000 caracteres').optional()
-});
-
-// Define los tipos para el formulario
-type AuditFormValues = z.infer<typeof auditFormSchema>;
-
-// Propiedades del componente
 interface HardwareAuditFormProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onComplete?: () => void;
+  onComplete: () => void;
   initialSerial?: string;
+  userAddress?: string;
 }
 
-export function HardwareAuditForm({ 
-  isOpen, 
-  onOpenChange, 
-  onComplete, 
-  initialSerial 
+export function HardwareAuditForm({
+  isOpen,
+  onOpenChange,
+  onComplete,
+  initialSerial,
 }: HardwareAuditFormProps) {
+  const [serial, setSerial] = useState(initialSerial || "");
+  const [passed, setPassed] = useState(true);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { refetch: refetchDashboardData } = useProcessedUserAndNetbookData();
-  const { auditHardware, initialized } = useSupplyChainService();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const { auditHardware } = useSupplyChainService();
+  const { address } = useWeb3();
 
-  // Inicializa el formulario con react-hook-form y zod
-  const form = useForm<AuditFormValues>({
-    resolver: zodResolver(auditFormSchema),
-    defaultValues: {
-      serialNumber: initialSerial || '',
-      reportHash: '',
-      passed: false,
-      notes: ''
-    },
-    mode: 'onChange'
-  });
+  // Añadir efecto para actualizar el serial cuando cambie initialSerial
+  useEffect(() => {
+    if (initialSerial) {
+      setSerial(initialSerial);
+    }
+  }, [initialSerial]);
 
-  const { handleSubmit, formState: { errors, isValid }, reset } = form;
-
-  // Maneja el envío del formulario
-  const onSubmit = async (data: AuditFormValues) => {
-    if (!initialized) {
+  const handleAudit = async () => {
+    if (!serial) {
       toast({
-        title: 'Error',
-        description: 'Servicio no inicializado. Verifica tu conexión.',
-        variant: 'destructive',
+        title: "Error",
+        description: "El número de serie es obligatorio",
+        variant: "destructive",
       });
       return;
     }
 
-    setIsSubmitting(true);
-    setSubmitStatus('idle');
-    
     try {
-      // Buscar el tokenId por serial number (simplificado)
-      const tokenId = 1; // En producción, buscar por serial number
-      
-      await auditHardware({
-        tokenId,
-        auditor: '', // Se obtiene del wallet
-        reportHash: data.reportHash,
-      });
-      
-      toast({
-        title: 'Éxito',
-        description: 'Hardware auditado correctamente',
-        variant: 'default',
-      });
-      
-      setSubmitStatus('success');
-      await refetchDashboardData();
-      
-      if (onComplete) {
-        onComplete();
+      setLoading(true);
+
+      // Collect form data directly
+      const currentAuditData: AuditFormData = {
+        serial,
+        deviceModel: (document.getElementById('deviceModel') as HTMLInputElement)?.value || '',
+        auditDate: (document.getElementById('auditDate') as HTMLInputElement)?.value || '',
+        auditorName: (document.getElementById('auditorName') as HTMLInputElement)?.value || '',
+        components: {
+          cpu: (document.getElementById('cpu') as HTMLInputElement)?.checked || false,
+          ram: (document.getElementById('ram') as HTMLInputElement)?.checked || false,
+          storage: (document.getElementById('storage') as HTMLInputElement)?.checked || false,
+          display: (document.getElementById('display') as HTMLInputElement)?.checked || false,
+          keyboard: (document.getElementById('keyboard') as HTMLInputElement)?.checked || false,
+          ports: (document.getElementById('ports') as HTMLInputElement)?.checked || false,
+          battery: (document.getElementById('battery') as HTMLInputElement)?.checked || false,
+        },
+        observations: (document.getElementById('observations') as HTMLTextAreaElement)?.value || '',
+        timestamp: new Date().toISOString()
+      };
+
+      // Create a hash from the audit data for blockchain storage
+      const encoder = new TextEncoder();
+      const data = encoder.encode(JSON.stringify(currentAuditData));
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data.buffer as ArrayBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      const reportHash = `0x${hashHex.padStart(64, '0')}`;
+
+      if (!address) {
+        toast({
+          title: "Error",
+          description: "No se pudo obtener tu dirección. Recarga la página.",
+          variant: "destructive",
+        });
+        return;
       }
-      
-      reset({
-        serialNumber: initialSerial || '',
-        reportHash: '',
-        passed: false,
-        notes: ''
-      });
-      
+
+      // Create metadata object including the hash and full audit details
+      const metadata = {
+        ...currentAuditData,
+        reportHash,
+        auditor: address,
+        type: 'hardware_audit'
+      };
+
+      const result = await auditHardware(serial, passed, reportHash, JSON.stringify(metadata));
+
+      if (result.success) {
+        toast({
+          title: "Registro completado",
+          description:
+            "El informe de auditoría se ha registrado en la blockchain",
+        });
+      } else {
+        throw new Error(result.error);
+      }
+
+      // Reset form
+      if (!initialSerial) setSerial("");
+      setPassed(true);
+
+      onComplete();
+      onOpenChange(false);
     } catch (error: any) {
+      console.error("Error registering on blockchain:", error);
       toast({
-        title: 'Error',
-        description: error.message || 'Error al auditar el hardware. Por favor intenta nuevamente.',
-        variant: 'destructive',
+        title: "Error",
+        description: "No se pudo registrar en la blockchain",
+        variant: "destructive",
       });
-      setSubmitStatus('error');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
-  
-  // Resetea el formulario cuando se cierra el diálogo
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      reset();
-      setSubmitStatus('idle');
-    }
-    onOpenChange(open);
+
+  // Calcular altura máxima según el tamaño de pantalla
+  const getDialogContentClass = () => {
+    if (typeof window === "undefined")
+      return "sm:max-w-[900px] h-[90vh] max-h-[90vh] flex flex-col";
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    if (width < 640)
+      return "max-w-full h-[95vh] max-h-[95vh] flex flex-col p-2"; // Mobile
+    if (width < 768) return "max-w-[85vw] h-[90vh] max-h-[90vh] flex flex-col"; // Tablet
+    if (height < 768)
+      return "sm:max-w-[900px] h-[85vh] max-h-[85vh] flex flex-col"; // Small screens
+    return "sm:max-w-[900px] h-[90vh] max-h-[90vh] flex flex-col"; // Default
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Auditar Hardware</DialogTitle>
-          <DialogDescription>
-            Registra el resultado de la auditoría de hardware para una netbook.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label htmlFor="serialNumber" className="text-right text-sm font-medium">
-                Número de Serie *
-              </label>
-              <Input
-                id="serialNumber"
-                placeholder="INT001"
-                {...form.register('serialNumber')}
-                disabled={isSubmitting || !!initialSerial}
-                className={errors.serialNumber ? 'border-red-500 focus-visible:ring-red-500' : ''}
-              />
-              {errors.serialNumber && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.serialNumber.message}
-                </p>
-              )}
-            </div>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className={getDialogContentClass()}>
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col h-full">
+            <DialogHeader>
+              <DialogTitle>Auditoría de Hardware</DialogTitle>
+              <DialogDescription>
+                Complete el informe de auditoría y regístrelo en la blockchain
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2 py-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Complete el Informe de Auditoría</CardTitle>
+                  <CardDescription>
+                    Complete los campos para registrar la auditoría de hardware
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form id="auditForm" className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="auditSerial">Serial</Label>
+                      <Input
+                        id="auditSerial"
+                        value={serial}
+                        onChange={(e) => setSerial(e.target.value)}
+                        placeholder="NB-001"
+                        required
+                      />
+                    </div>
 
-            <div className="grid gap-2">
-              <label htmlFor="reportHash" className="text-right text-sm font-medium">
-                Hash del Reporte *
-              </label>
-              <Input
-                id="reportHash"
-                placeholder="0x... (SHA256 del reporte en IPFS)"
-                {...form.register('reportHash')}
-                disabled={isSubmitting}
-                className={errors.reportHash ? 'border-red-500 focus-visible:ring-red-500' : ''}
-              />
-              {errors.reportHash && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.reportHash.message}
-                </p>
-              )}
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="deviceModel">Modelo</Label>
+                      <Input
+                        id="deviceModel"
+                        placeholder="Intel N100, 8GB RAM, 256GB SSD"
+                      />
+                    </div>
 
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="passed"
-                {...form.register('passed')}
-                disabled={isSubmitting}
-                className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-              />
-              <label htmlFor="passed" className="text-sm font-medium leading-none">
-                Aprobado
-              </label>
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="auditDate">Fecha</Label>
+                      <Input id="auditDate" type="date" />
+                    </div>
 
-            <div className="grid gap-2">
-              <label htmlFor="notes" className="text-right text-sm font-medium">
-                Notas
-              </label>
-              <Textarea
-                id="notes"
-                placeholder="Notas adicionales sobre la auditoría..."
-                {...form.register('notes')}
-                disabled={isSubmitting}
-                className={errors.notes ? 'border-red-500 focus-visible:ring-red-500' : ''}
-              />
-              {errors.notes && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.notes.message}
-                </p>
-              )}
+                    <div className="space-y-2">
+                      <Label htmlFor="auditorName">Auditor</Label>
+                      <Input
+                        id="auditorName"
+                        placeholder="Nombre del auditor"
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="components">Componentes</Label>
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="cpu" />
+                          <label
+                            htmlFor="cpu"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            CPU
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="ram" />
+                          <label
+                            htmlFor="ram"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            RAM
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="storage" />
+                          <label
+                            htmlFor="storage"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Almacenamiento
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="display" />
+                          <label
+                            htmlFor="display"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Pantalla
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="keyboard" />
+                          <label
+                            htmlFor="keyboard"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Teclado
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="ports" />
+                          <label
+                            htmlFor="ports"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Puertos
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox id="battery" />
+                          <label
+                            htmlFor="battery"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Batería
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="observations">Observaciones</Label>
+                      <Textarea
+                        id="observations"
+                        placeholder="Observaciones adicionales sobre la auditoría..."
+                        className="h-20"
+                      />
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+
+              <div className="flex items-center space-x-2 mt-4">
+                <Checkbox
+                  id="passed"
+                  checked={passed}
+                  onCheckedChange={(checked: boolean) => setPassed(checked)}
+                />
+                <label
+                  htmlFor="passed"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Auditoría Aprobada
+                </label>
+              </div>
+
+              <Button type="button" onClick={handleAudit} className="mt-4" disabled={loading}>
+                {loading ? "Registrando..." : "Registrar Auditoría"}
+              </Button>
             </div>
           </div>
-          
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => handleOpenChange(false)}
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={!isValid || isSubmitting || !initialized}
-              className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {submitStatus === 'success' ? 'Éxito' : 'Procesando...'}
-                </>
-              ) : (
-                <>
-                  {submitStatus === 'success' ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Completado
-                    </>
-                  ) : 'Auditar Hardware'}
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

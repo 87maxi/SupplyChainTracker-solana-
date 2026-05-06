@@ -3,7 +3,7 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "es6"
+      "es2023"
     ],
     "allowJs": true,
     "skipLibCheck": true,
@@ -46,28 +46,17 @@
         "src/contracts/*"
       ]
     },
-    "target": "ES2017",
+    "target": "ES2020",
     "module": "esnext"
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    "src/components/contracts/*.tsx",
-    "src/app/**/*",
-    "src/components/ui/*.tsx",
-    "src/components/**/*",
-    "src/hooks/**/*",
-    "src/lib/**/*",
-    "src/services/**/*",
-    "src/types/**/*",
-    "components/**/*",
-    "services/**/*",
-    "contracts/**/*",
-    ".next/dev/types/**/*.ts"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "components-bkp"
   ]
 }

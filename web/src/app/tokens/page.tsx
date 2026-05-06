@@ -1,6 +1,6 @@
 "use client";
 
-import { useWeb3 } from '@/hooks/useWeb3';
+import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,7 +11,7 @@ import { Netbook, NetbookState } from '@/types/supply-chain-types';
 import { Laptop, Plus } from 'lucide-react';
 
 export default function TokensPage() {
-  const { isConnected } = useWeb3();
+  const { isConnected } = useSolanaWeb3();
   const { getAllSerialNumbers, getNetbookState, getNetbookReport } = useSupplyChainService();
   const [netbooks, setNetbooks] = useState<Netbook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,8 @@ export default function TokensPage() {
         const netbooksData = await Promise.all(
           serials.map(async (serial: string) => {
             const state = await getNetbookState(serial);
-            const report = await getNetbookReport(serial) as { hwAuditor: string; swTechnician: string };
+            const rawReport = await getNetbookReport(serial);
+            const report = rawReport ? { hwAuditor: (rawReport as any).hwAuditor || '', swTechnician: (rawReport as any).swTechnician || '' } : { hwAuditor: '', swTechnician: '' };
             
             return { 
               serialNumber: serial,

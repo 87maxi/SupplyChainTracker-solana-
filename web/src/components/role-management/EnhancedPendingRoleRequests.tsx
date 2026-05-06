@@ -57,7 +57,7 @@ function RoleStatusBadge({ status, transactionHash }: RoleStatusBadgeProps) {
       {config.label}
       {transactionHash && status === 'confirmed' && (
         <button
-          onClick={() => window.open(`https://explorer.solana.com/tx/${transactionHash}?cluster=devnet`, '_blank')}
+          onClick={() => window.open(`https://explorer.solana.com/tx/${transactionHash}${window.location.search.includes('cluster=devnet') ? '?cluster=devnet' : ''}`, '_blank')}
           className='ml-1 hover:underline flex items-center gap-1'
         >
           <ExternalLink className='h-3 w-3' />

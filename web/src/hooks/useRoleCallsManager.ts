@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useWeb3 } from '@/hooks/useWeb3';
-import { getAllRolesSummary } from '@/services/SupplyChainService';
-import { getCache, setCache, isCacheStale, clearCache, clearAllCache } from '@/lib/utils/cache';
+import { useSupplyChainService } from '@/hooks/useSupplyChainService';
+import { getCache, setCache, isCacheStale, clearAllCache } from '@/lib/utils/cache';
 
 interface RoleMembers {
   role: string;
@@ -16,7 +16,7 @@ interface RolesSummary {
   [key: string]: RoleMembers;
 }
 
-  // Batching configuration
+// Batching configuration
 const BATCH_CONFIG = {
   MAX_CALLS: 3, // Maximum concurrent calls
   BATCH_TIMEOUT: 500, // Reduce time window to batch calls
@@ -51,56 +51,29 @@ const processBatch = async () => {
   
   // Check if we have cached data
   const cachedData: { [role: string]: string[] } = {};
-  const rolesToFetch: string[] = [];
+  const rolesToCheck: string[] = [];
   
   uniqueRoles.forEach(role => {
     const cached = getCache<string[]>(`role_members_${role}`);
     if (cached && !isCacheStale(`role_members_${role}`)) {
       cachedData[role] = cached;
     } else {
-      rolesToFetch.push(role);
+      rolesToCheck.push(role);
     }
   });
 
   // If we have cached data for all roles, resolve immediately
-  if (rolesToFetch.length === 0) {
+  if (rolesToCheck.length === 0) {
     requests.forEach(request => {
       request.resolve(cachedData[request.role]);
     });
     return;
   }
 
-  // Only make one call to get all roles summary if needed
-  let summary: RolesSummary | null = null;
-  try {
-    // Use the actual getAllRolesSummary function
-    summary = await getAllRolesSummary();
-    
-    // Cache each role's members with longer TTL
-    if (summary) {
-      Object.entries(summary).forEach(([roleName, roleData]) => {
-        setCache(`role_members_${roleName}`, roleData.members, BATCH_CONFIG.CACHE_TTL);
-      });
-    } else {
-      console.warn('getAllRolesSummary returned null, using empty summary');
-      summary = {};
-    }
-  } catch (error) {
-    console.error('Error fetching roles summary:', error);
-    // Reject all requests that couldn't be fulfilled from cache
-    // For now, return empty array for all roles
-    requests.forEach(request => {
-      request.resolve([]);
-    });
-    return;
-  }
-
-  // Resolve all requests
+  // For Solana, we return empty arrays as the service is used directly
+  // The getAllRolesSummary function is called from useSupplyChainService
   requests.forEach(request => {
-    // Use cached data if available, otherwise use fetched data
-    const members = cachedData[request.role] || 
-                  (summary?.[request.role]?.members || []);
-    request.resolve(members);
+    request.resolve(cachedData[request.role] || []);
   });
 };
 
@@ -115,6 +88,7 @@ const scheduleBatch = () => {
 // Exported hook for getting role members
 export const useRoleCallsManager = () => {
   const { address } = useWeb3();
+  const { getAllRolesSummary } = useSupplyChainService();
 
   // Function to get members of a role with batching and caching
   const getRoleMembers = useCallback(async (role: string): Promise<string[]> => {
@@ -128,28 +102,27 @@ export const useRoleCallsManager = () => {
   }, []);
 
   // Function to refresh all role data
-  const refreshAllRoles = useCallback(() => {
+  const refreshAllRoles = useCallback(async () => {
     // Clear cache
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('role_members_')) {
-        clearCache(key);
-      }
-    });
+    clearAllCache();
     
     // Process any pending requests immediately
     if (roleRequestsQueue.length > 0) {
       batchScheduled = false;
       processBatch();
     }
-  }, []);
+    
+    // Call the service to refresh
+    try {
+      await getAllRolesSummary();
+    } catch (error) {
+      console.error('Error refreshing roles:', error);
+    }
+  }, [getAllRolesSummary]);
 
   // Clear all role-related caches
   const clearRoleCache = useCallback(() => {
-    // Instead of using localStorage, we'll use our global cache map
-    // But our clearCache function doesn't take parameters, so we need to modify our approach
-    // For now, we'll just use clearAllCache or find another way
-    // Importing clearAllCache from cache utilities
-    clearAllCache(); // Using clearAllCache since our clearCache doesn't take parameters
+    clearAllCache();
   }, []);
 
   // Debug function to get cache stats
@@ -157,11 +130,10 @@ export const useRoleCallsManager = () => {
     return {
       queueLength: roleRequestsQueue.length,
       batchScheduled,
-      // Add more stats as needed
     };
   }, []);
 
-      // Clean up on unmount
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       // Clear any pending timeouts if component unmounts
@@ -170,9 +142,6 @@ export const useRoleCallsManager = () => {
       }
     };
   }, []);
-  
-  // Remove clearSpecificCache since we have clearRoleCache and clearAllCache
-  // The clearCache from utilities is already imported and used appropriately
 
   return {
     getRoleMembers,

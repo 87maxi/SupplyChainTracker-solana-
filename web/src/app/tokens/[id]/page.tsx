@@ -1,12 +1,13 @@
 "use client";
 
-import { useWeb3 } from '@/hooks/useWeb3';
+import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Netbook } from '@/types/supply-chain-types';
+import { NetbookInfo } from '@/services/SolanaSupplyChainService';
 
 interface TokenDetailsProps {
   params: {
@@ -16,9 +17,9 @@ interface TokenDetailsProps {
 
 export default function TokenDetailsPage({ params }: TokenDetailsProps) {
   const { id } = params;
-  const { isConnected } = useWeb3();
+  const { isConnected } = useSolanaWeb3();
   const { getNetbookReport } = useSupplyChainService();
-  const [netbook, setNetbook] = useState<Netbook | null>(null);
+  const [netbook, setNetbook] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   

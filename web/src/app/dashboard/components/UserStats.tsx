@@ -1,10 +1,35 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Users, ShieldCheck, Loader2 } from 'lucide-react'
-import { useUserStats } from '@/hooks/useUserStats'
+import { useSupplyChainService } from '@/hooks/useSupplyChainService'
+import { useState, useEffect } from 'react'
 
 export function UserStats() {
-  const { stats, isLoading } = useUserStats()
+  const { getAllRolesSummary } = useSupplyChainService()
+  const [stats, setStats] = useState<{ total: number; admin: number; manufacturer: number } | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const roleSummary = await getAllRolesSummary();
+        
+        const adminCount = (roleSummary['DEFAULT_ADMIN_ROLE'] as any)?.members?.length || 0;
+        const manufacturerCount = (roleSummary['FABRICANTE_ROLE'] as any)?.members?.length || 0;
+        const total = Object.values(roleSummary).reduce((sum, data) => {
+          return sum + ((data as any).members?.length || 0);
+        }, 0);
+
+        setStats({ total, admin: adminCount, manufacturer: manufacturerCount });
+      } catch (err) {
+        console.error('Error fetching user stats:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [getAllRolesSummary]);
 
   if (isLoading) {
     return (

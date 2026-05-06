@@ -147,7 +147,8 @@ export const useTransactionNotifications = () => {
     },
 
     error: (error: unknown, message = 'Error en transacción') => {
-      const errorMessage = error.message || error.toString();
+      const err = error instanceof Error ? error : new Error(String(error));
+      const errorMessage = err.message || String(error);
       return notify.error(
         'Error',
         `${message}: ${errorMessage}`

@@ -5,6 +5,7 @@ import { Package, ShieldCheck, Monitor, Truck, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { cn } from '@/lib/utils';
+import { eventBus, EVENTS } from '@/lib/events';
 
 interface NetbookCounts {
     total: number;
@@ -121,7 +122,7 @@ export const NetbookStateMetrics = () => {
         fetchData();
 
           // Listen for global refresh events
-        const unsubscribe = eventBus.on(EVENTS.REFRESH_DATA || 'REFRESH_DATA', () => {
+        const unsubscribe = eventBus.on('REFRESH_DATA', () => {
             console.log('[NetbookStateMetrics] Global refresh detected...');
             fetchData();
         });

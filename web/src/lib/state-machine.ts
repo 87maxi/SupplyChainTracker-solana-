@@ -7,7 +7,8 @@ export const STATE_MACHINE: Record<NetbookState, NetbookState[]> = {
   FABRICADA: ['HW_APROBADO'],
   HW_APROBADO: ['SW_VALIDADO'],
   SW_VALIDADO: ['DISTRIBUIDA'],
-  DISTRIBUIDA: [] // Estado final - sin transiciones
+  DISTRIBUIDA: [], // Estado final - sin transiciones
+  UNKNOWN: [] // Unknown state - no transitions
 };
 
 // Roles requeridos para cada transición

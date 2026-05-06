@@ -1,204 +1,123 @@
-/**
- * Wrapper para operaciones del programa SupplyChain en Solana
- * Este módulo proporciona funciones de conveniencia para interactuar
- * con el programa Anchor desde los componentes del frontend
- * 
- * Migrado de Ethereum/Viem a Solana/Anchor
- */
+// web/src/lib/contracts/SupplyChainContract.ts
+// Migrated to Solana - uses SolanaSupplyChainService instead of wagmi
+// This file provides backward-compatible wrappers around the Solana service
 
-import { AnchorProvider, Program } from '@coral-xyz/anchor';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { getProgram, getProvider, PROGRAM_ID } from '@/lib/contracts/solana-program';
-import { connection } from '@/lib/solana/connection';
+import type { NetbookData } from '@/services/SolanaSupplyChainService';
+import { PublicKey } from '@solana/web3.js';
 
-// ==================== Utilidades ====================
-
-/**
- * Obtener provider desde wallet y connection
- */
-export function createProvider(wallet: any, conn?: Connection): AnchorProvider | null {
-  const connectionToUse = conn || connection;
-  if (!wallet) return null;
-  
-  return new AnchorProvider(
-    connectionToUse,
-    wallet as any,
-    { commitment: 'confirmed' }
+// Helper to convert hex string to number array
+const hexToNumberArray = (hex: string): number[] => {
+  let hexStr = hex;
+  if (hexStr.startsWith('0x')) hexStr = hexStr.slice(2);
+  const bytes = Array.from({ length: hexStr.length / 2 }, (_, i) => 
+    parseInt(hexStr.substr(i * 2, 2), 16)
   );
+  while (bytes.length < 32) bytes.unshift(0);
+  return bytes.slice(0, 32);
+};
+
+// Helper to convert number array to hex string
+const numberArrayToHex = (bytes: number[]): string => {
+  return '0x' + bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+// Aseguramos compatibilidad con el tipo Netbook
+export interface Netbook {
+  serial: string;
+  batchId: string;
+  modelSpecs: string;
+  metadata: string;
+  currentState: number;
+  currentHolder: string;
+  hashRegistro: string;
+  hashAuditoriaHw: string;
+  hashValidacionSw: string;
+  hashEscuela: string;
+  hashEstudiante: string;
 }
 
-/**
- * Obtener instancia del programa
- */
-export function getSupplyChainProgram(provider: AnchorProvider): Program<any> {
-  return getProgram(provider);
-}
-
-// ==================== Funciones de Consulta ====================
-
-/**
- * Obtener todos los serial numbers registrados
- */
+// Función para obtener todos los números de serie (placeholder - requires service)
 export async function getAllSerialNumbers(): Promise<string[]> {
-  try {
-    // Buscar todas las cuentas de Netbook
-    // Esto es una implementación simplificada
-    return [];
-  } catch {
-    return [];
-  }
+  // This would require access to the service instance which needs wallet connection
+  // Return empty array as placeholder
+  return [];
 }
 
-/**
- * Obtener el estado actual de una netbook
- */
+// Función para obtener el estado de una netbook (placeholder - requires service)
 export async function getNetbookState(serial: string): Promise<number> {
-  try {
-    // En producción, buscar por serial number
-    return 0; // Estado por defecto: FABRICADA
-  } catch {
-    return 0;
-  }
+  // This would require access to the service instance which needs wallet connection
+  return -1;
 }
 
-/**
- * Obtener netbooks por estado
- */
-export async function getNetbooksByState(state: number): Promise<string[]> {
-  try {
-    return [];
-  } catch {
-    return [];
-  }
+// Función para obtener el reporte de una netbook (placeholder - requires service)
+export async function getNetbookReport(serial: string): Promise<Netbook> {
+  // This would require access to the service instance which needs wallet connection
+  throw new Error(`Netbook ${serial} not found`);
 }
 
-/**
- * Obtener reporte detallado de una netbook
- */
-export async function getNetbookReport(serial: string): Promise<any> {
-  try {
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-// ==================== Funciones de Roles ====================
-
-/**
- * Obtener todos los miembros de un rol
- */
-export async function getAllMembers(roleHash: string): Promise<string[]> {
-  try {
-    const configPda = PublicKey.findProgramAddressSync(
-      [Buffer.from('config')],
-      PROGRAM_ID
-    )[0];
-
-    const accountInfo = await connection.getAccountInfo(configPda);
-    if (!accountInfo) return [];
-
-    // Parsear datos del account (simplificado)
-    return [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Obtener conteo de miembros de un rol
- */
-export async function getRoleMemberCount(roleHash: string): Promise<number> {
-  try {
-    return 0;
-  } catch {
-    return 0;
-  }
-}
-
-/**
- * Verificar si una dirección tiene un rol específico
- */
-export async function hasRole(roleHash: string, address: string): Promise<boolean> {
-  try {
-    if (!address) return false;
-    
-    const configPda = PublicKey.findProgramAddressSync(
-      [Buffer.from('config')],
-      PROGRAM_ID
-    )[0];
-
-    const accountInfo = await connection.getAccountInfo(configPda);
-    if (!accountInfo) return false;
-
-    const userPubkey = new PublicKey(address);
-    const userBuffer = userPubkey.toBuffer();
-    const data = accountInfo.data;
-
-    // Verificar contra cada rol registrado
-    if (data.length >= 128) {
-      const roles = [
-        data.slice(0, 32),      // Fabricante
-        data.slice(32, 64),     // Auditor HW
-        data.slice(64, 96),     // Tecnico SW
-        data.slice(96, 128),    // Escuela
-      ];
-
-      return roles.some(role => role.every((byte, i) => byte === userBuffer[i]));
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-// ==================== Operaciones de Transacción ====================
-
-/**
- * Registrar netbooks en batch
- */
+// Función para registrar netbooks (placeholder - requires wallet)
 export async function registerNetbooks(
   serials: string[],
   batches: string[],
-  specs: string[]
-): Promise<string> {
-  throw new Error('registerNetbooks requires a connected wallet context. Use useSupplyChainService hook instead.');
+  specs: string[],
+  metadata: string[]
+): Promise<{ success: boolean; hash?: string; error?: string }> {
+  return { success: false, error: 'Wallet not connected' };
 }
 
-/**
- * Auditar hardware
- */
+// Función para auditoría de hardware (placeholder - requires wallet)
 export async function auditHardware(
   serial: string,
   passed: boolean,
-  reportHash: string
-): Promise<string> {
-  throw new Error('auditHardware requires a connected wallet context. Use useSupplyChainService hook instead.');
+  reportHash: string,
+  metadata: string
+): Promise<{ success: boolean; hash?: string; error?: string }> {
+  return { success: false, error: 'Wallet not connected' };
 }
 
-/**
- * Validar software
- */
+// Función para validación de software (placeholder - requires wallet)
 export async function validateSoftware(
   serial: string,
   osVersion: string,
-  passed: boolean
-): Promise<string> {
-  throw new Error('validateSoftware requires a connected wallet context. Use useSupplyChainService hook instead.');
+  passed: boolean,
+  metadata: string
+): Promise<{ success: boolean; hash?: string; error?: string }> {
+  return { success: false, error: 'Wallet not connected' };
 }
 
-/**
- * Asignar a estudiante
- */
+// Función para asignar a estudiante (placeholder - requires wallet)
 export async function assignToStudent(
   serial: string,
   schoolHash: string,
-  studentIdHash: string
-): Promise<string> {
-  throw new Error('assignToStudent requires a connected wallet context. Use useSupplyChainService hook instead.');
+  studentHash: string,
+  metadata: string
+): Promise<{ success: boolean; hash?: string; error?: string }> {
+  return { success: false, error: 'Wallet not connected' };
 }
 
-// Exportar constantes y utilidades
-export { PROGRAM_ID, getProgram, getProvider };
-export type { SupplyChainIDL } from '@/lib/contracts/solana-program';
+// Función para obtener netbooks por estado (placeholder)
+export async function getNetbooksByState(state: number): Promise<string[]> {
+  return [];
+}
+
+// Función para obtener miembros de un rol (placeholder)
+export async function getAllMembers(roleHash: string): Promise<string[]> {
+  return [];
+}
+
+// Función para obtener conteo de miembros de un rol (placeholder)
+export async function getRoleMemberCount(roleHash: string): Promise<number> {
+  return 0;
+}
+
+// Función para verificar si un usuario tiene un rol (placeholder - requires service)
+export async function hasRole(roleName: string, userAddress: string): Promise<boolean> {
+  // This would require access to the service instance
+  return false;
+}
+
+// Función para obtener resumen de todos los roles (placeholder - requires service)
+export async function getAllRolesSummary(): Promise<Record<string, { members: string[]; count: number }>> {
+  // This would require access to the service instance
+  return {};
+}

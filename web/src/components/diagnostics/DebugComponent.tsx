@@ -1,47 +1,35 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { SupplyChainService } from '@/services/SupplyChainService';
 import { contractRegistry } from '@/services/contract-registry.service';
 
-// Componente de depuración para inspeccionar la instancia del servicio
+// Componente de depuración para inspeccionar la instancia del servicio (Solana)
 export default function DebugComponent() {
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
 
   useEffect(() => {
     try {
-      // Obtener instancia singleton
-      const instance = SupplyChainService.getInstance();
-      
-      // Verificar propiedades básicas
-      const hasService = !!instance;
-      const isSingleton = instance === SupplyChainService.getInstance();
-      
-      // Verificar métodos disponibles
-      const hasRegisterNetbook = typeof instance?.registerNetbook === 'function';
-      const hasAuditHardware = typeof instance?.auditHardware === 'function';
-      const hasValidateSoftware = typeof instance?.validateSoftware === 'function';
-      const hasAssignToStudent = typeof instance?.assignToStudent === 'function';
-      const hasHasRole = typeof instance?.hasRole === 'function';
+      console.log('🔍 Iniciando diagnóstico detallado (Solana)...');
       
       // Verificar registro
       const isRegistered = contractRegistry.has('SupplyChainTracker');
+      console.log('📝 ¿Registrado en contractRegistry?', isRegistered);
+      
+      if (isRegistered) {
+        const registryInstance = contractRegistry.get('SupplyChainTracker');
+        console.log('🔗 Instancia del registro:', registryInstance);
+      }
+      
+      console.log('✅ Diagnóstico completado');
       
       // Guardar datos para posible inspección en UI
       setDiagnosticData({
-        instance: hasService ? 'presente' : 'nula',
-        singleton: isSingleton,
-        hasRegisterNetbook,
-        hasAuditHardware,
-        hasValidateSoftware,
-        hasAssignToStudent,
-        hasHasRole,
-        registered: isRegistered
+        registered: isRegistered,
+        platform: 'solana'
       });
       
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Error en diagnóstico:', error);
+      console.error('❌ Error en diagnóstico:', error);
     }
   }, []);
   

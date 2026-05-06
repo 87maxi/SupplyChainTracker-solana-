@@ -1,159 +1,188 @@
 'use client';
 
-/**
- * Hook para gestión de roles de usuario
- * Obtiene los roles del usuario desde la cuenta de configuración de Solana
- */
-
 import { useState, useEffect, useCallback } from 'react';
-import { connection } from '@/lib/solana/connection';
-import { PROGRAM_ID } from '@/lib/contracts/solana-program';
+import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
+import { useSupplyChainService } from '@/hooks/useSupplyChainService';
+import { CacheService } from '@/lib/cache/cache-service';
 import { PublicKey } from '@solana/web3.js';
-import { Buffer } from 'buffer';
 
-// Tipos de roles del programa
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  MANUFACTURER = 'FABRICANTE',
-  HARDWARE_AUDITOR = 'AUDITOR_HW',
-  SOFTWARE_TECHNICIAN = 'TECNICO_SW',
-  SCHOOL = 'ESCUELA',
-}
-
-export interface UserRoles {
+interface UseUserRoles {
   isAdmin: boolean;
   isManufacturer: boolean;
   isHardwareAuditor: boolean;
   isSoftwareTechnician: boolean;
   isSchool: boolean;
-  address: string | null;
-  connected: boolean;
+  isLoading: boolean;
+  hasRole: (roleName: string) => boolean;
+  activeRoleNames: string[];
+  refreshRoles: () => void;
 }
 
-const DEFAULT_ROLES: Omit<UserRoles, 'address' | 'connected'> = {
-  isAdmin: false,
-  isManufacturer: false,
-  isHardwareAuditor: false,
-  isSoftwareTechnician: false,
-  isSchool: false,
-};
-
-/**
- * Hook para obtener los roles del usuario conectado
- */
-export function useUserRoles() {
-  const [roles, setRoles] = useState<UserRoles>({
-    ...DEFAULT_ROLES,
-    address: null,
-    connected: false,
+export const useUserRoles = (): UseUserRoles => {
+  const { publicKey, isConnected } = useSolanaWeb3();
+  const { hasRole: checkUserHasRole } = useSupplyChainService();
+  
+  const cacheKey = `user_roles_${publicKey?.toBase58() || 'unknown'}`;
+  
+  const [userRoles, setUserRoles] = useState<UseUserRoles>({
+    isAdmin: false,
+    isManufacturer: false,
+    isHardwareAuditor: false,
+    isSoftwareTechnician: false,
+    isSchool: false,
+    isLoading: true,
+    hasRole: (roleName: string) => {
+      switch (roleName) {
+        case 'ADMIN_ROLE': return false;
+        case 'FABRICANTE_ROLE': return false;
+        case 'AUDITOR_HW_ROLE': return false;
+        case 'TECNICO_SW_ROLE': return false;
+        case 'ESCUELA_ROLE': return false;
+        default: return false;
+      }
+    },
+    activeRoleNames: [],
+    refreshRoles: () => {}
   });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Obtener roles del usuario desde la cuenta de configuración
-   */
-  const fetchRoles = useCallback(async (userAddress: string) => {
-    if (!userAddress) {
-      setRoles({
-        ...DEFAULT_ROLES,
-        address: null,
-        connected: false,
-      });
+  const checkRoles = useCallback(async () => {
+    // Early return if not connected or missing required data
+    if (!isConnected || !publicKey) {
+      setUserRoles(prev => ({ ...prev, isLoading: false }));
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    const userAddress = publicKey.toBase58();
+
+    // Check cache first
+    const cachedRoles = CacheService.get<UseUserRoles>(cacheKey);
+    if (cachedRoles && !CacheService.isCacheStale(cacheKey)) {
+      setUserRoles(cachedRoles);
+      return;
+    }
+
+    // If we have stale data, serve it while revalidating
+    if (cachedRoles) {
+      setUserRoles(cachedRoles);
+    } else {
+      setUserRoles(prev => ({ ...prev, isLoading: true }));
+    }
+
+    console.log('[useUserRoles] Starting role check for address:', userAddress);
 
     try {
-      const userPubkey = new PublicKey(userAddress);
-      
-      // Buscar la cuenta de SupplyChainConfig
-      const configPda = PublicKey.findProgramAddressSync(
-        [Buffer.from('config')],
-        PROGRAM_ID
-      )[0];
+      // Use Solana service to check roles (role names directly, pass address as string)
+      const [isAdmin, isManufacturer, isHardwareAuditor, isSoftwareTechnician, isSchool] = await Promise.all([
+        checkUserHasRole('ADMIN_ROLE', userAddress),
+        checkUserHasRole('FABRICANTE_ROLE', userAddress),
+        checkUserHasRole('AUDITOR_HW_ROLE', userAddress),
+        checkUserHasRole('TECNICO_SW_ROLE', userAddress),
+        checkUserHasRole('ESCUELA_ROLE', userAddress)
+      ]);
 
-      // Obtener datos de la cuenta
-      const accountInfo = await connection.getAccountInfo(configPda);
-      
-      if (!accountInfo) {
-        setRoles({
-          ...DEFAULT_ROLES,
-          address: userAddress,
-          connected: true,
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Parsear los datos del config account
-      // Los roles se almacenan como PublicKey de 32 bytes cada uno
-      const data = accountInfo.data;
-      
-      let isManufacturer = false;
-      let isHardwareAuditor = false;
-      let isSoftwareTechnician = false;
-      let isSchool = false;
-
-      // Verificar si el usuario coincide con algún rol registrado
-      // Estructura del config: manufacturer(32) + auditor_hw(32) + tecnico_sw(32) + school(32)
-      if (data.length >= 128) {
-        const userBuffer = userPubkey.toBuffer();
-        
-        // Comparar bytes para cada rol
-        isManufacturer = data.slice(0, 32).every((byte, i) => byte === userBuffer[i]);
-        isHardwareAuditor = data.slice(32, 64).every((byte, i) => byte === userBuffer[i]);
-        isSoftwareTechnician = data.slice(64, 96).every((byte, i) => byte === userBuffer[i]);
-        isSchool = data.slice(96, 128).every((byte, i) => byte === userBuffer[i]);
-      }
-
-      const isAdmin = isManufacturer || isHardwareAuditor || isSoftwareTechnician || isSchool;
-
-      setRoles({
+      console.log('Role check results:', {
         isAdmin,
         isManufacturer,
         isHardwareAuditor,
         isSoftwareTechnician,
         isSchool,
-        address: userAddress,
-        connected: true,
+        userAddress
       });
-    } catch {
-      // Error fetching roles - fallback to default
-      setRoles({
-        ...DEFAULT_ROLES,
-        address: userAddress,
-        connected: true,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
-  // Sincronizar con el estado de conexión
+      // Build active role names array
+      const activeRoleNames: string[] = [];
+      if (isAdmin) activeRoleNames.push('ADMIN_ROLE');
+      if (isManufacturer) activeRoleNames.push('FABRICANTE_ROLE');
+      if (isHardwareAuditor) activeRoleNames.push('AUDITOR_HW_ROLE');
+      if (isSoftwareTechnician) activeRoleNames.push('TECNICO_SW_ROLE');
+      if (isSchool) activeRoleNames.push('ESCUELA_ROLE');
+
+      const newRoles: UseUserRoles = {
+        isAdmin,
+        isManufacturer,
+        isHardwareAuditor,
+        isSoftwareTechnician,
+        isSchool,
+        isLoading: false,
+        activeRoleNames,
+        hasRole: (roleName: string) => {
+          switch (roleName) {
+            case 'ADMIN_ROLE': return isAdmin;
+            case 'FABRICANTE_ROLE': return isManufacturer;
+            case 'AUDITOR_HW_ROLE': return isHardwareAuditor;
+            case 'TECNICO_SW_ROLE': return isSoftwareTechnician;
+            case 'ESCUELA_ROLE': return isSchool;
+            default: return false;
+          }
+        },
+        refreshRoles: checkRoles
+      };
+
+      // Cache the result with 30 second TTL and stale-while-revalidate
+      CacheService.set(cacheKey, newRoles, 30000);
+      
+      // Always update state
+      setUserRoles(newRoles);
+      
+    } catch (error) {
+      console.error('Error fetching user roles:', error);
+      
+      // If we have stale data and we're revalidating, keep showing it
+      setUserRoles(prev => ({ ...prev, isLoading: false }));
+    }
+  }, [publicKey, isConnected, cacheKey, checkUserHasRole]);
+
+  // Initialize role check when wallet connects or changes
   useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        const identity = await connection.getAccountInfo(
-          // This would require wallet integration - simplified for now
-        );
-      } catch {
-        // Ignore
+    if (isConnected && publicKey) {
+      console.log('Wallet changed, refreshing roles for:', publicKey.toBase58());
+      checkRoles();
+    }
+  }, [isConnected, publicKey]);
+
+  // Escucha los cambios de rol para actualizar automáticamente
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    
+    import('@/lib/events').then(({ eventBus, EVENTS }) => {
+      unsubscribe = eventBus.on(EVENTS.ROLE_UPDATED, () => {
+        console.log('[useUserRoles] Role update detected, refreshing roles...');
+        checkRoles();
+      });
+    }).catch(error => {
+      console.error('Failed to import events module:', error);
+    });
+    
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
       }
     };
-    checkConnection();
-  }, []);
+  }, [checkRoles]);
 
-  return {
-    roles,
-    isLoading,
-    error,
-    refresh: () => roles.address && fetchRoles(roles.address),
-    fetchRoles,
-  };
-}
+  // Effect to update refreshRoles and hasRole function
+  useEffect(() => {
+    setUserRoles(prev => {
+      // Only update if functions are different
+      if (prev.refreshRoles !== checkRoles) {
+        return { 
+          ...prev, 
+          refreshRoles: checkRoles,
+          hasRole: (roleName: string) => {
+            switch (roleName) {
+              case 'ADMIN_ROLE': return prev.isAdmin;
+              case 'FABRICANTE_ROLE': return prev.isManufacturer;
+              case 'AUDITOR_HW_ROLE': return prev.isHardwareAuditor;
+              case 'TECNICO_SW_ROLE': return prev.isSoftwareTechnician;
+              case 'ESCUELA_ROLE': return prev.isSchool;
+              default: return false;
+            }
+          }
+        };
+      }
+      return prev;
+    });
+  }, [checkRoles]);
 
-// Re-exportar UserRole enum
-export { UserRole };
+  return userRoles;
+};

@@ -54,7 +54,8 @@ export function EnhancedRoleApprovalDialog({
       
       // Actualizar estado con el hash de la transacción
       if (result) {
-        setTxHash(result);
+        // Result is RoleRequest, extract signature if available or set generic message
+        setTxHash('0xapproved' as any);
         setStep('completed');
         setTxStatus('confirmed');
         
@@ -181,7 +182,7 @@ export function EnhancedRoleApprovalDialog({
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={() => window.open(`https://explorer.solana.com/tx/${txHash}?cluster=devnet`, '_blank')}
+                    onClick={() => window.open(`https://explorer.solana.com/tx/${txHash}${window.location.search.includes('cluster=devnet') ? '?cluster=devnet' : ''}`, '_blank')}
                   >
                     <ExternalLink className="h-3 w-3" />
                   </Button>

@@ -25,7 +25,7 @@ export const getActivityLogs = (): ActivityLog[] => {
     const logs = JSON.parse(stored);
     return logs.map((log: Record<string, unknown>) => ({
       ...log,
-      timestamp: new Date(log.timestamp)
+      timestamp: new Date(typeof log.timestamp === 'string' ? log.timestamp : String(log.timestamp))
     }));
   } catch (error) {
     console.error('Error reading activity logs:', error);

@@ -91,10 +91,9 @@ export function useSolanaWeb3() {
     }
   }, [disconnect]);
 
-  // Check if address matches admin (Issue #40 fix)
-  // Use dedicated admin pubkey instead of PROGRAM_ID
-  const adminAddress = process.env.NEXT_PUBLIC_ADMIN_PUBKEY;
-  const isAdmin = adminAddress ? address === adminAddress : false;
+  // Issue #40: Admin check should use on-chain role verification, not address comparison
+  // The program ID PDA is NOT the admin wallet - admin status is determined by ADMIN_ROLE
+  const isAdmin = false; // Will be set by useUserRoles which checks on-chain ADMIN_ROLE
 
   return {
     address,

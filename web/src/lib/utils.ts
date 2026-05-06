@@ -1,38 +1,32 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { PublicKey } from '@solana/web3.js';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Helper function to validate Solana addresses (base58 format)
-export function isValidSolanaAddress(address: string): boolean {
-  if (!address || typeof address !== 'string') return false;
-  
-  // Solana addresses are base58 encoded and 32-44 characters long
-  const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-  return base58Regex.test(address);
-}
-
-// Helper function to validate and normalize Solana addresses
+// Helper function to validate and normalize Solana public keys
 export function validateAndNormalizeAddress(address: string): string {
   if (!address) {
     throw new Error('Address is required');
   }
 
-  if (!isValidSolanaAddress(address)) {
-    throw new Error(`Invalid Solana address: ${address}`);
+  try {
+    // Validate base58 PublicKey format
+    new PublicKey(address);
+    return address;
+  } catch (error: any) {
+    throw new Error(`Invalid Solana address: ${address}. ${error.message}`);
   }
-  
-  return address;
 }
 
-// Helper function to truncate wallet addresses
+// Helper function to truncate wallet addresses (Solana base58)
 export function truncateAddress(address: string): string {
   if (!address) return '';
   try {
-    const normalizedAddress = validateAndNormalizeAddress(address);
-    return `${normalizedAddress.slice(0, 4)}...${normalizedAddress.slice(-4)}`;
+    validateAndNormalizeAddress(address);
+    return `${address.slice(0, 4)}...${address.slice(-4)}`;
   } catch (error) {
     console.warn('Invalid address provided to truncateAddress:', address);
     return address; // Return original if invalid
@@ -44,29 +38,35 @@ export function formatNumber(num: number): string {
   return num.toLocaleString();
 }
 
-// Helper function to format currency
+// Helper function to format currency (SOL instead of ETH)
 export function formatCurrency(amount: number, decimals = 2): string {
   return amount.toFixed(decimals);
 }
 
-// Helper function to get Solana Explorer URL for a transaction hash
-export function getExplorerUrl(hash: string, cluster: 'devnet' | 'mainnet' | 'testnet' = 'devnet'): string {
-  return `https://explorer.solana.com/tx/${hash}?cluster=${cluster}`;
+// Helper function to get Solana explorer URL for a transaction signature
+export function getExplorerUrl(signature: string, cluster: string = 'devnet'): string {
+  const baseUrl = cluster === 'mainnet-beta' ? 'https://explorer.solana.com' :
+    cluster === 'testnet' ? 'https://explorer.solana.com?cluster=testnet' :
+      'https://explorer.solana.com?cluster=devnet';
+  return `${baseUrl}/tx/${signature}`;
 }
 
-// Helper function to get Solana Explorer URL for an address
-export function getAddressExplorerUrl(address: string, cluster: 'devnet' | 'mainnet' | 'testnet' = 'devnet'): string {
+// Helper function to get block explorer URL for a Solana public key
+export function getAddressExplorerUrl(address: string, cluster: string = 'devnet'): string {
   try {
-    const normalizedAddress = validateAndNormalizeAddress(address);
-    return `https://explorer.solana.com/address/${normalizedAddress}?cluster=${cluster}`;
+    validateAndNormalizeAddress(address);
+    const baseUrl = cluster === 'mainnet-beta' ? 'https://explorer.solana.com' :
+      cluster === 'testnet' ? 'https://explorer.solana.com?cluster=testnet' :
+        'https://explorer.solana.com?cluster=devnet';
+    return `${baseUrl}/address/${address}`;
   } catch (error) {
     console.warn('Invalid address provided to getAddressExplorerUrl:', address);
     return '';
   }
 }
 
-// Helper function to calculate transaction fee in SOL
-export function calculateTransactionFee(lamports: number): number {
+// Helper function to calculate transaction cost in SOL
+export function calculateTransactionCost(lamports: number): number {
   return lamports / 1e9; // Convert from lamports to SOL
 }
 
@@ -81,57 +81,13 @@ export function formatDate(date: string | number | Date): string {
   });
 }
 
-// Helper function to format relative time
-export function formatRelativeTime(date: string | number | Date): string {
-  const now = new Date();
-  const targetDate = new Date(date);
-  const diffMs = now.getTime() - targetDate.getTime();
-  const diffMinutes = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMinutes < 1) return 'hace un momento';
-  if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
-  if (diffHours < 24) return `hace ${diffHours} horas`;
-  if (diffDays < 7) return `hace ${diffDays} días`;
-  
-  return formatDate(date);
-}
-
-// Helper function to safely parse JSON
-export function safeJsonParse<T = any>(json: string): T | null {
-  try {
-    return JSON.parse(json) as T;
-  } catch (error) {
-    console.warn('Failed to parse JSON:', json, error);
-    return null;
-  }
-}
-
-// Helper function to safely stringify JSON
-export function safeJsonStringify(obj: any, replacer?: (this: any, key: string, value: any) => any, space?: string | number): string {
-  try {
-    return JSON.stringify(obj, replacer, space);
-  } catch (error) {
-    console.warn('Failed to stringify JSON:', obj, error);
-    return '{}';
-  }
-}
-
-// Helper function to generate random ID
-export function generateId(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
-}
-
-// Helper function to debounce
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
-  
-  return (...args: Parameters<T>) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
+/**
+ * Serialización segura para JSON que maneja BigInt
+ * @param obj Objeto a serializar
+ * @returns String JSON
+ */
+export function safeJsonStringify(obj: any): string {
+  return JSON.stringify(obj, (key, value) =>
+    typeof value === 'bigint' ? value.toString() : value
+  );
 }

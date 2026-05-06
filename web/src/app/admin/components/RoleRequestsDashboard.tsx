@@ -13,6 +13,7 @@ import { TransactionConfirmation } from '@/components/contracts/TransactionConfi
 import { truncateAddress , cn } from '@/lib/utils';
 import { getRoleHashes } from '@/lib/roleUtils';
 import { useRoleRequests } from '@/hooks/useRoleRequests';
+import { useState, useEffect } from 'react';
 
 // Dashboard data types
 interface DashboardStats {
@@ -219,8 +220,9 @@ export default function RoleRequestsDashboard({ stats: initialStats }: RoleReque
         totalFabricadas: fabricadas.length,
         totalHwAprobadas: hwAprobadas.length,
         totalSwValidadas: swValidadas.length,
-                  totalDistribuidas: distribuidas.length
+        totalDistribuidas: distribuidas.length
       });
+    } catch (error) {
       console.error('Error fetching dashboard data:', error);
       if (!silent) {
         toast({

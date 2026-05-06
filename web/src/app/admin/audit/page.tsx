@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { getProvider } from '@/lib/web3';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,47 +8,37 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Search } from 'lucide-react';
 import { AuditLog } from '@/types/audit';
 import { useToast } from '@/hooks/use-toast';
-import { getEventService } from '@/lib/services/event-service';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useWeb3 } from '@/hooks/useWeb3';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function AuditPage() {
-  const { address } = useWeb3();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [eventService, setEventService] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
-  // Inicializar el servicio de eventos
+  // Load audit logs from localStorage (Solana-compatible approach)
   useEffect(() => {
     let isMounted = true;
     setMounted(true);
 
-    const initEventService = async () => {
+    const loadAuditLogs = () => {
       try {
-        const service = await getEventService();
-        if (!isMounted) return;
-
-        setEventService(service);
-
-        // Escuchar eventos cuando el servicio esté listo
-        if (service) {
-          const allLogs = await service.getAuditLogs();
-          if (!isMounted) return;
-          setLogs(Array.isArray(allLogs) ? allLogs : []);
+        // Load from localStorage as a simple approach for Solana
+        const stored = localStorage.getItem('audit-logs');
+        if (isMounted) {
+          setLogs(stored ? JSON.parse(stored) : []);
         }
       } catch (error) {
-        console.error('Error initializing event service:', error);
+        console.error('Error loading audit logs:', error);
         if (isMounted) {
           toast({
             title: 'Error',
-            description: 'No se pudo conectar al servicio de eventos',
+            description: 'No se pudieron cargar los logs de auditoría',
             variant: 'destructive',
           });
         }
@@ -60,7 +49,7 @@ export default function AuditPage() {
       }
     };
 
-    initEventService();
+    loadAuditLogs();
 
     return () => {
       isMounted = false;

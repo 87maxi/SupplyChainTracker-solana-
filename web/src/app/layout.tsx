@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-import { SolanaWalletProvider } from '@/lib/solana/wallet-provider';
+import { SolanaWalletClientProvider } from '@/components/SolanaWalletClientProvider';
 import { Header } from '@/components/layout/Header';
 import { Toaster } from '@/components/ui/toaster';
 import { NotificationContainer } from '@/components/ui/NotificationContainer';
@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="dark">
       <body className={inter.className}>
-        <SolanaWalletProvider>
+        <SolanaWalletClientProvider>
           <div className="min-h-screen bg-background relative isolate overflow-hidden">
             {/* Background Glows - Global */}
             <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
@@ -52,7 +52,7 @@ export default function RootLayout({
           </div>
           <DiagnosticRunner />
           <DebugComponent />
-        </SolanaWalletProvider>
+        </SolanaWalletClientProvider>
       </body>
     </html>
   );

@@ -1,47 +1,49 @@
 // web/src/services/contract-registry.service.ts
-// Sistema centralizado para registro y gestión de múltiples contratos inteligentes
+// Sistema centralizado para registro y gestión de servicios
+// Legacy Ethereum-based registry - migrated to Solana (useSupplyChainService)
 
 import { BaseContractService } from './contracts/base-contract.service';
 
-// Interfaz para la configuración de un contrato
-export interface ContractConfig {
-  address: `0x${string}`;
-  abi: any;
+// Interfaz para la configuración de un servicio (Solana)
+export interface ServiceConfig {
+  programId: string;
   version?: string;
-  deployBlock?: number;
 }
 
-// Registro central de contratos
-export class ContractRegistry {
-  private contracts = new Map<string, BaseContractService>();
-  private config = new Map<string, ContractConfig>();
+// Registro central de servicios
+export class ServiceRegistry {
+  private services = new Map<string, BaseContractService>();
+  private config = new Map<string, ServiceConfig>();
 
-  // Registrar un contrato
-  register(name: string, service: BaseContractService, config: ContractConfig) {
-    this.contracts.set(name, service);
+  // Registrar un servicio
+  register(name: string, service: BaseContractService, config: ServiceConfig) {
+    this.services.set(name, service);
     this.config.set(name, config);
   }
 
-  // Obtener un contrato por nombre
+  // Obtener un servicio por nombre
   get(name: string): BaseContractService | undefined {
-    return this.contracts.get(name);
+    return this.services.get(name);
   }
 
-  // Verificar si un contrato está registrado
+  // Verificar si un servicio está registrado
   has(name: string): boolean {
-    return this.contracts.has(name);
+    return this.services.has(name);
   }
 
-  // Listar todos los contratos registrados
+  // Listar todos los servicios registrados
   list(): string[] {
-    return Array.from(this.contracts.keys());
+    return Array.from(this.services.keys());
   }
 
-  // Obtener la configuración de un contrato
-  getConfig(name: string): ContractConfig | undefined {
+  // Obtener la configuración de un servicio
+  getConfig(name: string): ServiceConfig | undefined {
     return this.config.get(name);
   }
 }
 
 // Instancia singleton
-export const contractRegistry = new ContractRegistry();
+export const serviceRegistry = new ServiceRegistry();
+
+// Legacy export for backward compatibility
+export const contractRegistry = serviceRegistry;

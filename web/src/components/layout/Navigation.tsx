@@ -29,7 +29,7 @@ const navigationItems: NavigationItem[] = [
     icon: BarChart3,
     description: 'Resumen del sistema',
     roles: [
-    "DEFAULT_ADMIN_ROLE",
+    "ADMIN_ROLE",
     "FABRICANTE_ROLE",
     "AUDITOR_HW_ROLE",
     "TECNICO_SW_ROLE",
@@ -42,7 +42,7 @@ const navigationItems: NavigationItem[] = [
     icon: Laptop,
     description: 'Gestión de netbooks por número de serie',
     roles: [
-      "DEFAULT_ADMIN_ROLE",
+      "ADMIN_ROLE",
       "FABRICANTE_ROLE",
       "AUDITOR_HW_ROLE",
       "TECNICO_SW_ROLE",
@@ -55,7 +55,7 @@ const navigationItems: NavigationItem[] = [
     icon: History,
     description: 'Historial de transiciones de netbooks',
     roles: [
-      "DEFAULT_ADMIN_ROLE",
+      "ADMIN_ROLE",
       "FABRICANTE_ROLE",
       "AUDITOR_HW_ROLE",
       "TECNICO_SW_ROLE",
@@ -67,7 +67,7 @@ const navigationItems: NavigationItem[] = [
     label: 'Administración',
     icon: Settings,
     description: 'Gestión de roles y usuarios',
-    roles: ["DEFAULT_ADMIN_ROLE"], // Solo el administrador
+    roles: ["ADMIN_ROLE"], // Solo el administrador
   },
   {
     href: '/profile',
@@ -75,7 +75,7 @@ const navigationItems: NavigationItem[] = [
     icon: User,
     description: 'Información y roles de tu cuenta',
     roles: [
-      "DEFAULT_ADMIN_ROLE",
+      "ADMIN_ROLE",
       "FABRICANTE_ROLE",
       "AUDITOR_HW_ROLE",
       "TECNICO_SW_ROLE",

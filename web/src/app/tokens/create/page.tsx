@@ -1,7 +1,7 @@
 // web/src/app/tokens/create/page.tsx
 "use client";
 
-import { useWeb3 } from '@/hooks/useWeb3';
+import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,8 @@ import { useRouter } from 'next/navigation'; // Para redireccionar
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { getRoleHashes } from '@/lib/roleUtils'; // Para obtener los hashes de roles del contrato
+import { PublicKey } from '@solana/web3.js';
+import { SolanaSupplyChainService } from '@/services/SolanaSupplyChainService';
 
 // Esquema de validación con Zod
 const formSchema = z.object({
@@ -26,8 +27,8 @@ const formSchema = z.object({
 type FormInputs = z.infer<typeof formSchema>;
 
 export default function CreateTokensPage() {
-  const { address, isConnected, connectWallet } = useWeb3();
-  const { registerNetbooks, hasRole, hasRoleByHash } = useSupplyChainService();
+  const { address, isConnected, connectWallet, publicKey } = useSolanaWeb3();
+  const { registerNetbook, registerNetbooks } = useSupplyChainService();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -47,14 +48,12 @@ export default function CreateTokensPage() {
   // Verificar rol del usuario
   useEffect(() => {
     const checkRole = async () => {
-      if (isConnected && address) {
+      if (isConnected && publicKey) {
         setLoadingRole(true);
         try {
-          // Obtener todos los hashes de roles del contrato
-          const roleHashes = await getRoleHashes();
-          
-          // Verificar si el usuario tiene el rol de fabricante
-          const hasManufacturerRole = await hasRoleByHash(roleHashes.FABRICANTE, address);
+          // Check if user has FABRICANTE role using Solana service
+          const service = SolanaSupplyChainService.getInstance();
+          const hasManufacturerRole = await service.hasRole('FABRICANTE_ROLE', publicKey);
           setIsManufacturer(hasManufacturerRole);
         } catch (error) {
           console.error("Error checking manufacturer role:", error);
@@ -73,7 +72,7 @@ export default function CreateTokensPage() {
       }
     };
     checkRole();
-  }, [isConnected, address, hasRole, toast]);
+  }, [isConnected, publicKey, toast]);
 
   const onSubmit: SubmitHandler<FormInputs> = async (data) => {
     setIsSubmitting(true);
@@ -93,16 +92,24 @@ export default function CreateTokensPage() {
         return;
       }
 
-      if (!address) {
+      if (!publicKey) {
         toast({
           title: "Error",
-          description: "No se pudo obtener tu dirección. Recarga la página.",
+          description: "No se pudo obtener tu wallet. Recarga la página.",
           variant: "destructive",
         });
         return;
       }
 
-      const result = await registerNetbooks(serialArray, batchArray, modelArray, address);
+      // Use Solana service registerNetbook for single or batch registration
+      let result;
+      if (serialArray.length === 1) {
+        result = await registerNetbook(serialArray[0], batchArray[0], modelArray[0]);
+      } else {
+        // For batch, use registerNetbooks with empty metadata array
+        const emptyMetadata = serialArray.map(() => '');
+        result = await registerNetbooks(serialArray, batchArray, modelArray, emptyMetadata);
+      }
 
       if (result.success) {
         toast({
@@ -133,9 +140,12 @@ export default function CreateTokensPage() {
           <CardContent className="flex flex-col items-center justify-center py-16 space-y-6">
             <h3 className="text-xl font-medium text-foreground mb-2">Acceso Restringido</h3>
             <p className="text-muted-foreground mb-6 text-center max-w-md">
-              Por favor, conecta tu wallet para acceder a la creación de netbooks.
+              Conecta tu wallet de Solana para acceder a la creación de netbooks.
             </p>
-            <Button size="lg" variant="gradient" onClick={() => connectWallet()} className="h-12 px-8">
+            <Button
+              className="bg-primary text-primary-foreground hover:bg-primary/90 h-12 px-8"
+              onClick={() => window.location.reload()}
+            >
               Conectar Wallet
             </Button>
           </CardContent>

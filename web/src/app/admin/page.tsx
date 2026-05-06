@@ -12,10 +12,10 @@ export default function AdminDashboard() {
   const { hasRole, isLoading } = useUserRoles();
   const router = useRouter();
 
-  // Redirect if not admin - now using correct role name
+  // Redirect if not admin - using Solana role name
   useEffect(() => {
-    console.log('AdminDashboard: Checking admin access - isLoading:', isLoading, 'hasRole(DEFAULT_ADMIN_ROLE):', hasRole('DEFAULT_ADMIN_ROLE'));
-    if (!isLoading && !hasRole('DEFAULT_ADMIN_ROLE')) {
+    console.log('AdminDashboard: Checking admin access - isLoading:', isLoading, 'hasRole(ADMIN_ROLE):', hasRole('ADMIN_ROLE'));
+    if (!isLoading && !hasRole('ADMIN_ROLE')) {
       console.log('AdminDashboard: Redirecting non-admin user to /');
       router.push('/');
     }
@@ -34,7 +34,7 @@ export default function AdminDashboard() {
   }
 
   // Redirect if not admin (fallback)
-  if (!hasRole('DEFAULT_ADMIN_ROLE')) {
+  if (!hasRole('ADMIN_ROLE')) {
     return null;
   }
 

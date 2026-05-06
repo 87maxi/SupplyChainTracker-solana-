@@ -239,6 +239,87 @@
       "args": []
     },
     {
+      "name": "query_config",
+      "docs": [
+        "Query config data (view function for client-side data access)"
+      ],
+      "discriminator": [
+        64,
+        154,
+        181,
+        109,
+        94,
+        172,
+        201,
+        243
+      ],
+      "accounts": [
+        {
+          "name": "config"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "query_netbook_state",
+      "docs": [
+        "Query netbook state (view function for client-side data access)",
+        "Can be called via simulateTransaction to read state without sending a transaction",
+        "Returns: emits NetbookStateQuery event with current state data"
+      ],
+      "discriminator": [
+        167,
+        130,
+        28,
+        45,
+        168,
+        77,
+        72,
+        81
+      ],
+      "accounts": [
+        {
+          "name": "netbook"
+        }
+      ],
+      "args": [
+        {
+          "name": "_serial",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "query_role",
+      "docs": [
+        "Check if an account has a specific role (view function)"
+      ],
+      "discriminator": [
+        48,
+        61,
+        225,
+        147,
+        182,
+        120,
+        172,
+        221
+      ],
+      "accounts": [
+        {
+          "name": "config"
+        },
+        {
+          "name": "account_to_check"
+        }
+      ],
+      "args": [
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    },
+    {
       "name": "register_netbook",
       "docs": [
         "Register a single netbook in the supply chain (Issue #18 - fixed PDA)",
@@ -577,6 +658,19 @@
   ],
   "events": [
     {
+      "name": "ConfigQuery",
+      "discriminator": [
+        119,
+        198,
+        166,
+        176,
+        87,
+        100,
+        243,
+        9
+      ]
+    },
+    {
       "name": "HardwareAudited",
       "discriminator": [
         35,
@@ -616,6 +710,19 @@
       ]
     },
     {
+      "name": "NetbookStateQuery",
+      "discriminator": [
+        126,
+        213,
+        247,
+        228,
+        14,
+        27,
+        68,
+        41
+      ]
+    },
+    {
       "name": "NetbooksRegistered",
       "discriminator": [
         208,
@@ -639,6 +746,19 @@
         63,
         246,
         58
+      ]
+    },
+    {
+      "name": "RoleQuery",
+      "discriminator": [
+        71,
+        34,
+        253,
+        44,
+        193,
+        21,
+        25,
+        91
       ]
     },
     {
@@ -752,6 +872,46 @@
     }
   ],
   "types": [
+    {
+      "name": "ConfigQuery",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "fabricante",
+            "type": "pubkey"
+          },
+          {
+            "name": "auditor_hw",
+            "type": "pubkey"
+          },
+          {
+            "name": "tecnico_sw",
+            "type": "pubkey"
+          },
+          {
+            "name": "escuela",
+            "type": "pubkey"
+          },
+          {
+            "name": "next_token_id",
+            "type": "u64"
+          },
+          {
+            "name": "total_netbooks",
+            "type": "u64"
+          },
+          {
+            "name": "role_requests_count",
+            "type": "u64"
+          }
+        ]
+      }
+    },
     {
       "name": "HardwareAudited",
       "type": {
@@ -889,6 +1049,30 @@
       }
     },
     {
+      "name": "NetbookStateQuery",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "serial_number",
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "type": "u8"
+          },
+          {
+            "name": "token_id",
+            "type": "u64"
+          },
+          {
+            "name": "exists",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
       "name": "NetbooksRegistered",
       "type": {
         "kind": "struct",
@@ -928,6 +1112,26 @@
           {
             "name": "timestamp",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoleQuery",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "account",
+            "type": "pubkey"
+          },
+          {
+            "name": "role",
+            "type": "string"
+          },
+          {
+            "name": "has_role",
+            "type": "bool"
           }
         ]
       }

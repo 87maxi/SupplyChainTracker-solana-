@@ -1,14 +1,13 @@
 // web/src/app/dashboard/page.tsx
 "use client";
 
-// Importaciones actualizadas
-import { useWeb3 } from '@/hooks/useWeb3'; // Usar el contexto correcto
+// Importaciones actualizadas para Solana/Anchor
+import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService'; // Usar el hook del servicio
-import { SupplyChainService } from '@/services/SupplyChainService';
-import { Netbook, NetbookState } from '@/types/supply-chain-types'; // Usar el tipo correcto
+import { Netbook, NetbookState } from '@/types/supply-chain-types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useEffect, useState, useCallback } from 'react'; // Asegurar useCallback para funciones
+import { useEffect, useState, useCallback } from 'react';
 import { RoleActions } from './components/RoleActions';
 import { PendingRoleApprovals } from './components/role-approval/PendingRoleApprovals';
 
@@ -30,15 +29,12 @@ import { SoftwareValidationForm } from '@/components/contracts/SoftwareValidatio
 import { StudentAssignmentForm } from '@/components/contracts/StudentAssignmentForm';
 
 // Importar componentes de estadísticas y tablas
-import { UserStats } from '@/app/dashboard/components/UserStats';
-import { NetbookStats } from '@/app/dashboard/components/NetbookStats';
 import { UserDataTable } from '@/app/dashboard/components/UserDataTable';
 import { NetbookDataTable } from '@/app/dashboard/components/NetbookDataTable';
 
-// Importar hooks para obtener datos de MongoDB
-import { useUserStats } from '@/hooks/useUserStats';
-import { useNetbookStats } from '@/hooks/useNetbookStats';
-import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
+// Importar Solana service directamente
+import { SolanaSupplyChainService } from '@/services/SolanaSupplyChainService';
+import { PublicKey } from '@solana/web3.js';
 
 import { TrackingCard } from './components/TrackingCard';
 
@@ -85,15 +81,10 @@ function TempDashboard({ onConnect }: { onConnect: () => void }) {
 }
 
 export default function ManagerDashboard() {
-  // Obtener estadísticas desde MongoDB usando los nuevos endpoints
-  const { stats: userStatsData, isLoading: usersLoading } = useUserStats();
-  const { stats: netbookStatsData, isLoading: netbooksLoading } = useNetbookStats();
-
-  // Obtener datos procesados combinados de usuarios y netbooks
-  const { users, netbooks: netbooksTable, isLoading: dataLoading, refetch: fetchDashboardData } = useProcessedUserAndNetbookData();
-
-  // Combinar estados de carga
-  const isLoading = usersLoading || netbooksLoading || dataLoading;
+  // Obtener datos desde Solana program
+  const [netbooks, setNetbooks] = useState<Netbook[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Funciones para manejar filtros
   const handleUserFilterChange = (filter: { key: string; value: string }) => {
@@ -103,29 +94,86 @@ export default function ManagerDashboard() {
   const handleNetbookFilterChange = (filter: { key: string; value: string }) => {
     console.log('Netbook filter changed:', filter);
   };
-  const { isConnected, connectWallet } = useWeb3();
+
+  const { isConnected, connectWallet, publicKey } = useSolanaWeb3();
   const { getAllSerialNumbers, getNetbookState, getNetbookReport } = useSupplyChainService();
   const { isHardwareAuditor, isSoftwareTechnician, isSchool, isAdmin } = useUserRoles();
 
-  // Utilizar los datos cargados desde MongoDB
-  // const [netbooks, setNetbooks] = useState<Netbook[]>([]);
-  // const [loading, setLoading] = useState(true);
+  // Fetch netbooks from Solana program
+  const fetchDashboardData = useCallback(async () => {
+    if (!isConnected) return;
 
-  // Utilizar datos de estadísticas desde MongoDB en lugar del conteo directo
-  // Calcular estadísticas reales desde los datos de la blockchain
+    setIsLoading(true);
+    try {
+      const serials = await getAllSerialNumbers();
+      const stateMap: Record<number, NetbookState> = {
+        0: 'FABRICADA',
+        1: 'HW_APROBADO',
+        2: 'SW_VALIDADO',
+        3: 'DISTRIBUIDA'
+      };
+
+      const netbooksData: Netbook[] = [];
+      for (const serial of serials) {
+        const state = await getNetbookState(serial);
+        const rawReport = await getNetbookReport(serial);
+        const report = rawReport ? { hwAuditor: (rawReport as any).hwAuditor || '', swTechnician: (rawReport as any).swTechnician || '' } : { hwAuditor: '', swTechnician: '' };
+
+        netbooksData.push({
+          serialNumber: serial,
+          batchId: "N/A",
+          initialModelSpecs: "N/A",
+          hwAuditor: report.hwAuditor,
+          hwIntegrityPassed: false,
+          hwReportHash: "0x0",
+          swTechnician: report.swTechnician,
+          osVersion: "N/A",
+          swValidationPassed: false,
+          destinationSchoolHash: "0x0",
+          studentIdHash: "0x0",
+          distributionTimestamp: "0",
+          currentState: stateMap[Number(state)] || 'FABRICADA',
+        });
+      }
+
+      setNetbooks(netbooksData);
+
+      // Fetch users from Solana config
+      try {
+        const service = SolanaSupplyChainService.getInstance();
+        const config = await service.getConfig();
+        if (config) {
+          const userList: any[] = [];
+          if (config.fabricante) userList.push({ address: config.fabricante.toBase58(), role: 'FABRICANTE' });
+          if (config.auditorHw) userList.push({ address: config.auditorHw.toBase58(), role: 'AUDITOR_HW' });
+          if (config.tecnicoSw) userList.push({ address: config.tecnicoSw.toBase58(), role: 'TECNICO_SW' });
+          if (config.escuela) userList.push({ address: config.escuela.toBase58(), role: 'ESCUELA' });
+          setUsers(userList);
+        }
+      } catch {
+        // Config not initialized or error fetching
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isConnected, getAllSerialNumbers, getNetbookState, getNetbookReport]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Calcular estadísticas desde Solana
   const summary = {
-    FABRICADA: netbooksTable.filter(n => n.currentState === 'FABRICADA').length,
-    HW_APROBADO: netbooksTable.filter(n => n.currentState === 'HW_APROBADO').length,
-    SW_VALIDADO: netbooksTable.filter(n => n.currentState === 'SW_VALIDADO').length,
-    DISTRIBUIDA: netbooksTable.filter(n => n.currentState === 'DISTRIBUIDA').length
+    FABRICADA: netbooks.filter(n => n.currentState === 'FABRICADA').length,
+    HW_APROBADO: netbooks.filter(n => n.currentState === 'HW_APROBADO').length,
+    SW_VALIDADO: netbooks.filter(n => n.currentState === 'SW_VALIDADO').length,
+    DISTRIBUIDA: netbooks.filter(n => n.currentState === 'DISTRIBUIDA').length
   };
 
-  // Utilizar usuarios y netbooks ya definidos anteriormente
-  // const { users } = useFetchUsers();
-  // const { netbooks } = useProcessedUserAndNetbookData();
-
   // Filtrar tareas pendientes basado en roles
-  const pendingTasks = netbooksTable.filter((n: Netbook) => {
+  const pendingTasks = netbooks.filter((n: Netbook) => {
     if (!n) return false;
     if ((n.currentState === 'FABRICADA') && (isHardwareAuditor || isAdmin)) return true;
     if ((n.currentState === 'HW_APROBADO') && (isSoftwareTechnician || isAdmin)) return true;
@@ -133,10 +181,7 @@ export default function ManagerDashboard() {
     return false;
   });
 
-  // Usar los datos de netbookStatsData para las estadísticas
-  // y los datos de fetch para las tablas con paginación
-  // Establecer netbooksForTable con los datos obtenidos de useFetchNetbooks
-  const netbooksForTable = netbooksTable;
+  const netbooksForTable = netbooks;
 
   // Form states
   const [selectedSerial, setSelectedSerial] = useState<string>('');
@@ -149,19 +194,24 @@ export default function ManagerDashboard() {
       return;
     }
 
-    try {
-      const service = SupplyChainService.getInstance();
-      const result = await service.revokeAllRoles(address as `0x${string}`);
+    if (!publicKey) {
+      alert('Conecta tu wallet primero');
+      return;
+    }
 
-      if (result.success) {
-        console.log('User roles revoked successfully');
-        fetchDashboardData();
-      } else {
-        alert(`Error al eliminar roles: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      alert('Error inesperado al eliminar el usuario');
+    try {
+      const service = SolanaSupplyChainService.getInstance();
+      const targetAddress = new PublicKey(address);
+      // Revoke all roles for the target address
+      await service.revokeRole('FABRICANTE_ROLE', targetAddress);
+      await service.revokeRole('AUDITOR_HW_ROLE', targetAddress);
+      await service.revokeRole('TECNICO_SW_ROLE', targetAddress);
+      await service.revokeRole('ESCUELA_ROLE', targetAddress);
+      
+      fetchDashboardData();
+    } catch (error: any) {
+      console.error('Error revoking roles:', error);
+      alert(`Error al eliminar roles: ${error.message}`);
     }
   };
 
@@ -187,10 +237,6 @@ export default function ManagerDashboard() {
   }, []);
 
 
-
-  // El efecto para actualizar datos del dashboard se ha eliminado porque los datos
-  // ya vienen del hook useProcessedUserAndNetbookData
-  // y se actualizan automáticamente cada 30 segundos
 
   if (!isConnected) {
     return <TempDashboard onConnect={connectWallet} />;

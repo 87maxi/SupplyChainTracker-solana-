@@ -4,7 +4,7 @@ import { ContractRoles } from '@/types/contract';
 
 // Permisos específicos para cada rol
 export const ROLE_PERMISSIONS: Record<ContractRoles, string[]> = {
-  DEFAULT_ADMIN_ROLE: [
+  ADMIN_ROLE: [
     'manage_roles',
     'view_all_data',
     'manage_system',

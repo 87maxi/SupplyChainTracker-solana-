@@ -1,27 +1,46 @@
 "use client";
 
-import { useWeb3 } from '@/hooks/useWeb3';
+import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
 
 export function WalletConnectButton() {
-  const { isConnected, address, connectWallet, disconnect } = useWeb3();
+  const { isConnected, address, disconnect, walletName } = useSolanaWeb3();
+
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="flex items-center gap-2">
+        <WalletMultiButton className="bg-blue-600 hover:bg-blue-700 text-white rounded-md" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center gap-4">
-      {isConnected ? (
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-mono">
-            {address?.slice(0, 6)}...{address?.slice(-4)}
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 border">
+        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+        <span className="text-sm font-mono text-muted-foreground">
+          {formatAddress(address!)}
+        </span>
+        {walletName && (
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            ({walletName})
           </span>
-          <Button variant="outline" size="sm" onClick={() => { disconnect(); window.location.reload(); }}>
-            Disconnect
-          </Button>
-        </div>
-      ) : (
-        <Button size="sm" onClick={() => connectWallet()}>
-          Connect Wallet
-        </Button>
-      )}
+        )}
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => disconnect()}
+        className="h-8 px-2"
+      >
+        <LogOut className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

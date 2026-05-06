@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { useEffect, useState } from 'react';
 import { Netbook } from '@/types/supply-chain-types';
+import { NetbookInfo } from '@/services/SolanaSupplyChainService';
 
 interface AuditTimelineProps {
   serial: string;
@@ -11,7 +12,7 @@ interface AuditTimelineProps {
 
 export function AuditTimeline({ serial }: AuditTimelineProps) {
   const { getNetbookReport } = useSupplyChainService();
-  const [report, setReport] = useState<Netbook | null>(null);
+  const [report, setReport] = useState<any>(null);
   
   useEffect(() => {
     const fetchReport = async () => {

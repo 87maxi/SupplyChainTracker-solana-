@@ -84,7 +84,8 @@ export const useTransaction = (): UseTransactionReturn => {
     } catch (error) {
       console.error('Transaction error:', error);
       
-      const errorMessageText = error.message || error.toString();
+      const err = error instanceof Error ? error : new Error(String(error));
+      const errorMessageText = err.message || String(error);
       
       setState({
         isProcessing: false,

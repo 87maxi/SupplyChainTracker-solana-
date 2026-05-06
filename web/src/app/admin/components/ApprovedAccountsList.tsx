@@ -68,10 +68,11 @@ export function ApprovedAccountsList() {
         localStorage.setItem('optimistic_approvals', JSON.stringify(optimisticMembers));
     }, [optimisticMembers, isLoaded]);
 
-    const fetchMembers = useCallback(async (force = false) => {
+    const fetchMembers = useCallback(async (_force = false) => {
         setLoading(true);
         try {
-            const summary = await getAllRolesSummary(force);
+            // Note: force parameter ignored - Solana service doesn't support force refresh
+            const summary = await getAllRolesSummary();
             const allMembers: Member[] = [];
 
             if (summary) {

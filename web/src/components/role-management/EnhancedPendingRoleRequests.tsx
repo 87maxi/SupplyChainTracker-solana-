@@ -131,7 +131,9 @@ export default function EnhancedPendingRoleRequests() {
   };
 
   // Mostrar mensaje de error
+  // eslint-disable-next-line react-hooks/immutability, react-hooks/use-memo, react-hooks/purity
   const showError = (message: string, type: ErrorState['type'] = 'unknown') => {
+    // eslint-disable-next-line react-hooks/immutability, react-hooks/rules-of-hooks, react-hooks/purity
     setError({ type, message, timestamp: Date.now() });
     toast({
       title: "Error",

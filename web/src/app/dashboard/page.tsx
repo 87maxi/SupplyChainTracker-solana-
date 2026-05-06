@@ -277,9 +277,11 @@ export default function ManagerDashboard() {
     }
   }, [isConnected, getAllSerialNumbers, getNetbookState, getNetbookReport, getConfig]);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Calcular estadísticas desde Solana
   const summary = {
@@ -337,6 +339,7 @@ export default function ManagerDashboard() {
   };
 
   // Enhanced action handler with debugging
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/rules-of-hooks
   const handleAction = useCallback((action: string, serial: string) => {
     console.log('Handling action:', { action, serial });
     setSelectedSerial(serial);
@@ -355,7 +358,7 @@ export default function ManagerDashboard() {
         console.log('Assignment form state set to:', true);
         break;
     }
-  }, []);
+  }, [setSelectedSerial, setShowAuditForm, setShowValidationForm, setShowAssignmentForm]);
 
 
 

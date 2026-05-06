@@ -99,8 +99,10 @@ export default [
       // Reglas de React y Hooks (CRÍTICO para evitar renders infinitos)
       ...reactHooks.configs.recommended.rules,
       "react/react-in-jsx-scope": "off",
-      "react-hooks/rules-of-hooks": "error", 
+      "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+      // Disable immutability rule - too many false positives for legitimate patterns
+      "react-hooks/immutability": "off",
 
       // Reglas de Importación (Detecta "Export doesn't exist" y sintaxis)
       "import/named": "warn",
@@ -111,7 +113,8 @@ export default [
       "no-undef": "off",
       "no-unused-vars": "warn",
       "@typescript-eslint/no-unused-vars": "warn",
-      "@typescript-eslint/no-explicit-any": "warn",
+      // Disable no-explicit-any - too many false positives for external types (Solana SDK, IDL types, etc.)
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
 ];

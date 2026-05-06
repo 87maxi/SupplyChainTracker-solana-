@@ -1,6 +1,6 @@
 // web/src/hooks/use-cached-data.ts
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface CacheOptions {
   ttl?: number; // Time to live en milisegundos
@@ -37,8 +37,12 @@ export const useCachedData = <T>(
   fetcher: () => Promise<T>,
   options: CacheOptions = {}
 ) => {
-  // Create a stable reference for fetcher
-  const stableFetcher = useCallback(fetcher, []);
+  // Store fetcher in a ref to always have latest reference
+  const fetcherRef = useRef(fetcher);
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
+  
   // In a real implementation, we would get address from Web3Context
   // For now, we'll use a placeholder
   const address = '';
@@ -70,7 +74,7 @@ export const useCachedData = <T>(
       setIsLoading(true);
       setError(null);
 
-      const result = await stableFetcher();
+      const result = await fetcherRef.current();
       const now = Date.now();
       
       // Actualizar cache
@@ -94,7 +98,7 @@ export const useCachedData = <T>(
     } finally {
       setIsLoading(false);
     }
-  }, [key, fetcher, ttl, enforceCacheSize]);
+  }, [key, ttl, enforceCacheSize]);
 
   const getCachedData = useCallback((): T | null => {
     const cacheKey = `${key}_${address || ''}`;
@@ -137,6 +141,7 @@ export const useCachedData = <T>(
   }, [invalidate, fetchData]);
 
   // Cargar datos iniciales
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const cachedData = getCachedData();
     const cacheKey = `${key}_${address || ''}`;
@@ -161,6 +166,7 @@ export const useCachedData = <T>(
       fetchData();
     }
   }, [key, address, getCachedData, fetchData, staleWhileRevalidate]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return {
     data,

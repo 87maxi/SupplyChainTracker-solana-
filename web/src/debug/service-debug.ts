@@ -32,6 +32,7 @@ export const debugServiceInitialization = () => {
     // Verificar la jerarquía de clases
     console.log('\n🧱 Jerarquía de clases:');
     console.log('   - Instancia de SupplyChainService:', service instanceof SupplyChainService);
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     console.log('   - Instancia de BaseContractService:', service instanceof (require('@/services/contracts/base-contract.service').BaseContractService));
     
     return service;

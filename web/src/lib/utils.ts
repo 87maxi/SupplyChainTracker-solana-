@@ -91,3 +91,18 @@ export function safeJsonStringify(obj: any): string {
     typeof value === 'bigint' ? value.toString() : value
   );
 }
+
+/**
+ * Parsing safe for JSON that handles special cases
+ * @param str String to parse
+ * @returns Parsed object
+ */
+export function safeJsonParse<T = any>(str: string): T {
+  if (!str) return undefined as T;
+  try {
+    return JSON.parse(str);
+  } catch (error) {
+    console.warn('Failed to parse JSON:', str, error);
+    return undefined as T;
+  }
+}

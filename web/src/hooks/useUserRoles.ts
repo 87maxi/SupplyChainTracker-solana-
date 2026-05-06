@@ -119,7 +119,7 @@ export const useUserRoles = (): UseUserRoles => {
       };
 
       // Cache the result with 30 second TTL and stale-while-revalidate
-      CacheService.set(cacheKey, newRoles, 30000);
+      CacheService.set(cacheKey, newRoles, { ttl: 30000 });
       
       // Always update state
       setUserRoles(newRoles);

@@ -23,23 +23,29 @@ import {
 // ============================================================================
 
 /**
- * Netbook state enum matching Rust implementation
+ * Netbook state constants matching Rust implementation
+ * Converted from enum for Node.js native TypeScript strip-only compatibility
  */
-export enum NetbookState {
-  Fabricada = 0,
-  HwAprobado = 1,
-  SwValidado = 2,
-  Distribuida = 3,
-}
+export const NetbookState = {
+  Fabricada: 0,
+  HwAprobado: 1,
+  SwValidado: 2,
+  Distribuida: 3,
+} as const;
+
+export type NetbookState = (typeof NetbookState)[keyof typeof NetbookState];
 
 /**
- * Request status enum matching Rust implementation
+ * Request status constants matching Rust implementation
+ * Converted from enum for Node.js native TypeScript strip-only compatibility
  */
-export enum RequestStatus {
-  Pending = 0,
-  Approved = 1,
-  Rejected = 2,
-}
+export const RequestStatus = {
+  Pending: 0,
+  Approved: 1,
+  Rejected: 2,
+} as const;
+
+export type RequestStatus = (typeof RequestStatus)[keyof typeof RequestStatus];
 
 /**
  * Role type constants

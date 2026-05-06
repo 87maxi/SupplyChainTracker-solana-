@@ -28,8 +28,9 @@ import {
 } from "./test-helpers";
 
 describe("Role Enforcement Boundary Tests", () => {
-  const provider = anchor.AnchorProvider.local() as any;
-  const program = anchor.workspace.ScSolana as Program<ScSolana>;
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+  const program = anchor.workspace.scSolana as Program<ScSolana>;
   const admin = Keypair.generate();
   const fabricante = Keypair.generate();
   const auditor = Keypair.generate();

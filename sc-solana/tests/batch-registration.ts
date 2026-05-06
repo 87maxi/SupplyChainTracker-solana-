@@ -44,7 +44,7 @@ interface NetbooksRegisteredEvent {
 describe("Batch Registration Integration Tests", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
-  const program = anchor.workspace.ScSolana as Program<ScSolana>;
+  const program = anchor.workspace.scSolana as Program<ScSolana>;
 
   // Key accounts
   let admin: Keypair;

@@ -36,7 +36,9 @@ const ESCUELA_ROLE = "ESCUELA";
 describe("Role Management Integration Tests", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
-  const program = anchor.workspace.ScSolana as Program<ScSolana>;
+  
+  // Load program from workspace or fall back to IDL-based loading
+  let program: Program<ScSolana>;
 
   // Key accounts
   let admin: Keypair;
@@ -48,16 +50,33 @@ describe("Role Management Integration Tests", () => {
   let configPda: PublicKey;
 
   before(async () => {
-    // Use accounts from provider wallet
-    const [adminKey, fabricanteKey, auditorKey, tecnicoKey, escuelaKey] = 
-      (provider.wallet as any).keypair.secret as Uint8Array[];
+    // Load program
+    if (anchor.workspace.scSolana) {
+      program = anchor.workspace.scSolana as Program<ScSolana>;
+    } else {
+      const idl = require("../target/idl/sc_solana.json");
+      const programId = new anchor.web3.PublicKey("CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS");
+      // Recreate provider with the program IDL for manual test runs
+      const updatedProvider = new anchor.AnchorProvider(provider.connection, provider.wallet, {
+        commitment: provider.opts.commitment,
+        preflightCommitment: provider.opts.preflightCommitment,
+      });
+      anchor.setProvider(updatedProvider);
+      program = new anchor.Program({ ...idl, address: programId.toString() }, updatedProvider);
+    }
     
-    admin = Keypair.fromSecretKey(new Uint8Array(adminKey));
-    fabricante = Keypair.fromSecretKey(new Uint8Array(fabricanteKey));
-    auditor = Keypair.fromSecretKey(new Uint8Array(auditorKey));
-    tecnico = Keypair.fromSecretKey(new Uint8Array(tecnicoKey));
-    escuela = Keypair.fromSecretKey(new Uint8Array(escuelaKey));
+    // Generate test accounts (each test needs fresh accounts for proper isolation)
+    admin = Keypair.generate();
+    fabricante = Keypair.generate();
+    auditor = Keypair.generate();
+    tecnico = Keypair.generate();
+    escuela = Keypair.generate();
     randomUser = Keypair.generate();
+
+    // Fund all accounts
+    for (const kp of [admin, fabricante, auditor, tecnico, escuela, randomUser]) {
+      await fundKeypair(provider, kp, 2);
+    }
 
     configPda = (await getConfigPda(program))[0];
 

@@ -1,3 +1,15 @@
+/**
+ * Main Integration Test Suite
+ *
+ * Comprehensive integration tests for the SupplyChainTracker Solana program.
+ * Tests cover initialization, role management, netbook registration, hardware
+ * audit, software validation, student assignment, state machine validation,
+ * PDA derivation, error codes, and config counters.
+ *
+ * Program: SupplyChainTracker (sc-solana)
+ * Program ID: CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS
+ */
+
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { ScSolana } from "../target/types/sc_solana";
@@ -26,27 +38,46 @@ const TECNICO_SW_ROLE = "TECNICO_SW";
 const ESCUELA_ROLE = "ESCUELA";
 
 describe("SupplyChainTracker Solana", () => {
-  anchor.setProvider(anchor.AnchorProvider.env());
-  const program = anchor.workspace.scSolana as Program<ScSolana>;
-
+  const provider = anchor.AnchorProvider.env();
+  anchor.setProvider(provider);
+  
+  // Load program from workspace or fall back to IDL-based loading
+  let program: Program<ScSolana>;
+  
   // Test accounts
-  const admin = Keypair.generate();
-  const fabricante = Keypair.generate();
-  const auditor = Keypair.generate();
-  const technician = Keypair.generate();
-  const school = Keypair.generate();
+  let admin: Keypair;
+  let fabricante: Keypair;
+  let auditor: Keypair;
+  let technician: Keypair;
+  let school: Keypair;
+  
+  // PDA variables - will be set after program is loaded
+  let configPda: anchor.web3.PublicKey;
+  let configBump: number;
+  let serialHashRegistryPda: anchor.web3.PublicKey;
 
-  // Config PDA
-  const [configPda, configBump] = anchor.web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("config")],
-    program.programId
-  );
-
-  // Serial hash registry PDA (matches lib.rs seeds: [b"serial_hashes", config.key().as_ref()])
-  const [serialHashRegistryPda] = anchor.web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("serial_hashes"), configPda.toBuffer()],
-    program.programId
-  );
+  before(() => {
+    if (anchor.workspace.scSolana) {
+      program = anchor.workspace.scSolana as Program<ScSolana>;
+    } else {
+      // Manual test run - load from IDL
+      const idl = require("../target/idl/sc_solana.json");
+      const programId = new anchor.web3.PublicKey("CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS");
+      program = new anchor.Program({ ...idl, address: programId.toString() }, provider);
+    }
+    
+    // Calculate PDAs after program is loaded
+    [configPda, configBump] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("config")],
+      program.programId
+    );
+    
+    // Serial hash registry PDA (matches lib.rs seeds: [b"serial_hashes", config.key().as_ref()])
+    [serialHashRegistryPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("serial_hashes"), configPda.toBuffer()],
+      program.programId
+    );
+  });
 
   // Helper function to get netbook PDA (matches lib.rs seeds: [b"netbook", b"netbook", &token_id[0..7]])
   function getNetbookPda(tokenId: number) {
@@ -94,13 +125,169 @@ describe("SupplyChainTracker Solana", () => {
   }
 
   before(async () => {
-    // Fund all test accounts
+    // Generate admin account
+    admin = Keypair.generate();
     await fundKeypair(admin);
+    
+    // Check if config already exists
+    let existingConfig = await program.account.supplyChainConfig.fetchNullable(configPda);
+    
+    if (existingConfig) {
+      // Config already exists - this means the ledger was used by a previous test run.
+      // In this case, we cannot use new keypairs because they won't have roles.
+      // We must use the existing role holder accounts. However, we don't have their private keys.
+      // The solution is to always run on a fresh ledger. For now, we'll log an error and skip.
+      console.log("ERROR: Config already exists on fresh ledger. Please restart with fresh ledger.");
+      console.log("Current config nextTokenId:", existingConfig.nextTokenId.toNumber());
+      // Continue anyway - the tests will fail if roles don't match, which is the expected behavior
+      // when running on a non-fresh ledger.
+    }
+    
+    // Initialize config (moved from "1. Initialization" test for test isolation)
+    const tx = await program.methods.initialize()
+      .accountsStrict({
+        admin: admin.publicKey,
+        config: configPda,
+        serialHashRegistry: serialHashRegistryPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([admin])
+      .rpc()
+      .catch(async (err: any) => {
+        // If initialization fails because config already exists, fetch existing config
+        console.log("Config init caught error:", err.message);
+        existingConfig = await program.account.supplyChainConfig.fetch(configPda);
+        console.log("Config already initialized with nextTokenId:", existingConfig.nextTokenId.toNumber());
+      });
+    
+    if (tx) {
+      console.log("Config initialized in before():", tx);
+      existingConfig = await program.account.supplyChainConfig.fetch(configPda);
+    }
+    
+    // Generate test accounts and grant roles
+    fabricante = Keypair.generate();
+    auditor = Keypair.generate();
+    technician = Keypair.generate();
+    school = Keypair.generate();
+    
     await fundKeypair(fabricante);
     await fundKeypair(auditor);
     await fundKeypair(technician);
     await fundKeypair(school);
+    
+    // Grant roles to test accounts
+    const config = await program.account.supplyChainConfig.fetch(configPda);
+    console.log("Config role holders - Fabricante:", config.fabricante.toString(),
+                "Auditor:", config.auditorHw.toString(),
+                "Tecnico:", config.tecnicoSw.toString(),
+                "Escuela:", config.escuela.toString());
+    
+    // Only grant roles if the config role holders are default (zero) pubkeys
+    const defaultPubkey = anchor.web3.PublicKey.default;
+    
+    if (config.fabricante.equals(defaultPubkey)) {
+      await program.methods.grantRole(FABRICANTE_ROLE)
+        .accountsStrict({
+          config: configPda,
+          admin: admin.publicKey,
+          accountToGrant: fabricante.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([admin, fabricante])
+        .rpc();
+      console.log("Granted FABRICANTE role to", fabricante.publicKey.toString());
+    } else {
+      console.log("FABRICANTE role already held by", config.fabricante.toString());
+    }
+    
+    if (config.auditorHw.equals(defaultPubkey)) {
+      await program.methods.grantRole(AUDITOR_HW_ROLE)
+        .accountsStrict({
+          config: configPda,
+          admin: admin.publicKey,
+          accountToGrant: auditor.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([admin, auditor])
+        .rpc();
+      console.log("Granted AUDITOR_HW role to", auditor.publicKey.toString());
+    } else {
+      console.log("AUDITOR_HW role already held by", config.auditorHw.toString());
+    }
+    
+    if (config.tecnicoSw.equals(defaultPubkey)) {
+      await program.methods.grantRole(TECNICO_SW_ROLE)
+        .accountsStrict({
+          config: configPda,
+          admin: admin.publicKey,
+          accountToGrant: technician.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([admin, technician])
+        .rpc();
+      console.log("Granted TECNICO_SW role to", technician.publicKey.toString());
+    } else {
+      console.log("TECNICO_SW role already held by", config.tecnicoSw.toString());
+    }
+    
+    if (config.escuela.equals(defaultPubkey)) {
+      await program.methods.grantRole(ESCUELA_ROLE)
+        .accountsStrict({
+          config: configPda,
+          admin: admin.publicKey,
+          accountToGrant: school.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([admin, school])
+        .rpc();
+      console.log("Granted ESCUELA role to", school.publicKey.toString());
+    } else {
+      console.log("ESCUELA role already held by", config.escuela.toString());
+    }
   });
+
+  // Helper to grant a role to an account (safe - skips if already granted or if config has different holder)
+  async function grantRoleToAccount(role: string, account: Keypair) {
+    try {
+      const config = await program.account.supplyChainConfig.fetch(configPda);
+      const defaultPubkey = anchor.web3.PublicKey.default;
+      
+      // Check if config already has a different holder for this role
+      let existingHolder: anchor.web3.PublicKey | null = null;
+      if (role === FABRICANTE_ROLE) existingHolder = config.fabricante;
+      if (role === AUDITOR_HW_ROLE) existingHolder = config.auditorHw;
+      if (role === TECNICO_SW_ROLE) existingHolder = config.tecnicoSw;
+      if (role === ESCUELA_ROLE) existingHolder = config.escuela;
+      
+      // If config already has a non-default holder, skip (can't grant to different account)
+      if (existingHolder && !existingHolder.equals(defaultPubkey)) {
+        console.log(`Role ${role} already held by ${existingHolder.toString()}, skipping grant to ${account.publicKey.toString()}`);
+        return;
+      }
+      
+      // If config has default (zero) holder, try to grant
+      if (!existingHolder || existingHolder.equals(defaultPubkey)) {
+        await program.methods.grantRole(role)
+          .accountsStrict({
+            config: configPda,
+            admin: admin.publicKey,
+            accountToGrant: account.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([admin, account])
+          .rpc();
+        console.log(`Granted role ${role} to ${account.publicKey.toString()}`);
+      }
+    } catch (err: any) {
+      // If it's a RoleAlreadyGranted or ConstraintHasOne error, just log and continue
+      if (err.message && (err.message.includes("RoleAlreadyGranted") || err.message.includes("ConstraintHasOne"))) {
+        console.log(`Role ${role} grant skipped (already granted or constraint violated):`, err.message);
+      } else {
+        console.log(`Grant role error:`, err.message);
+      }
+    }
+  }
 
   describe("1. Initialization", () => {
     it("Initializes the supply chain config", async () => {
@@ -671,7 +858,7 @@ describe("SupplyChainTracker Solana", () => {
     });
 
     it("Cannot assign netbook from wrong state", async () => {
-      // Note: ESCUELA_ROLE was already granted in the previous test
+      // Roles already granted in before() hook on fresh ledger
       const tokenId = await syncTokenCounter();
       const serial = "SN-2024-WRONG-STATE";
       const netbookPda = getNetbookPda(tokenId);
@@ -691,6 +878,12 @@ describe("SupplyChainTracker Solana", () => {
         .signers([fabricante])
         .rpc();
 
+      // Verify the netbook was registered with the correct serial
+      const netbook = await program.account.netbook.fetch(netbookPda);
+      console.log("Registered netbook serial:", netbook.serialNumber);
+      console.log("Netbook state:", netbook.state);
+      console.log("Token ID:", netbook.tokenId.toNumber());
+
       try {
         await program.methods
           .assignToStudent(serial, schoolHash, studentHash)
@@ -703,11 +896,13 @@ describe("SupplyChainTracker Solana", () => {
           .rpc();
         expect.fail("Should have thrown error");
       } catch (err: any) {
+        console.log("Error message:", err.message);
         expect(err.message).to.include("InvalidStateTransition");
       }
     });
 
     it("Cannot assign netbook without school role", async () => {
+      // Roles already granted in before() hook on fresh ledger
       const tokenId = await syncTokenCounter();
       const serial = "SN-2024-NO-SCHOOL";
       const netbookPda = getNetbookPda(tokenId);
@@ -766,7 +961,7 @@ describe("SupplyChainTracker Solana", () => {
 
   describe("7. State Machine Validation", () => {
     it("Enforces complete state transition flow: Fabricada -> HwAprobado -> SwValidado -> Distribuida", async () => {
-      // Note: ESCUELA_ROLE was already granted in the previous test
+      // Roles already granted in before() hook on fresh ledger
       const tokenId = await syncTokenCounter();
       const serial = "SN-2024-FULL";
       const netbookPda = getNetbookPda(tokenId);

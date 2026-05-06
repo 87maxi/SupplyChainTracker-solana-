@@ -27,7 +27,7 @@ import {
 
 describe("Query Instruction Integration Tests", () => {
   const provider = AnchorProvider.env() as AnchorProvider;
-  const program = anchor.workspace.ScSolana as Program<ScSolana>;
+  const program = anchor.workspace.scSolana as Program<ScSolana>;
 
   // Test accounts
   let admin: Keypair;

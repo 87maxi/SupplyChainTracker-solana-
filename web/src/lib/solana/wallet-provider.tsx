@@ -1,23 +1,61 @@
 "use client";
 
-import { WalletAdapterNetwork, WalletError } from '@solana/wallet-adapter-base';
+import {
+  WalletAdapterNetwork,
+  type Adapter,
+  type WalletError,
+} from '@solana/wallet-adapter-base';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
-import { ReactNode, useMemo } from 'react';
+import {
+  PhantomWalletAdapter,
+  SolflareWalletAdapter,
+  LedgerWalletAdapter,
+  TrustWalletAdapter,
+  TorusWalletAdapter,
+  CloverWalletAdapter,
+  SafePalWalletAdapter,
+} from '@solana/wallet-adapter-wallets';
+import { ReactNode, useCallback, useMemo } from 'react';
 import { clusterApiUrl } from '@solana/web3.js';
 
 // Default styles that can be overridden by your app
 import '@solana/wallet-adapter-react-ui/styles.css';
 
+/**
+ * Solana Wallet Provider
+ *
+ * Provides wallet connection context for the entire application.
+ * Supports both explicitly configured wallets and auto-detected Wallet Standard wallets.
+ *
+ * Auto-detected wallets (Wallet Standard):
+ * - Backpack, NeonLink, and any wallet implementing the Wallet Standard
+ *
+ * Explicitly configured wallets:
+ * - Phantom, Solflare, Ledger, Trust, Torus, Clover, SafePal
+ */
 export function SolanaWalletProvider({ children }: { children: ReactNode }) {
   const network = (process.env.NEXT_PUBLIC_CLUSTER || 'devnet') as WalletAdapterNetwork;
   const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network);
-  
+
+  // Error handler for wallet connection issues
+  const onError = useCallback((error: WalletError, adapter?: Adapter) => {
+    const message = error.message ? `${error.name}: ${error.message}` : error.name;
+    console.error(`[Wallet Error] ${message}`, adapter);
+  }, []);
+
   const wallets = useMemo(
     () => [
+      // Explicitly configured wallets
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
+      new LedgerWalletAdapter(),
+      new TrustWalletAdapter(),
+      new TorusWalletAdapter(),
+      new CloverWalletAdapter(),
+      new SafePalWalletAdapter(),
+      // Note: Backpack and other Wallet Standard wallets are auto-detected
+      // by the wallet adapter without needing explicit configuration
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [network]
@@ -25,7 +63,7 @@ export function SolanaWalletProvider({ children }: { children: ReactNode }) {
 
   return (
     <ConnectionProvider endpoint={rpcUrl}>
-      <WalletProvider wallets={wallets} autoConnect>
+      <WalletProvider wallets={wallets} autoConnect onError={onError}>
         <WalletModalProvider>
           {children}
         </WalletModalProvider>

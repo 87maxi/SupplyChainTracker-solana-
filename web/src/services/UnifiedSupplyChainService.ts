@@ -318,6 +318,15 @@ export class UnifiedSupplyChainService {
     }
   }
 
+  /**
+   * Query the config account from chain.
+   *
+   * Distingue entre "account no existe" y "error de red" para proporcionar
+   * mensajes de error claros y permitir graceful degradation.
+   *
+   * @returns ConfigData si existe, null si no está inicializada
+   * @throws Error descriptivo si hay problemas de red o inicialización
+   */
   async queryConfig(): Promise<ConfigData | null> {
     const cacheKey = 'queryConfig';
     const cached = CacheService.get<ConfigData>(cacheKey);
@@ -327,15 +336,28 @@ export class UnifiedSupplyChainService {
       throw new Error('Program not initialized. Call initialize() first.');
     }
 
+    const [configPda] = findConfigPda();
+    
     try {
-      const [configPda] = findConfigPda();
       const configAccount = await getConfigAccount(this.program).fetch(configPda);
       const configData = configAccount as unknown as ConfigData;
       
       CacheService.set(cacheKey, configData, { tags: [CACHE_TAGS.CONFIG] });
       return configData;
     } catch (error) {
-      console.error('Error querying config:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Distinguir entre "account no existe" y "error de red"
+      if (errorMessage.includes('does not exist') || errorMessage.includes('No accounts found')) {
+        console.warn(
+          `[SupplyChain] Config account no existe en ${configPda.toBase58()}. ` +
+          'El programa puede no estar inicializado. Ejecuta la instrucción de inicialización.'
+        );
+        return null;
+      }
+      
+      // Error de red u otro problema
+      console.error('[SupplyChain] Error querying config:', error);
       return null;
     }
   }

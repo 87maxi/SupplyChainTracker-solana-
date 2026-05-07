@@ -34,8 +34,29 @@ import '@solana/wallet-adapter-react-ui/styles.css';
  * Explicitly configured wallets:
  * - Phantom, Solflare, Ledger, Trust, Torus, Clover, SafePal
  */
+/**
+ * Mapeo seguro de cluster a WalletAdapterNetwork.
+ * Si NEXT_PUBLIC_CLUSTER no está definido, lanza error en lugar de usar fallback hardcoded.
+ */
+function getClusterNetwork(): WalletAdapterNetwork {
+  const cluster = process.env.NEXT_PUBLIC_CLUSTER;
+  if (!cluster) {
+    throw new Error(
+      'NEXT_PUBLIC_CLUSTER no está definido. ' +
+      'Agrega NEXT_PUBLIC_CLUSTER=devnet|mainnet|testnet a tu archivo .env.local.'
+    );
+  }
+  if (cluster !== 'devnet' && cluster !== 'mainnet' && cluster !== 'testnet') {
+    console.warn(
+      `[Wallet Provider] Cluster '${cluster}' no es un valor estándar (devnet/mainnet/testnet). ` +
+      'Se usará como cluster personalizado con NEXT_PUBLIC_RPC_URL.'
+    );
+  }
+  return cluster as WalletAdapterNetwork;
+}
+
 export function SolanaWalletProvider({ children }: { children: ReactNode }) {
-  const network = (process.env.NEXT_PUBLIC_CLUSTER || 'devnet') as WalletAdapterNetwork;
+  const network = getClusterNetwork();
   const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || clusterApiUrl(network);
 
   // Error handler for wallet connection issues

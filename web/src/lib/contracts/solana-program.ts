@@ -18,9 +18,25 @@ try {
   idlData = {};
 }
 
-export const PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_PROGRAM_ID || 'CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS'
-);
+/**
+ * Program ID para el programa Anchor SupplyChainTracker.
+ *
+ * IMPORTANT: NEXT_PUBLIC_PROGRAM_ID debe estar definido en .env.local/.env.example
+ * Si no está definido, se lanza un error descriptivo en lugar de usar un fallback hardcoded.
+ */
+function getProgramId(): string {
+  const programId = process.env.NEXT_PUBLIC_PROGRAM_ID;
+  if (!programId) {
+    throw new Error(
+      'NEXT_PUBLIC_PROGRAM_ID no está definido. ' +
+      'Agrega NEXT_PUBLIC_PROGRAM_ID=<program_id_desplegado> a tu archivo .env.local. ' +
+      'Consulta .env.example para ver todas las variables requeridas.'
+    );
+  }
+  return programId;
+}
+
+export const PROGRAM_ID = new PublicKey(getProgramId());
 
 /**
  * SupplyChainIDL type alias that extends Anchor's Idl with extra fields.

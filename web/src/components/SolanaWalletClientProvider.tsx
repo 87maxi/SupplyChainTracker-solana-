@@ -2,22 +2,29 @@
 "use client";
 
 import { SolanaWalletProvider } from '@/lib/solana/wallet-provider';
-import { useState, useEffect } from 'react';
+import { WalletReadyGate } from '@/components/WalletReadyGate';
 
-// Initialize mounted directly to avoid set-state-in-effect warning
-// See: https://react.dev/reference/react/useEffect
+/**
+ * SolanaWalletClientProvider - Provider principal de wallet para la aplicación.
+ *
+ * Siempre renderiza SolanaWalletProvider para evitar errores de WalletContext
+ * durante SSR e hidratación. Los componentes que necesitan wallet deben usar
+ * WalletReadyGate para protegerse hasta que el provider esté listo.
+ *
+ * Soluciona: "You have tried to read 'wallet' on a WalletContext without providing one"
+ *
+ * Estructura:
+ *   SolanaWalletClientProvider
+ *     └─ SolanaWalletProvider (siempre presente)
+ *         └─ WalletReadyGate (protege children hasta hidratación)
+ *             └─ children
+ */
 export function SolanaWalletClientProvider({ children }: { children: React.ReactNode }) {
-  // Use lazy initialization to avoid useEffect for mount detection
-  const [mounted] = useState(() => typeof window !== 'undefined');
-
-  if (!mounted) {
-    // During SSR and initial hydration, render children without wallet context
-    return <>{children}</>;
-  }
-
   return (
     <SolanaWalletProvider>
-      {children}
+      <WalletReadyGate>
+        {children}
+      </WalletReadyGate>
     </SolanaWalletProvider>
   );
 }

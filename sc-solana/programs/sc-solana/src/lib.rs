@@ -152,6 +152,7 @@ mod tests {
         assert_eq!(SupplyChainError::Unauthorized as u32, 6000);
         assert_eq!(SupplyChainError::InvalidStateTransition as u32, 6001);
         assert_eq!(SupplyChainError::NetbookNotFound as u32, 6002);
+        assert_eq!(SupplyChainError::InvalidRequestState as u32, 6013);
     }
 
     #[test]

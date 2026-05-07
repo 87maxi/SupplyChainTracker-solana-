@@ -30,4 +30,6 @@ pub enum SupplyChainError {
     MaxRoleHoldersReached = 6011,
     #[msg("Account not found in role holders list")]
     RoleHolderNotFound = 6012,
+    #[msg("Role request is not in pending state")]
+    InvalidRequestState = 6013,
 }

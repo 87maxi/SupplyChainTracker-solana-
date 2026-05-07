@@ -73,6 +73,13 @@ pub fn request_role(ctx: Context<RequestRole>, role: String) -> Result<()> {
 /// Approve a pending role request
 pub fn approve_role_request(ctx: Context<ApproveRoleRequest>) -> Result<()> {
     let role_request = &mut ctx.accounts.role_request;
+    
+    // Verify request is in Pending state
+    require!(
+        role_request.status == crate::RequestStatus::Pending as u8,
+        crate::SupplyChainError::InvalidRequestState
+    );
+    
     role_request.status = crate::RequestStatus::Approved as u8;
 
     // Grant the role automatically on approval
@@ -96,6 +103,13 @@ pub fn approve_role_request(ctx: Context<ApproveRoleRequest>) -> Result<()> {
 /// Reject a pending role request
 pub fn reject_role_request(ctx: Context<RejectRoleRequest>) -> Result<()> {
     let role_request = &mut ctx.accounts.role_request;
+    
+    // Verify request is in Pending state
+    require!(
+        role_request.status == crate::RequestStatus::Pending as u8,
+        crate::SupplyChainError::InvalidRequestState
+    );
+    
     role_request.status = crate::RequestStatus::Rejected as u8;
 
     emit!(RoleRequestUpdated {

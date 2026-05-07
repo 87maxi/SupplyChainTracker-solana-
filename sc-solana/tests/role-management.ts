@@ -390,7 +390,7 @@ describe("Role Management Integration Tests", () => {
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         error.message.should.satisfy((msg) =>
-          msg.includes("RoleAlreadyGranted") || msg.includes("InvalidInput")
+          msg.includes("InvalidRequestState") || msg.includes("RoleAlreadyGranted") || msg.includes("InvalidInput")
         );
       }
     });
@@ -528,7 +528,7 @@ describe("Role Management Integration Tests", () => {
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         error.message.should.satisfy((msg) =>
-          msg.includes("InvalidInput") || msg.includes("RoleRequest")
+          msg.includes("InvalidRequestState") || msg.includes("InvalidInput") || msg.includes("RoleRequest")
         );
       }
     });

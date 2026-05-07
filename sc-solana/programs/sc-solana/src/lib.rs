@@ -9,7 +9,12 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS");
+declare_id!("7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN");
+
+// ==================== Constants ====================
+
+/// Minimum time between role requests in seconds (60 seconds = 1 minute cooldown)
+pub const ROLE_REQUEST_COOLDOWN: u64 = 60;
 
 // ==================== Module Declarations ====================
 
@@ -39,6 +44,10 @@ pub mod sc_solana {
         instructions::role::grant::grant_role(ctx, role)
     }
 
+    pub fn grant_role_no_signer(ctx: Context<GrantRoleNoSigner>, role: String) -> Result<()> {
+        instructions::role::grant::grant_role_no_signer(ctx, role)
+    }
+
     pub fn revoke_role(ctx: Context<RevokeRole>, role: String) -> Result<()> {
         instructions::role::revoke::revoke_role(ctx, role)
     }
@@ -55,12 +64,24 @@ pub mod sc_solana {
         instructions::role::request::reject_role_request(ctx)
     }
 
+    pub fn reset_role_request(ctx: Context<ResetRoleRequest>) -> Result<()> {
+        instructions::role::request::reset_role_request(ctx)
+    }
+
     pub fn add_role_holder(ctx: Context<AddRoleHolder>, role: String) -> Result<()> {
         instructions::role::holder_add::add_role_holder(ctx, role)
     }
 
     pub fn remove_role_holder(ctx: Context<RemoveRoleHolder>, role: String) -> Result<()> {
         instructions::role::holder_remove::remove_role_holder(ctx, role)
+    }
+
+    pub fn close_role_holder(ctx: Context<CloseRoleHolder>, role: String) -> Result<()> {
+        instructions::role::revoke::close_role_holder(ctx, role)
+    }
+
+    pub fn transfer_admin(ctx: Context<TransferAdmin>) -> Result<()> {
+        instructions::role::transfer_admin::transfer_admin(ctx)
     }
 
     pub fn register_netbook(

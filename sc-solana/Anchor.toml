@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-sc_solana = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+sc_solana = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 
 [registry]
 url = "https://api.apr.dev"
@@ -24,8 +24,7 @@ shutdown_wait = 2000
 upgradeable = false
 
 [test.validator]
+bind_address = "0.0.0.0"
+ledger = ".anchor/test-ledger"
+rpc_port = 8899
 slots_per_epoch = "64"
-keep_empty_slot_epoch_hashes = true
-
-# Fix for Solana 3.1.x: Remove --bind-address 0.0.0.0 which causes panic
-# Use [test.validator.rpc_bind_address] instead if needed

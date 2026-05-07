@@ -44,3 +44,10 @@ pub struct RoleHolderRemoved {
     pub admin: Pubkey,
     pub timestamp: u64,
 }
+
+#[event]
+pub struct AdminTransferred {
+    pub previous_admin: Pubkey,
+    pub new_admin: Pubkey,
+    pub timestamp: u64,
+}

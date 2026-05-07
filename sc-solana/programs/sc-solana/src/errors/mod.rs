@@ -32,4 +32,6 @@ pub enum SupplyChainError {
     RoleHolderNotFound = 6012,
     #[msg("Role request is not in pending state")]
     InvalidRequestState = 6013,
+    #[msg("Role request rate limited - please wait before requesting again")]
+    RateLimited = 6014,
 }

@@ -1,108 +1,179 @@
 // Full lifecycle test: Manufacturing -> Audit -> Validation -> Distribution
-// This runbook tests the complete netbook lifecycle
+// Executes all state transitions in sequence
+// Usage: surfpool run full-lifecycle --env localnet --browser -f
 
-// Signers for all roles
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// All role signers
 signer "admin" "svm::web_wallet" {
-  description = "Admin account"
-  keypair_path = input.admin_keypair
+  keypair_path = "~/.config/solana/id.json"
 }
 
 signer "fabricante" "svm::web_wallet" {
-  description = "Manufacturer account"
-  keypair_path = input.fabricante_keypair
+  keypair_path = "~/.config/solana/fabricante.json"
 }
 
 signer "auditor_hw" "svm::web_wallet" {
-  description = "Hardware auditor account"
-  keypair_path = input.auditor_hw_keypair
+  keypair_path = "~/.config/solana/auditor_hw.json"
 }
 
 signer "tecnico_sw" "svm::web_wallet" {
-  description = "Software technician account"
-  keypair_path = input.tecnico_sw_keypair
+  keypair_path = "~/.config/solana/tecnico_sw.json"
 }
 
 signer "escuela" "svm::web_wallet" {
-  description = "School account"
-  keypair_path = input.escuela_keypair
+  keypair_path = "~/.config/solana/escuela.json"
 }
 
-// Program reference - default from environment
 variable "program_id" {
-  description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+  value = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 }
 
-// Default values for localnet testing
+variable "idl" {
+  value = svm::get_idl_from_path("./target/idl/sc_solana.json")
+}
+
+variable "config_pda" {
+  value = svm::find_pda(["config"], variable.program_id)
+}
+
+variable "serial_hashes_pda" {
+  value = svm::find_pda(["serial_hashes", variable.config_pda[0]], variable.program_id)
+}
+
 variable "serial_number" {
-  description = "Test serial number"
-  value = "TEST-LIFECYCLE-001"
+  value = "TEST-LC-001"
 }
 
-variable "batch_id" {
-  description = "Batch ID"
-  value = "BATCH-LC-001"
+variable "netbook_pda" {
+  value = svm::find_pda(["netbook", variable.serial_number], variable.program_id)
 }
 
-variable "model_specs" {
-  description = "Model specifications"
-  value = "SupplyChainTracker ST-1000"
+// Step 1: Initialize Config
+action "step1_initialize" "svm::process_instructions" {
+  description = "Step 1: Initialize Config and SerialHashRegistry"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "initialize"
+    instruction_args = []
+    accounts = [
+      { public_key = variable.config_pda[0], writable = true, signer = false },
+      { public_key = variable.serial_hashes_pda[0], writable = true, signer = false },
+      { public_key = signer.admin.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.admin]
 }
 
-// Lifecycle steps
-output "program_id" {
-  description = "Program ID"
-  value = variable.program_id
+// Step 2: Grant FABRICANTE Role
+action "step2_grant_fabricante" "svm::process_instructions" {
+  description = "Step 2: Grant FABRICANTE role"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "grant_role"
+    instruction_args = ["FABRICANTE"]
+    accounts = [
+      { public_key = variable.config_pda[0], writable = true, signer = false },
+      { public_key = signer.admin.public_key, writable = true, signer = true },
+      { public_key = signer.fabricante.public_key, writable = false, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.admin, signer.fabricante]
 }
 
-output "lifecycle_steps" {
-  description = "Complete lifecycle test steps"
+// Step 3: Register Netbook (Fabricada = 0)
+action "step3_register" "svm::process_instructions" {
+  description = "Step 3: Register netbook -> State: Fabricada"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "register_netbook"
+    instruction_args = [variable.serial_number, "BATCH-LC-001", "TestModel"]
+    accounts = [
+      { public_key = variable.netbook_pda[0], writable = true, signer = false },
+      { public_key = variable.config_pda[0], writable = true, signer = false },
+      { public_key = variable.serial_hashes_pda[0], writable = true, signer = false },
+      { public_key = signer.fabricante.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.fabricante]
+}
+
+// Step 4: Audit Hardware (Fabricada -> HwAprobado = 1)
+action "step4_audit" "svm::process_instructions" {
+  description = "Step 4: Audit hardware -> State: HwAprobado"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "audit_hardware"
+    instruction_args = [variable.serial_number, true, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]]
+    accounts = [
+      { public_key = variable.netbook_pda[0], writable = true, signer = false },
+      { public_key = variable.config_pda[0], writable = false, signer = false },
+      { public_key = signer.auditor_hw.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.auditor_hw]
+}
+
+// Step 5: Validate Software (HwAprobado -> SwValidado = 2)
+action "step5_validate" "svm::process_instructions" {
+  description = "Step 5: Validate software -> State: SwValidado"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "validate_software"
+    instruction_args = [variable.serial_number, "Ubuntu 22.04", true]
+    accounts = [
+      { public_key = variable.netbook_pda[0], writable = true, signer = false },
+      { public_key = variable.config_pda[0], writable = false, signer = false },
+      { public_key = signer.tecnico_sw.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.tecnico_sw]
+}
+
+// Step 6: Assign to Student (SwValidado -> Distribuida = 3)
+action "step6_assign" "svm::process_instructions" {
+  description = "Step 6: Assign to student -> State: Distribuida"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "assign_to_student"
+    instruction_args = [variable.serial_number, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1], [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2]]
+    accounts = [
+      { public_key = variable.netbook_pda[0], writable = true, signer = false },
+      { public_key = variable.config_pda[0], writable = false, signer = false },
+      { public_key = signer.escuela.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.escuela]
+}
+
+// Outputs
+output "lifecycle_signatures" {
   value = {
-    step_1: {
-      name: "Initialize Config",
-      instruction: "initialize",
-      signer: "admin",
-      args: []
-    },
-    step_2: {
-      name: "Grant FABRICANTE Role",
-      instruction: "grant_role",
-      signer: "admin",
-      args: ["FABRICANTE"]
-    },
-    step_3: {
-      name: "Register Netbook",
-      instruction: "register_netbook",
-      signer: "fabricante",
-      args: [variable.serial_number, variable.batch_id, variable.model_specs]
-    },
-    step_4: {
-      name: "Audit Hardware",
-      instruction: "audit_hardware",
-      signer: "auditor_hw",
-      args: [variable.serial_number, "true", ""]
-    },
-    step_5: {
-      name: "Validate Software",
-      instruction: "validate_software",
-      signer: "tecnico_sw",
-      args: [variable.serial_number, "Ubuntu 22.04", "true"]
-    },
-    step_6: {
-      name: "Assign to Student",
-      instruction: "assign_to_student",
-      signer: "escuela",
-      args: [variable.serial_number, "student_hash", "school_hash"]
-    }
+    initialize: action.step1_initialize.signatures[0],
+    grant_fabricante: action.step2_grant_fabricante.signatures[0],
+    register: action.step3_register.signatures[0],
+    audit: action.step4_audit.signatures[0],
+    validate: action.step5_validate.signatures[0],
+    assign: action.step6_assign.signatures[0]
   }
 }
 
 output "state_transitions" {
-  description = "Netbook state transitions"
   value = {
-    Fabricada: "0 -> Initial state after registration",
-    HwAprobado: "1 -> After hardware audit passes",
-    SwValidado: "2 -> After software validation passes",
-    Distribuida: "3 -> Final state after student assignment"
+    step_1: "Config initialized",
+    step_2: "FABRICANTE role granted",
+    step_3: "Netbook registered -> Fabricada (0)",
+    step_4: "Hardware audited -> HwAprobado (1)",
+    step_5: "Software validated -> SwValidado (2)",
+    step_6: "Student assigned -> Distribuida (3)"
   }
 }

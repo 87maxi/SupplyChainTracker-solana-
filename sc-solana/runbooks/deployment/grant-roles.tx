@@ -1,5 +1,6 @@
-// Grant initial roles to administrators
-// Grants FABRICANTE role to manufacturer account
+// Grant all initial roles to administrators
+// Grants FABRICANTE, AUDITOR_HW, TECNICO_SW, and ESCUELA roles
+// Usage: surfpool run grant-roles --env localnet --browser -f
 
 // Signers
 signer "admin" "svm::web_wallet" {
@@ -9,13 +10,28 @@ signer "admin" "svm::web_wallet" {
 
 signer "fabricante" "svm::web_wallet" {
   description = "Fabricante (manufacturer) account receiving FABRICANTE role"
-  keypair_path = "~/.config/solana/fabricante.json"
+  keypair_path = input.fabricante_keypair
+}
+
+signer "auditor_hw" "svm::web_wallet" {
+  description = "Hardware auditor account receiving AUDITOR_HW role"
+  keypair_path = input.auditor_hw_keypair
+}
+
+signer "tecnico_sw" "svm::web_wallet" {
+  description = "Software technician account receiving TECNICO_SW role"
+  keypair_path = input.tecnico_sw_keypair
+}
+
+signer "escuela" "svm::web_wallet" {
+  description = "School account receiving ESCUELA role"
+  keypair_path = input.escuela_keypair
 }
 
 // Program reference
 variable "program_id" {
   description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+  value = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 }
 
 variable "idl_path" {
@@ -34,20 +50,14 @@ variable "config_pda" {
   value = svm::find_pda(["config"], variable.program_id)
 }
 
-// Role to grant
-variable "fabricante_role" {
-  description = "Fabricante role name"
-  value = "FABRICANTE"
-}
-
 // Grant FABRICANTE role
 action "grant_fabricante" "svm::process_instructions" {
   description = "Grant FABRICANTE role to manufacturer account"
   instruction {
     program_idl = variable.idl
     instruction_name = "grant_role"
-    instruction_args = [variable.fabricante_role]
-    
+    instruction_args = ["FABRICANTE"]
+
     accounts = [
       {
         public_key = variable.config_pda[0]
@@ -74,6 +84,108 @@ action "grant_fabricante" "svm::process_instructions" {
   signers = [signer.admin, signer.fabricante]
 }
 
+// Grant AUDITOR_HW role
+action "grant_auditor_hw" "svm::process_instructions" {
+  description = "Grant AUDITOR_HW role to hardware auditor account"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "grant_role"
+    instruction_args = ["AUDITOR_HW"]
+
+    accounts = [
+      {
+        public_key = variable.config_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.auditor_hw.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin, signer.auditor_hw]
+}
+
+// Grant TECNICO_SW role
+action "grant_tecnico_sw" "svm::process_instructions" {
+  description = "Grant TECNICO_SW role to software technician account"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "grant_role"
+    instruction_args = ["TECNICO_SW"]
+
+    accounts = [
+      {
+        public_key = variable.config_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.tecnico_sw.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin, signer.tecnico_sw]
+}
+
+// Grant ESCUELA role
+action "grant_escuela" "svm::process_instructions" {
+  description = "Grant ESCUELA role to school account"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "grant_role"
+    instruction_args = ["ESCUELA"]
+
+    accounts = [
+      {
+        public_key = variable.config_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.escuela.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin, signer.escuela]
+}
+
 // Outputs
 output "program_id" {
   description = "Program ID"
@@ -85,17 +197,22 @@ output "admin_address" {
   value = signer.admin.public_key
 }
 
-output "fabricante_address" {
-  description = "Fabricante address"
-  value = signer.fabricante.public_key
+output "roles_granted" {
+  description = "Signatures for each role grant"
+  value = {
+    fabricante: action.grant_fabricante.signatures[0],
+    auditor_hw: action.grant_auditor_hw.signatures[0],
+    tecnico_sw: action.grant_tecnico_sw.signatures[0],
+    escuela: action.grant_escuela.signatures[0]
+  }
 }
 
-output "role_granted" {
-  description = "Role being granted"
-  value = variable.fabricante_role
-}
-
-output "grant_signature" {
-  description = "Grant role transaction signature"
-  value = action.grant_fabricante.signatures[0]
+output "role_addresses" {
+  description = "Addresses that received roles"
+  value = {
+    fabricante: signer.fabricante.public_key,
+    auditor_hw: signer.auditor_hw.public_key,
+    tecnico_sw: signer.tecnico_sw.public_key,
+    escuela: signer.escuela.public_key
+  }
 }

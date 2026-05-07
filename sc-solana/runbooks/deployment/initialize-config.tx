@@ -11,7 +11,7 @@ signer "admin" "svm::web_wallet" {
 // Program reference - from deployment output or default
 variable "program_id" {
   description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+  value = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 }
 
 // Get IDL for instruction encoding

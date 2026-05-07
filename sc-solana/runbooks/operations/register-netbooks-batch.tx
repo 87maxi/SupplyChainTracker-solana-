@@ -1,47 +1,95 @@
 // Register multiple netbooks in batch
-// Note: Due to Solana constraints, this validates serial hashes but
-// individual netbook PDAs should be created via individual register_netbook calls
+// All arrays must have the same length
+// Usage: surfpool run register-netbooks-batch --env localnet --browser -f
 
 // Signers
 signer "fabricante" "svm::web_wallet" {
-  description = "Manufacturer account"
+  description = "Manufacturer account (must have FABRICANTE role)"
   keypair_path = input.fabricante_keypair
 }
 
-// Program reference - default from environment
+// Program reference
 variable "program_id" {
   description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+  value = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 }
 
-// Default values for localnet testing
+variable "idl" {
+  description = "Program IDL data"
+  value = svm::get_idl_from_path("./target/idl/sc_solana.json")
+}
+
+// Input arrays - must have same length
 variable "serial_numbers" {
   description = "Array of serial numbers"
-  value = ["TEST-001", "TEST-002", "TEST-003"]
+  value = input.serial_numbers
 }
 
 variable "batch_ids" {
-  description = "Array of batch IDs"
-  value = ["BATCH-001", "BATCH-001", "BATCH-001"]
+  description = "Array of batch IDs (same length as serial_numbers)"
+  value = input.batch_ids
 }
 
 variable "model_specs" {
-  description = "Array of model specifications"
-  value = ["ST-1000", "ST-1000", "ST-1000"]
+  description = "Array of model specs (same length as serial_numbers)"
+  value = input.model_specs
+}
+
+// PDA derivation
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(["config"], variable.program_id)
+}
+
+variable "serial_hashes_pda" {
+  description = "Serial hashes registry PDA"
+  value = svm::find_pda(["serial_hashes", variable.config_pda[0]], variable.program_id)
+}
+
+// Batch registration action
+action "register_batch" "svm::process_instructions" {
+  description = "Register multiple netbooks in batch"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "register_netbooks_batch"
+    instruction_args = [
+      variable.serial_numbers,
+      variable.batch_ids,
+      variable.model_specs
+    ]
+    accounts = [
+      {
+        public_key = variable.config_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.serial_hashes_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.fabricante.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.fabricante]
 }
 
 // Outputs
-output "program_id" {
-  description = "Program ID"
-  value = variable.program_id
+output "batch_signature" {
+  description = "Batch registration transaction signature"
+  value = action.register_batch.signatures[0]
 }
 
-output "batch_count" {
-  description = "Number of netbooks in batch"
-  value = array_length(variable.serial_numbers)
-}
-
-output "instruction_name" {
-  description = "Anchor instruction to call"
-  value = "register_netbooks_batch"
+output "serial_numbers_registered" {
+  description = "List of serial numbers registered"
+  value = variable.serial_numbers
 }

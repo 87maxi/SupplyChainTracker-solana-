@@ -1,99 +1,87 @@
 // Setup complete test environment with all required accounts
-// This runbook defines the test accounts and configuration
+// Airdrops SOL to test wallets and verifies deployment
+// Usage: surfpool run setup-test-env --env localnet --browser -f
 
-// Test signers
-signer "tester" "svm::web_wallet" {
-  description = "Test operator account"
-  keypair_path = input.tester_keypair
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Test signers - each role gets its own wallet
+signer "admin" "svm::web_wallet" {
+  description = "Admin/Deployer account"
+  keypair_path = "~/.config/solana/id.json"
 }
 
 signer "fabricante" "svm::web_wallet" {
   description = "Manufacturer account"
-  keypair_path = input.fabricante_keypair
+  keypair_path = "~/.config/solana/fabricante.json"
 }
 
 signer "auditor_hw" "svm::web_wallet" {
   description = "Hardware auditor account"
-  keypair_path = input.auditor_hw_keypair
+  keypair_path = "~/.config/solana/auditor_hw.json"
 }
 
 signer "tecnico_sw" "svm::web_wallet" {
   description = "Software technician account"
-  keypair_path = input.tecnico_sw_keypair
+  keypair_path = "~/.config/solana/tecnico_sw.json"
 }
 
 signer "escuela" "svm::web_wallet" {
   description = "School account"
-  keypair_path = input.escuela_keypair
+  keypair_path = "~/.config/solana/escuela.json"
 }
 
-// Program reference - default from environment
-variable "program_id" {
-  description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
-}
-
-// Default airdrop amounts
-variable "test_airdrop_amount" {
-  description = "Airdrop amount in lamports (10 SOL)"
-  value = 10000000000
-}
-
-variable "standard_airdrop_amount" {
-  description = "Standard airdrop amount in lamports (5 SOL)"
+// Airdrop configuration
+variable "airdrop_amount" {
+  description = "Airdrop amount in lamports (5 SOL = 5000000000)"
   value = 5000000000
 }
 
-// Default addresses for localnet testing
-variable "tester_address" {
-  description = "Tester wallet address"
-  value = ""
+// Airdrop to each test wallet
+action "airdrop_fabricante" "svm::send_token" {
+  description = "Airdrop SOL to fabricante wallet"
+  amount = variable.airdrop_amount
+  recipient = signer.fabricante.public_key
 }
 
-variable "fabricante_address" {
-  description = "Fabricante wallet address"
-  value = ""
+action "airdrop_auditor_hw" "svm::send_token" {
+  description = "Airdrop SOL to auditor_hw wallet"
+  amount = variable.airdrop_amount
+  recipient = signer.auditor_hw.public_key
 }
 
-variable "auditor_hw_address" {
-  description = "Auditor HW wallet address"
-  value = ""
+action "airdrop_tecnico_sw" "svm::send_token" {
+  description = "Airdrop SOL to tecnico_sw wallet"
+  amount = variable.airdrop_amount
+  recipient = signer.tecnico_sw.public_key
 }
 
-variable "tecnico_sw_address" {
-  description = "Tecnico SW wallet address"
-  value = ""
-}
-
-variable "escuela_address" {
-  description = "Escuela wallet address"
-  value = ""
+action "airdrop_escuela" "svm::send_token" {
+  description = "Airdrop SOL to escuela wallet"
+  amount = variable.airdrop_amount
+  recipient = signer.escuela.public_key
 }
 
 // Outputs
-output "program_id" {
-  description = "Program ID"
-  value = variable.program_id
-}
-
-output "test_accounts" {
-  description = "Test wallet addresses"
+output "test_wallets" {
+  description = "All test wallet addresses"
   value = {
-    tester: variable.tester_address,
-    fabricante: variable.fabricante_address,
-    auditor_hw: variable.auditor_hw_address,
-    tecnico_sw: variable.tecnico_sw_address,
-    escuela: variable.escuela_address
+    admin: signer.admin.public_key,
+    fabricante: signer.fabricante.public_key,
+    auditor_hw: signer.auditor_hw.public_key,
+    tecnico_sw: signer.tecnico_sw.public_key,
+    escuela: signer.escuela.public_key
   }
 }
 
-output "test_commands" {
-  description = "Commands to setup test environment"
+output "airdrop_signatures" {
+  description = "Airdrop transaction signatures"
   value = {
-    airdrop_tester: "solana airdrop 10 <tester_address> --url http://localhost:8899",
-    airdrop_fabricante: "solana airdrop 5 <fabricante_address> --url http://localhost:8899",
-    airdrop_auditor_hw: "solana airdrop 5 <auditor_hw_address> --url http://localhost:8899",
-    airdrop_tecnico_sw: "solana airdrop 5 <tecnico_sw_address> --url http://localhost:8899",
-    airdrop_escuela: "solana airdrop 5 <escuela_address> --url http://localhost:8899"
+    fabricante: action.airdrop_fabricante.signature,
+    auditor_hw: action.airdrop_auditor_hw.signature,
+    tecnico_sw: action.airdrop_tecnico_sw.signature,
+    escuela: action.airdrop_escuela.signature
   }
 }

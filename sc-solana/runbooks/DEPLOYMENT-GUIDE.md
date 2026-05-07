@@ -226,6 +226,41 @@ surfpool run initialize-config --env localnet --browser -f
 surfpool run grant-roles --env localnet --browser -f
 ```
 
+## Advanced Operations
+
+### Revoke a Role
+
+```bash
+surfpool run revoke-role --env localnet --browser -f \
+  --input role="FABRICANTE" \
+  --input account_keypair="~/.config/solana/fabricante.json"
+```
+
+### Request a Role
+
+```bash
+surfpool run request-role --env localnet --browser -f \
+  --input role="AUDITOR_HW" \
+  --input requester_keypair="~/.config/solana/new_user.json"
+```
+
+### Query Netbook State
+
+```bash
+surfpool run query-netbook --env localnet --browser -f \
+  --input serial_number="SN-001"
+```
+
+### Upgrade Program
+
+```bash
+# Rebuild the program first
+anchor build
+
+# Then upgrade
+surfpool run upgrade-program --env localnet --browser -f
+```
+
 ## Key Differences: Native Solana CLI vs Surfpool Runbooks
 
 | Feature | Native CLI | Surfpool Runbooks |

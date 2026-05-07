@@ -1,91 +1,67 @@
 // Edge cases and error handling tests
-// Tests various error conditions and edge cases
+// Tests various error conditions
+// Usage: surfpool run edge-cases --env localnet --browser -f
 
-// Signers - Using escuela role for tests (no admin role exists)
-signer "escuela" "svm::web_wallet" {
-  description = "School account (used for unauthorized tests)"
-  keypair_path = input.escuela_keypair
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
 }
 
 signer "fabricante" "svm::web_wallet" {
-  description = "Manufacturer account"
-  keypair_path = input.fabricante_keypair
+  keypair_path = "~/.config/solana/fabricante.json"
 }
 
-// Program reference - default from environment
+signer "escuela" "svm::web_wallet" {
+  keypair_path = "~/.config/solana/escuela.json"
+}
+
 variable "program_id" {
-  description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+  value = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 }
 
-// Default values for localnet testing
-variable "serial_number" {
-  description = "Test serial number"
-  value = "TEST-EDGE-001"
+variable "idl" {
+  value = svm::get_idl_from_path("./target/idl/sc_solana.json")
 }
 
-// Edge case tests
-output "program_id" {
-  description = "Program ID"
-  value = variable.program_id
+variable "config_pda" {
+  value = svm::find_pda(["config"], variable.program_id)
 }
 
-output "edge_case_tests" {
-  description = "Edge case test definitions"
-  value = {
-    test_1_duplicate_serial: {
-      name: "Duplicate Serial Number",
-      instruction: "register_netbook",
-      args: [variable.serial_number, "batch1", "model1"],
-      expected_error: "DuplicateSerial",
-      description: "Should fail when registering duplicate serial number"
-    },
-    test_2_invalid_state_transition: {
-      name: "Invalid State Transition",
-      instruction: "validate_software",
-      args: [variable.serial_number, "Ubuntu 22.04", "true"],
-      expected_error: "InvalidStateTransition",
-      description: "Should fail when trying to validate before hardware audit"
-    },
-    test_3_unauthorized_access: {
-      name: "Unauthorized Access",
-      instruction: "grant_role",
-      args: ["AUDITOR_HW"],
-      expected_error: "Unauthorized",
-      description: "Should fail when non-admin tries to grant roles"
-    },
-    test_4_empty_serial: {
-      name: "Empty Serial Number",
-      instruction: "register_netbook",
-      args: ["", "batch1", "model1"],
-      expected_error: "EmptySerial",
-      description: "Should fail when serial number is empty"
-    },
-    test_5_string_too_long: {
-      name: "String Too Long",
-      instruction: "register_netbook",
-      args: ["<256+char_string>", "batch1", "model1"],
-      expected_error: "StringTooLong",
-      description: "Should fail when string exceeds max length"
-    }
+// Test: Unauthorized access (escuela trying to grant role)
+action "test_unauthorized" "svm::process_instructions" {
+  description = "Test: Escuela trying to grant role (should fail with Unauthorized=6000)"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "grant_role"
+    instruction_args = ["AUDITOR_HW"]
+    accounts = [
+      { public_key = variable.config_pda[0], writable = true, signer = false },
+      { public_key = signer.escuela.public_key, writable = true, signer = true },
+      { public_key = signer.fabricante.public_key, writable = false, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
   }
+  signers = [signer.escuela, signer.fabricante]
+  expected_error = 6000
 }
 
+// Error codes reference
 output "error_codes" {
-  description = "SupplyChainError codes to test"
   value = {
-    Unauthorized: "6000",
-    InvalidStateTransition: "6001",
-    NetbookNotFound: "6002",
-    InvalidInput: "6003",
-    DuplicateSerial: "6004",
-    ArrayLengthMismatch: "6005",
-    RoleAlreadyGranted: "6006",
-    RoleNotFound: "6007",
-    InvalidSignature: "6008",
-    EmptySerial: "6009",
-    StringTooLong: "6010",
-    MaxRoleHoldersReached: "6011",
-    RoleHolderNotFound: "6012"
+    Unauthorized: 6000,
+    InvalidStateTransition: 6001,
+    NetbookNotFound: 6002,
+    InvalidInput: 6003,
+    DuplicateSerial: 6004,
+    ArrayLengthMismatch: 6005,
+    RoleAlreadyGranted: 6006,
+    RoleNotFound: 6007,
+    InvalidSignature: 6008,
+    EmptySerial: 6009,
+    StringTooLong: 6010,
+    MaxRoleHoldersReached: 6011,
+    RoleHolderNotFound: 6012,
+    InvalidRequestState: 6013,
+    RateLimited: 6014
   }
 }

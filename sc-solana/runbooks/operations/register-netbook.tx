@@ -1,86 +1,110 @@
 // Register a single netbook in the supply chain
 // This is the first step in the netbook lifecycle
+// Usage: surfpool run register-netbook --env localnet --browser -f
 
 // Signers
-signer "admin" "svm::web_wallet" {
-  description = "Admin account"
-  keypair_path = input.admin_keypair
-}
-
 signer "fabricante" "svm::web_wallet" {
   description = "Manufacturer account (must have FABRICANTE role)"
   keypair_path = input.fabricante_keypair
 }
 
-// Program reference - default from environment
+// Program reference
 variable "program_id" {
   description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+  value = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 }
 
-// Default values for localnet testing
+variable "idl" {
+  description = "Program IDL data"
+  value = svm::get_idl_from_path("./target/idl/sc_solana.json")
+}
+
+// Inputs with defaults
 variable "serial_number" {
   description = "Serial number of the netbook"
-  value = "TEST-001"
+  value = input.serial_number
 }
 
 variable "batch_id" {
   description = "Batch identifier"
-  value = "BATCH-001"
+  value = input.batch_id
 }
 
 variable "model_specs" {
   description = "Initial model specifications"
-  value = "SupplyChainTracker ST-1000"
+  value = input.model_specs
 }
 
 // PDA derivation
-variable "netbook_pda_seed" {
-  description = "Netbook PDA seed prefix"
-  value = "netbook"
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(["config"], variable.program_id)
 }
 
-variable "config_pda_seed" {
-  description = "Config PDA seed"
-  value = "config"
+variable "serial_hashes_pda" {
+  description = "Serial hashes registry PDA"
+  value = svm::find_pda(["serial_hashes", variable.config_pda[0]], variable.program_id)
 }
 
-variable "serial_hashes_seed_prefix" {
-  description = "Serial hashes PDA seed prefix"
-  value = "serial_hashes"
+variable "netbook_pda" {
+  description = "Netbook account PDA"
+  value = svm::find_pda(["netbook", variable.serial_number], variable.program_id)
+}
+
+// Register action
+action "register" "svm::process_instructions" {
+  description = "Register netbook in supply chain"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "register_netbook"
+    instruction_args = [
+      variable.serial_number,
+      variable.batch_id,
+      variable.model_specs
+    ]
+    accounts = [
+      {
+        public_key = variable.netbook_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.config_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.serial_hashes_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.fabricante.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.fabricante]
 }
 
 // Outputs
-output "program_id" {
-  description = "Program ID"
-  value = variable.program_id
-}
-
 output "serial_number" {
   description = "Registered serial number"
   value = variable.serial_number
 }
 
-output "batch_id" {
-  description = "Batch ID"
-  value = variable.batch_id
+output "registration_signature" {
+  description = "Transaction signature"
+  value = action.register.signatures[0]
 }
 
-output "model_specs" {
-  description = "Model specifications"
-  value = variable.model_specs
-}
-
-output "instruction_name" {
-  description = "Anchor instruction to call"
-  value = "register_netbook"
-}
-
-output "instruction_args" {
-  description = "Instruction arguments"
-  value = [
-    variable.serial_number,
-    variable.batch_id,
-    variable.model_specs
-  ]
+output "netbook_pda" {
+  description = "Derived netbook PDA address"
+  value = variable.netbook_pda[0]
 }

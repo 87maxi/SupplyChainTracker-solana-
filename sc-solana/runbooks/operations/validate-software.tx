@@ -1,5 +1,6 @@
 // Validate software on a netbook
 // State transition: HwAprobado (1) -> SwValidado (2)
+// Usage: surfpool run validate-software --env localnet --browser -f
 
 // Signers
 signer "tecnico" "svm::web_wallet" {
@@ -7,21 +8,26 @@ signer "tecnico" "svm::web_wallet" {
   keypair_path = input.tecnico_keypair
 }
 
-// Program reference - default from environment
+// Program reference
 variable "program_id" {
   description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+  value = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 }
 
-// Default values for localnet testing
+variable "idl" {
+  description = "Program IDL data"
+  value = svm::get_idl_from_path("./target/idl/sc_solana.json")
+}
+
+// Inputs
 variable "serial_number" {
   description = "Serial number of the netbook"
-  value = "TEST-001"
+  value = input.serial_number
 }
 
 variable "os_version" {
   description = "OS version installed"
-  value = "Ubuntu 22.04 LTS"
+  value = input.os_version
 }
 
 variable "passed" {
@@ -29,32 +35,61 @@ variable "passed" {
   value = true
 }
 
+// PDA derivation
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(["config"], variable.program_id)
+}
+
+variable "netbook_pda" {
+  description = "Netbook account PDA"
+  value = svm::find_pda(["netbook", variable.serial_number], variable.program_id)
+}
+
+// Validate action
+action "validate" "svm::process_instructions" {
+  description = "Validate software installation on netbook"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "validate_software"
+    instruction_args = [
+      variable.serial_number,
+      variable.os_version,
+      variable.passed
+    ]
+    accounts = [
+      {
+        public_key = variable.netbook_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.config_pda[0]
+        writable = false
+        signer = false
+      },
+      {
+        public_key = signer.tecnico.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.tecnico]
+}
+
 // Outputs
-output "program_id" {
-  description = "Program ID"
-  value = variable.program_id
+output "validation_signature" {
+  description = "Validation transaction signature"
+  value = action.validate.signatures[0]
 }
 
-output "serial_number" {
-  description = "Validated serial number"
-  value = variable.serial_number
-}
-
-output "os_version" {
-  description = "OS version"
-  value = variable.os_version
-}
-
-output "instruction_name" {
-  description = "Anchor instruction to call"
-  value = "validate_software"
-}
-
-output "instruction_args" {
-  description = "Instruction arguments"
-  value = [
-    variable.serial_number,
-    variable.os_version,
-    variable.passed            // bool directamente, no string
-  ]
+output "new_state" {
+  description = "New netbook state after validation"
+  value = "SwValidado"
 }

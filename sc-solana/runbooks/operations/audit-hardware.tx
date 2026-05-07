@@ -1,5 +1,6 @@
 // Perform hardware audit on a netbook
 // State transition: Fabricada (0) -> HwAprobado (1)
+// Usage: surfpool run audit-hardware --env localnet --browser -f
 
 // Signers
 signer "auditor" "svm::web_wallet" {
@@ -7,16 +8,21 @@ signer "auditor" "svm::web_wallet" {
   keypair_path = input.auditor_keypair
 }
 
-// Program reference - default from environment
+// Program reference
 variable "program_id" {
   description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+  value = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 }
 
-// Default values for localnet testing
+variable "idl" {
+  description = "Program IDL data"
+  value = svm::get_idl_from_path("./target/idl/sc_solana.json")
+}
+
+// Inputs
 variable "serial_number" {
   description = "Serial number of the netbook to audit"
-  value = "TEST-001"
+  value = input.serial_number
 }
 
 variable "passed" {
@@ -24,37 +30,67 @@ variable "passed" {
   value = true
 }
 
+// report_hash as array of 32 bytes (SHA-256 hash of the audit report)
 variable "report_hash" {
-  description = "Hash of the audit report"
-  value = "0x"
+  description = "Hash of the audit report (32 bytes)"
+  value = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+}
+
+// PDA derivation
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(["config"], variable.program_id)
+}
+
+variable "netbook_pda" {
+  description = "Netbook account PDA"
+  value = svm::find_pda(["netbook", variable.serial_number], variable.program_id)
+}
+
+// Audit action
+action "audit" "svm::process_instructions" {
+  description = "Perform hardware audit on netbook"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "audit_hardware"
+    instruction_args = [
+      variable.serial_number,
+      variable.passed,
+      variable.report_hash
+    ]
+    accounts = [
+      {
+        public_key = variable.netbook_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.config_pda[0]
+        writable = false
+        signer = false
+      },
+      {
+        public_key = signer.auditor.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.auditor]
 }
 
 // Outputs
-output "program_id" {
-  description = "Program ID"
-  value = variable.program_id
+output "audit_signature" {
+  description = "Audit transaction signature"
+  value = action.audit.signatures[0]
 }
 
-output "serial_number" {
-  description = "Audited serial number"
-  value = variable.serial_number
-}
-
-output "passed" {
-  description = "Audit result"
-  value = variable.passed
-}
-
-output "instruction_name" {
-  description = "Anchor instruction to call"
-  value = "audit_hardware"
-}
-
-output "instruction_args" {
-  description = "Instruction arguments"
-  value = [
-    variable.serial_number,
-    variable.passed,           // bool directamente, no string
-    variable.report_hash
-  ]
+output "new_state" {
+  description = "New netbook state after audit"
+  value = "HwAprobado"
 }

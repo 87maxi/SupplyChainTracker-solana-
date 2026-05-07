@@ -3,6 +3,15 @@
 [![Txtx](https://img.shields.io/badge/Operated%20with-Txtx-green?labelColor=gray)](https://txtx.sh)
 [![Surfpool](https://img.shields.io/badge/Surfpool-SVM-blue)](https://surfpool.run)
 
+## ⚠️ Importante
+
+**Todos los runbooks con addon svm requieren `surfpool run`, NO `txtx run`.**
+
+```bash
+✅ CORRECTO: surfpool run <runbook> --env <environment> --browser -f
+❌ INCORRECTO: txtx run <runbook> --env <environment>
+```
+
 ## Quick Start - Deployment
 
 ### Prerequisites
@@ -28,8 +37,6 @@ surfpool run grant-roles --env localnet --browser -f
 
 For detailed instructions, troubleshooting, and reference documentation, see [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md).
 
-> **Important**: Use `surfpool run` (not `txtx run`) for all svm addon operations. The `txtx run` command does not include the svm addon.
-
 ## Deployment Guides
 
 | Guide | Description |
@@ -38,7 +45,7 @@ For detailed instructions, troubleshooting, and reference documentation, see [DE
 | [devnet-deployment.md](devnet-deployment.md) | Step-by-step devnet deployment runbook |
 | [mainnet-deployment.md](mainnet-deployment.md) | Mainnet deployment runbook with security procedures |
 
-## Runbooks available
+## Runbooks Available
 
 ### Deployment Runbooks
 
@@ -58,7 +65,7 @@ Initialize supply chain configuration.
 #### grant-roles
 Grant initial roles to administrators.
 - **Location:** `deployment/grant-roles.tx`
-- **Description:** Grants FABRICANTE role to the manufacturer account
+- **Description:** Grants all 4 roles (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)
 - **Usage:** `surfpool run grant-roles --env localnet --browser -f`
 
 ### Operations Runbooks
@@ -67,51 +74,69 @@ Grant initial roles to administrators.
 Register a single netbook in the supply chain.
 - **Location:** `operations/register-netbook.tx`
 - **Description:** First step in the netbook lifecycle (manufacturing)
-- **Usage:** `txtx run register-netbook --input serial_number="SN001"`
+- **Usage:** `surfpool run register-netbook --env localnet --browser -f`
 
 #### register-netbooks-batch
 Register multiple netbooks in batch.
 - **Location:** `operations/register-netbooks-batch.tx`
 - **Description:** Validates and stores serial hashes for duplicate detection
-- **Usage:** `txtx run register-netbooks-batch --input serial_numbers='["SN001", "SN002"]'`
+- **Usage:** `surfpool run register-netbooks-batch --env localnet --browser -f`
 
 #### audit-hardware
 Perform hardware audit on a netbook.
 - **Location:** `operations/audit-hardware.tx`
 - **Description:** State transition: Fabricada → HwAprobado
-- **Usage:** `txtx run audit-hardware --input serial_number="SN001"`
+- **Usage:** `surfpool run audit-hardware --env localnet --browser -f`
 
 #### validate-software
 Validate software on a netbook.
 - **Location:** `operations/validate-software.tx`
 - **Description:** State transition: HwAprobado → SwValidado
-- **Usage:** `txtx run validate-software --input serial_number="SN001"`
+- **Usage:** `surfpool run validate-software --env localnet --browser -f`
 
 #### assign-student
 Assign netbook to a student.
 - **Location:** `operations/assign-student.tx`
 - **Description:** Final state transition: SwValidado → Distribuida
-- **Usage:** `txtx run assign-student --input serial_number="SN001"`
+- **Usage:** `surfpool run assign-student --env localnet --browser -f`
+
+#### revoke-role
+Revoke a role from an account.
+- **Location:** `operations/revoke-role.tx`
+- **Description:** Remove a previously granted role
+- **Usage:** `surfpool run revoke-role --env localnet --browser -f`
+
+#### request-role
+Request a role from admin.
+- **Location:** `operations/request-role.tx`
+- **Description:** Submit a role request for admin approval
+- **Usage:** `surfpool run request-role --env localnet --browser -f`
+
+#### query-netbook
+Query netbook state.
+- **Location:** `operations/query-netbook.tx`
+- **Description:** Query the current state of a netbook
+- **Usage:** `surfpool run query-netbook --env localnet --browser -f`
 
 ### Testing Runbooks
 
 #### setup-test-env
 Setup complete test environment with all accounts.
 - **Location:** `testing/setup-test-env.tx`
-- **Description:** Airdrops to test wallets and deploys program
-- **Usage:** `txtx run setup-test-env --environment localnet`
+- **Description:** Airdrops to test wallets and verifies deployment
+- **Usage:** `surfpool run setup-test-env --env localnet --browser -f`
 
 #### full-lifecycle
 Complete lifecycle test from manufacturing to distribution.
 - **Location:** `testing/full-lifecycle.tx`
 - **Description:** Tests all state transitions in sequence
-- **Usage:** `txtx run full-lifecycle --environment localnet`
+- **Usage:** `surfpool run full-lifecycle --env localnet --browser -f`
 
 #### edge-cases
 Edge cases and error handling tests.
 - **Location:** `testing/edge-cases.tx`
 - **Description:** Tests error conditions (duplicate serial, unauthorized, etc.)
-- **Usage:** `txtx run edge-cases --environment localnet`
+- **Usage:** `surfpool run edge-cases --env localnet --browser -f`
 
 ### Examples
 
@@ -119,13 +144,13 @@ Edge cases and error handling tests.
 Basic program deployment example.
 - **Location:** `examples/basic-deploy.tx`
 - **Description:** Simplified deployment for learning
-- **Usage:** `txtx run basic-deploy`
+- **Usage:** `surfpool run basic-deploy --env localnet --browser -f`
 
 #### hello-world
 Hello world example for learning txtx.
 - **Location:** `examples/hello-world.tx`
 - **Description:** Simplest possible runbook
-- **Usage:** `txtx run hello-world`
+- **Usage:** `surfpool run hello-world --env localnet --browser -f`
 
 ---
 
@@ -163,26 +188,20 @@ anchor build
 # 2. Start Surfpool localnet
 surfpool start
 
-# 3. List available runbooks
-txtx ls
+# 3. Deploy program
+surfpool run deploy-program --env localnet --browser -f
 
-# 4. Setup test environment
-txtx run setup-test-env --environment localnet
+# 4. Initialize config
+surfpool run initialize-config --env localnet --browser -f
 
-# 5. Deploy program
-txtx run deploy-program --environment localnet
+# 5. Grant roles
+surfpool run grant-roles --env localnet --browser -f
 
-# 6. Initialize config
-txtx run initialize-config --environment localnet
+# 6. Register a netbook
+surfpool run register-netbook --env localnet --browser -f
 
-# 7. Grant roles
-txtx run grant-roles --environment localnet
-
-# 8. Register a netbook
-txtx run register-netbook --environment localnet --input serial_number="SN001"
-
-# 9. Run full lifecycle test
-txtx run full-lifecycle --environment localnet
+# 7. Run full lifecycle test
+surfpool run full-lifecycle --env localnet --browser -f
 ```
 
 ### Environment Configuration
@@ -197,29 +216,23 @@ Environment files are located in `runbooks/environments/`:
 
 To use an environment:
 ```bash
-txtx run deploy-program --environment localnet
+surfpool run deploy-program --env localnet --browser -f
 ```
 
 ### Common Commands
 
 ```bash
 # List runbooks
-txtx ls
+surfpool ls
 
 # Run a specific runbook
-txtx run deploy-program
-
-# Run with environment
-txtx run deploy-program --environment localnet
+surfpool run deploy-program --env localnet --browser -f
 
 # Run with inputs
-txtx run register-netbook --input serial_number="SN001" --input batch_id="BATCH001"
+surfpool run register-netbook --env localnet --browser -f --input serial_number="SN001"
 
 # Check status
-txtx status
-
-# Update README documentation
-txtx docs --update
+surfpool status
 ```
 
 ---
@@ -237,11 +250,31 @@ Fabricada (0) → HwAprobado (1) → SwValidado (2) → Distribuida (3)
 
 ### State Transitions
 
-| Transition | Instruction | Required Role |
-|------------|-------------|---------------|
-| 0 → 1 | `audit_hardware` | `AUDITOR_HW` |
-| 1 → 2 | `validate_software` | `TECNICO_SW` |
-| 2 → 3 | `assign_to_student` | `ESCUELA` |
+| Transition | Instruction | Required Role | Runbook |
+|------------|-------------|---------------|---------|
+| 0 → 1 | `audit_hardware` | `AUDITOR_HW` | `audit-hardware` |
+| 1 → 2 | `validate_software` | `TECNICO_SW` | `validate-software` |
+| 2 → 3 | `assign_to_student` | `ESCUELA` | `assign-student` |
+
+### Error Codes
+
+| Code | Error | Description |
+|------|-------|-------------|
+| 6000 | Unauthorized | Caller is not authorized |
+| 6001 | InvalidStateTransition | Invalid state transition |
+| 6002 | NetbookNotFound | Netbook not found |
+| 6003 | InvalidInput | Invalid input |
+| 6004 | DuplicateSerial | Serial number already registered |
+| 6005 | ArrayLengthMismatch | Array lengths do not match |
+| 6006 | RoleAlreadyGranted | Role already granted to this account |
+| 6007 | RoleNotFound | Role not found |
+| 6008 | InvalidSignature | Invalid signature |
+| 6009 | EmptySerial | Serial number is empty |
+| 6010 | StringTooLong | String exceeds maximum length |
+| 6011 | MaxRoleHoldersReached | Maximum role holders reached |
+| 6012 | RoleHolderNotFound | Account not found in role holders |
+| 6013 | InvalidRequestState | Role request is not in pending state |
+| 6014 | RateLimited | Role request rate limited |
 
 ---
 
@@ -265,7 +298,10 @@ sc-solana/
 │   │   ├── register-netbooks-batch.tx
 │   │   ├── audit-hardware.tx
 │   │   ├── validate-software.tx
-│   │   └── assign-student.tx
+│   │   ├── assign-student.tx
+│   │   ├── revoke-role.tx
+│   │   ├── request-role.tx
+│   │   └── query-netbook.tx
 │   ├── testing/                          # Testing runbooks
 │   │   ├── setup-test-env.tx
 │   │   ├── full-lifecycle.tx

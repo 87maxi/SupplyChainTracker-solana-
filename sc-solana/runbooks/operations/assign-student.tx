@@ -1,5 +1,6 @@
 // Assign netbook to a student (final step in lifecycle)
 // State transition: SwValidado (2) -> Distribuida (3)
+// Usage: surfpool run assign-student --env localnet --browser -f
 
 // Signers
 signer "escuela" "svm::web_wallet" {
@@ -7,49 +8,89 @@ signer "escuela" "svm::web_wallet" {
   keypair_path = input.escuela_keypair
 }
 
-// Program reference - default from environment
+// Program reference
 variable "program_id" {
   description = "Deployed program ID"
-  value = "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+  value = "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 }
 
-// Default values for localnet testing
+variable "idl" {
+  description = "Program IDL data"
+  value = svm::get_idl_from_path("./target/idl/sc_solana.json")
+}
+
+// Inputs
 variable "serial_number" {
   description = "Serial number of the netbook"
-  value = "TEST-001"
+  value = input.serial_number
 }
 
-variable "student_id_hash" {
-  description = "Hash of student ID (for privacy)"
-  value = "0xstudent001"
-}
-
+// Hashes as arrays of 32 bytes (SHA-256 of the original data)
 variable "school_hash" {
-  description = "Hash of destination school"
-  value = "0xschool001"
+  description = "Hash of destination school (32 bytes)"
+  value = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+}
+
+variable "student_hash" {
+  description = "Hash of student ID (32 bytes)"
+  value = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2]
+}
+
+// PDA derivation
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(["config"], variable.program_id)
+}
+
+variable "netbook_pda" {
+  description = "Netbook account PDA"
+  value = svm::find_pda(["netbook", variable.serial_number], variable.program_id)
+}
+
+// Assign action
+action "assign" "svm::process_instructions" {
+  description = "Assign netbook to student"
+  instruction {
+    program_idl = variable.idl
+    instruction_name = "assign_to_student"
+    instruction_args = [
+      variable.serial_number,
+      variable.school_hash,
+      variable.student_hash
+    ]
+    accounts = [
+      {
+        public_key = variable.netbook_pda[0]
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.config_pda[0]
+        writable = false
+        signer = false
+      },
+      {
+        public_key = signer.escuela.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.escuela]
 }
 
 // Outputs
-output "program_id" {
-  description = "Program ID"
-  value = variable.program_id
+output "assignment_signature" {
+  description = "Assignment transaction signature"
+  value = action.assign.signatures[0]
 }
 
-output "serial_number" {
-  description = "Assigned serial number"
-  value = variable.serial_number
-}
-
-output "instruction_name" {
-  description = "Anchor instruction to call"
-  value = "assign_to_student"
-}
-
-output "instruction_args" {
-  description = "Instruction arguments"
-  value = [
-    variable.serial_number,
-    variable.school_hash,      // school_hash como segundo argumento
-    variable.student_id_hash   // student_id_hash como tercer argumento
-  ]
+output "new_state" {
+  description = "New netbook state after assignment"
+  value = "Distribuida"
 }

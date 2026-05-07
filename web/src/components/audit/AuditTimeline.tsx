@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { useEffect, useState } from 'react';
 import { Netbook } from '@/types/supply-chain-types';
-import { NetbookInfo } from '@/services/SolanaSupplyChainService';
+import { NetbookData as NetbookInfo } from '@/services/UnifiedSupplyChainService';
 
 interface AuditTimelineProps {
   serial: string;

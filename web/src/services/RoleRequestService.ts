@@ -1,10 +1,8 @@
 // web/src/services/RoleRequestService.ts
 // Service implementation for role requests (migrated to Solana)
 
-import { SolanaSupplyChainService } from './SolanaSupplyChainService';
+import { UnifiedSupplyChainService } from './UnifiedSupplyChainService';
 import { PublicKey } from '@solana/web3.js';
-import type { Program } from '@coral-xyz/anchor';
-import type { SupplyChainIDL } from '@/lib/contracts/solana-program';
 
 // Role request interface for UI
 export interface RoleRequest {
@@ -32,11 +30,13 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Get singleton Solana service (placeholder - needs program and wallet)
-const getService = (): SolanaSupplyChainService | null => {
-  // In a real app, you'd get the program from the wallet adapter
-  // For now, return null as this service requires proper initialization
-  return null;
+// Get singleton unified service
+const getService = (): UnifiedSupplyChainService | null => {
+  try {
+    return UnifiedSupplyChainService.getInstance();
+  } catch {
+    return null;
+  }
 };
 
 export const RoleRequestService = {
@@ -67,7 +67,7 @@ export const RoleRequestService = {
         return newRequest.id;
       }
       
-      const result = await service.requestRole(request.role);
+      const signature = await service.requestRole(request.role);
       
       // Store in local state for UI
       const newRequest: RoleRequest = {
@@ -77,14 +77,14 @@ export const RoleRequestService = {
         status: 'pending',
         timestamp: new Date(),
         signature: request.signature,
-        transactionHash: result.signature,
+        transactionHash: signature,
       };
       
       roleRequests.push(newRequest);
       localStorage.setItem('role_requests', JSON.stringify(roleRequests));
       
-      console.log('[RoleRequestService] Request created:', result.signature);
-      return result.signature;
+      console.log('[RoleRequestService] Request created:', signature);
+      return signature;
     } catch (error) {
       console.error('[RoleRequestService] Error creating request:', error);
       throw error;

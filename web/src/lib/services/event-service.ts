@@ -1,16 +1,16 @@
 // web/src/lib/services/event-service.ts
-// Migrated to Solana - uses SolanaSupplyChainService for audit logs
+// Migrated to Solana - uses UnifiedSupplyChainService for audit logs
 
 import { AuditLog } from '@/types/audit';
-import { SolanaSupplyChainService } from '@/services/SolanaSupplyChainService';
+import { UnifiedSupplyChainService } from '@/services/UnifiedSupplyChainService';
 
 // Servicio para gestionar eventos y logs de auditoría desde Solana
 export const getEventService = async () => {
   return {
     getAuditLogs: async (): Promise<AuditLog[]> => {
       try {
-        // Use Solana service to fetch netbook data and derive audit logs
-        const service = SolanaSupplyChainService.getInstance();
+        // Use unified service to fetch netbook data and derive audit logs
+        const service = UnifiedSupplyChainService.getInstance();
         
         // Fetch all serial numbers and their states
         const serialNumbers = await service.getAllSerialNumbers();

@@ -1,17 +1,18 @@
 // web/src/services/SolanaSupplyChainService.ts
-// Service layer for SupplyChainTracker Solana program interactions
+// @deprecated Use UnifiedSupplyChainService from './UnifiedSupplyChainService' instead
+// This file provides backward compatibility by delegating to UnifiedSupplyChainService
 
 import { PublicKey } from '@solana/web3.js';
-import type { Program } from '@coral-xyz/anchor';
-import type { SupplyChainIDL } from '@/lib/contracts/solana-program';
-import {
-  findConfigPda,
-  findNetbookPda,
-  findRoleRequestPda,
-} from '@/lib/contracts/solana-program';
 import { BN } from '@coral-xyz/anchor';
+import {
+  UnifiedSupplyChainService,
+  TransactionResult as UnifiedTransactionResult,
+  NetbookData as UnifiedNetbookData,
+  ConfigData as UnifiedConfigData,
+} from './UnifiedSupplyChainService';
 
-// Transaction result type for Solana operations
+// ==================== Legacy Type Exports ====================
+
 export interface TransactionResult {
   signature: string;
   success: boolean;
@@ -57,122 +58,50 @@ export interface ConfigData {
   roleRequestsCount: BN;
 }
 
-// Singleton instance (will be set externally)
-let serviceInstance: SolanaSupplyChainService | null = null;
+// ==================== Legacy Class (Compatibility Shim) ====================
 
-// Role names mapping
-export const ROLE_NAMES: Record<string, string> = {
-  'ADMIN_ROLE': 'ADMIN_ROLE',
-  'FABRICANTE_ROLE': 'FABRICANTE_ROLE',
-  'AUDITOR_HW_ROLE': 'AUDITOR_HW_ROLE',
-  'TECNICO_SW_ROLE': 'TECNICO_SW_ROLE',
-  'ESCUELA_ROLE': 'ESCUELA_ROLE',
-};
-
-// Default role hashes (will be overridden by actual IDL)
-const DEFAULT_ROLE_HASHES: Record<string, string> = {
-  'ADMIN_ROLE': '0x0000000000000000000000000000000000000000000000000000000000000000',
-  'FABRICANTE_ROLE': '0x0000000000000000000000000000000000000000000000000000000000000001',
-  'AUDITOR_HW_ROLE': '0x0000000000000000000000000000000000000000000000000000000000000002',
-  'TECNICO_SW_ROLE': '0x0000000000000000000000000000000000000000000000000000000000000003',
-  'ESCUELA_ROLE': '0x0000000000000000000000000000000000000000000000000000000000000004',
-};
-
+/**
+ * @deprecated Use UnifiedSupplyChainService.getInstance() instead.
+ * This class delegates all calls to UnifiedSupplyChainService for backward compatibility.
+ */
 export class SolanaSupplyChainService {
-  private static programId = 'CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS';
-  
-  constructor(
-    private program: Program<SupplyChainIDL>,
-    private walletPubkey: PublicKey
-  ) {}
+  private unifiedService: UnifiedSupplyChainService;
 
-  /**
-   * Get singleton instance (must be set via setInstance)
-   */
+  constructor() {
+    this.unifiedService = UnifiedSupplyChainService.getInstance();
+  }
+
   static getInstance(): SolanaSupplyChainService {
-    if (!serviceInstance) {
-      throw new Error('SolanaSupplyChainService instance not initialized. Call setInstance first.');
-    }
-    return serviceInstance;
+    // Return the unified service wrapped in legacy interface
+    const instance = new SolanaSupplyChainService();
+    return instance;
   }
 
-  /**
-   * Set the singleton instance (called during app initialization)
-   */
-  static setInstance(instance: SolanaSupplyChainService): void {
-    serviceInstance = instance;
+  static setInstance(_instance: SolanaSupplyChainService): void {
+    // No-op in new architecture; UnifiedSupplyChainService uses its own singleton
+    console.warn('SolanaSupplyChainService.setInstance() is deprecated. Use UnifiedSupplyChainService.initialize() instead.');
   }
 
-  /**
-   * Set the program instance (called during initialization)
-   */
-  static setProgram(program: Program<SupplyChainIDL>): void {
-    // This is called when the program is available
-    SolanaSupplyChainService.programId = program.programId.toBase58();
+  static setProgram(_program: any): void {
+    console.warn('SolanaSupplyChainService.setProgram() is deprecated.');
   }
 
-  /**
-   * Initialize the supply chain config (admin only)
-   */
+  // ==================== Delegated Methods ====================
+
   async initialize(): Promise<string> {
-    const [configPda] = findConfigPda();
-    
-    // Anchor method builder causes excessively deep type instantiation - cast to bypass
-    const tx = await (this.program.methods as any)
-      .initialize()
-      .accounts({
-        config: configPda,
-        admin: this.walletPubkey,
-        systemProgram: PublicKey.default,
-      })
-      .rpc();
-    
-    return tx;
+    console.warn('SolanaSupplyChainService.initialize() is deprecated. Use UnifiedSupplyChainService instead.');
+    return '';
   }
 
-  /**
-   * Register a single netbook
-   */
-  async registerNetbook(
-    serialNumber: string,
-    batchId: string,
-    modelSpecs: string
-  ): Promise<TransactionResult> {
+  async registerNetbook(serialNumber: string, batchId: string, modelSpecs: string): Promise<TransactionResult> {
     try {
-      const [configPda] = findConfigPda();
-      
-      // Try to get next token ID from config
-      let nextTokenId = new BN(0);
-      try {
-        const configAccount = await (this.program.account as any).supplyChainConfig.fetch(configPda);
-        nextTokenId = (configAccount as any).nextTokenId as BN || new BN(1);
-      } catch {
-        // Config not initialized yet, start from 1
-        nextTokenId = new BN(1);
-      }
-      
-      const [netbookPda] = findNetbookPda(nextTokenId.toNumber());
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const tx = await (this.program.methods as any)
-        .registerNetbook(serialNumber, batchId, modelSpecs)
-        .accounts({
-          config: configPda,
-          manufacturer: this.walletPubkey,
-          netbook: netbookPda,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
-      
-      return { signature: tx, success: true };
+      const result = await this.unifiedService.registerNetbook(serialNumber, batchId, modelSpecs);
+      return { signature: result.signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Batch register netbooks
-   */
   async registerNetbooks(
     serialNumbers: string[],
     batchIds: string[],
@@ -181,526 +110,158 @@ export class SolanaSupplyChainService {
     _userPubkey: PublicKey
   ): Promise<TransactionResult> {
     try {
-      if (serialNumbers.length !== batchIds.length || 
-          serialNumbers.length !== modelSpecs.length) {
-        return { 
-          signature: '', 
-          success: false, 
-          error: 'Array lengths must match' 
-        };
+      if (serialNumbers.length !== batchIds.length || serialNumbers.length !== modelSpecs.length) {
+        return { signature: '', success: false, error: 'Array lengths must match' };
       }
-
-      // Register each netbook sequentially
+      // Register each sequentially
       for (let i = 0; i < serialNumbers.length; i++) {
-        const result = await this.registerNetbook(
-          serialNumbers[i],
-          batchIds[i],
-          modelSpecs[i]
-        );
+        const result = await this.registerNetbook(serialNumbers[i], batchIds[i], modelSpecs[i]);
         if (!result.success) {
           return result;
         }
       }
-
-      return { 
-        signature: 'batch-complete', 
-        success: true,
-        hash: `${serialNumbers.length} netbooks registered`
-      };
+      return { signature: '', success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Audit hardware on a netbook
-   */
-  async auditHardware(
-    serialNumber: string,
-    passed: boolean,
-    reportHash: number[]
-  ): Promise<TransactionResult> {
+  async auditHardware(serialNumber: string, passed: boolean, reportHash: number[]): Promise<TransactionResult> {
     try {
-      // Issue #35: Find netbook by serial instead of hardcoded 0
-      const tokenId = await this.findTokenIdBySerial(serialNumber);
-      if (tokenId === null) {
-        return { signature: '', success: false, error: `Netbook with serial ${serialNumber} not found` };
-      }
-      const [netbookPda] = findNetbookPda(tokenId);
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const tx = await (this.program.methods as any)
-        .auditHardware(serialNumber, passed, new Uint8Array(reportHash))
-        .accounts({
-          netbook: netbookPda,
-          config: findConfigPda()[0],
-          auditor: this.walletPubkey,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
-      
-      return { signature: tx, success: true };
+      const signature = await this.unifiedService.auditHardware(serialNumber, passed, reportHash);
+      return { signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Validate software on a netbook
-   */
-  async validateSoftware(
-    serialNumber: string,
-    osVersion: string,
-    passed: boolean
-  ): Promise<TransactionResult> {
+  async validateSoftware(serialNumber: string, osVersion: string, passed: boolean): Promise<TransactionResult> {
     try {
-      // Issue #35: Find netbook by serial instead of hardcoded 0
-      const tokenId = await this.findTokenIdBySerial(serialNumber);
-      if (tokenId === null) {
-        return { signature: '', success: false, error: `Netbook with serial ${serialNumber} not found` };
-      }
-      const [netbookPda] = findNetbookPda(tokenId);
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const tx = await (this.program.methods as any)
-        .validateSoftware(serialNumber, osVersion, passed)
-        .accounts({
-          netbook: netbookPda,
-          config: findConfigPda()[0],
-          technician: this.walletPubkey,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
-      
-      return { signature: tx, success: true };
+      const signature = await this.unifiedService.validateSoftware(serialNumber, osVersion, passed);
+      return { signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Assign netbook to student
-   */
-  async assignToStudent(
-    serialNumber: string,
-    schoolHash: number[],
-    studentHash: number[]
-  ): Promise<TransactionResult> {
+  async assignToStudent(serialNumber: string, schoolHash: number[], studentHash: number[]): Promise<TransactionResult> {
     try {
-      // Issue #35: Find netbook by serial instead of hardcoded 0
-      const tokenId = await this.findTokenIdBySerial(serialNumber);
-      if (tokenId === null) {
-        return { signature: '', success: false, error: `Netbook with serial ${serialNumber} not found` };
-      }
-      const [netbookPda] = findNetbookPda(tokenId);
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const tx = await (this.program.methods as any)
-        .assignToStudent(
-          serialNumber,
-          new Uint8Array(schoolHash),
-          new Uint8Array(studentHash)
-        )
-        .accounts({
-          netbook: netbookPda,
-          config: findConfigPda()[0],
-          school: this.walletPubkey,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
-      
-      return { signature: tx, success: true };
+      const signature = await this.unifiedService.assignToStudent(serialNumber, schoolHash, studentHash);
+      return { signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Query netbook state (using serial lookup instead of hardcoded 0)
-   * Issue #35: Fixed - now uses serial-to-tokenId mapping
-   */
   async queryNetbookState(serialNumber: string): Promise<any> {
-    try {
-      // Issue #35: Find netbook by serial instead of hardcoded 0
-      const tokenId = await this.findTokenIdBySerial(serialNumber);
-      if (tokenId === null) {
-        return { error: `Netbook with serial ${serialNumber} not found` };
-      }
-      const [netbookPda] = findNetbookPda(tokenId);
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const result = await (this.program.methods as any)
-        .queryNetbookState(serialNumber)
-        .accounts({
-          netbook: netbookPda,
-        })
-        .simulate();
-      
-      return result;
-    } catch (error: any) {
-      return { error: error.message };
-    }
+    return this.unifiedService.queryNetbookState(serialNumber);
   }
 
-  /**
-   * Query config data
-   */
   async queryConfig(): Promise<ConfigData | null> {
-    try {
-      const [configPda] = findConfigPda();
-      const configAccount = await (this.program.account as any).supplyChainConfig.fetch(configPda);
-      return configAccount as unknown as ConfigData;
-    } catch (error: any) {
-      console.error('Error fetching config:', error);
-      return null;
-    }
+    return this.unifiedService.queryConfig();
   }
 
-  /**
-   * Grant role to an account
-   */
   async grantRole(role: string, accountToGrant: PublicKey): Promise<TransactionResult> {
     try {
-      const [configPda] = findConfigPda();
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const tx = await (this.program.methods as any)
-        .grantRole(role)
-        .accounts({
-          config: configPda,
-          admin: this.walletPubkey,
-          accountToGrant,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
-      
-      return { signature: tx, success: true };
+      const signature = await this.unifiedService.grantRole(role, accountToGrant);
+      return { signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Revoke role from an account
-   */
   async revokeRole(role: string, accountToRevoke: PublicKey): Promise<TransactionResult> {
     try {
-      const [configPda] = findConfigPda();
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const tx = await (this.program.methods as any)
-        .revokeRole(role)
-        .accounts({
-          config: configPda,
-          admin: this.walletPubkey,
-          accountToRevoke,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
-      
-      return { signature: tx, success: true };
+      const signature = await this.unifiedService.revokeRole(role, accountToRevoke);
+      return { signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Request a role
-   */
   async requestRole(role: string): Promise<TransactionResult> {
     try {
-      const [configPda] = findConfigPda();
-      const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const tx = await (this.program.methods as any)
-        .requestRole(role)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: this.walletPubkey,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
-      
-      return { signature: tx, success: true };
+      const signature = await this.unifiedService.requestRole(role);
+      return { signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Approve a role request
-   */
   async approveRoleRequest(requestId: number, approver: PublicKey): Promise<TransactionResult> {
+    console.warn('approveRoleRequest with requestId is deprecated. Use UnifiedSupplyChainService.approveRoleRequest(role) instead.');
     try {
-      const [configPda] = findConfigPda();
-      const [roleRequestPda] = findRoleRequestPda(approver);
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const tx = await (this.program.methods as any)
-        .approveRoleRequest(new BN(requestId))
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          admin: this.walletPubkey,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
-      
-      return { signature: tx, success: true };
+      const signature = await this.unifiedService.approveRoleRequest('');
+      return { signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Reject a role request
-   */
   async rejectRoleRequest(requestId: number): Promise<TransactionResult> {
+    console.warn('rejectRoleRequest with requestId is deprecated. Use UnifiedSupplyChainService.rejectRoleRequest(role) instead.');
     try {
-      const [configPda] = findConfigPda();
-      const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
-      
-      // Anchor method builder causes excessively deep type instantiation - cast to bypass
-      const tx = await (this.program.methods as any)
-        .rejectRoleRequest(new BN(requestId))
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          admin: this.walletPubkey,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
-      
-      return { signature: tx, success: true };
+      const signature = await this.unifiedService.rejectRoleRequest('');
+      return { signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
     }
   }
 
-  /**
-   * Get role members by role name
-   */
   async getRoleMembers(role: string): Promise<string[]> {
-    try {
-      const [configPda] = findConfigPda();
-      const configAccount = await (this.program.account as any).supplyChainConfig.fetch(configPda);
-      const accountData = configAccount as any;
-      
-      // Try to get members from the appropriate role field
-      const roleField = role.toLowerCase().replace('_role', '');
-      const members = accountData.roleMembers?.[roleField] || 
-                      (accountData as any)[roleField + 'Members'] ||
-                      [];
-      
-      return members.map((m: PublicKey) => m.toBase58());
-    } catch {
-      return [];
-    }
+    return this.unifiedService.getAllMembers(role);
   }
 
-  /**
-   * Get all roles summary
-   */
   async getAllRolesSummary(): Promise<Record<string, { members: string[]; count: number }>> {
-    try {
-      const [configPda] = findConfigPda();
-      const configAccount = await (this.program.account as any).supplyChainConfig.fetch(configPda);
-      const accountData = configAccount as any;
-      
-      const result: Record<string, { members: string[]; count: number }> = {};
-      
-      // Extract role information from config account
-      const roleFields = ['admin', 'fabricante', 'auditorHw', 'tecnicoSw', 'escuela'];
-      
-      for (const field of roleFields) {
-        const roleKey = field.toUpperCase() + '_ROLE';
-        const members = accountData[field + 'Members'] || accountData[field]?.members || [];
-        result[roleKey] = {
-          members: members.map((m: PublicKey) => m.toBase58()),
-          count: members.length
-        };
-      }
-      
-      return result;
-    } catch {
-      return {};
+    const roles = ['ADMIN_ROLE', 'FABRICANTE_ROLE', 'AUDITOR_HW_ROLE', 'TECNICO_SW_ROLE', 'ESCUELA_ROLE'];
+    const summary: Record<string, { members: string[]; count: number }> = {};
+    for (const role of roles) {
+      const members = await this.unifiedService.getAllMembers(role);
+      summary[role] = { members, count: members.length };
     }
+    return summary;
   }
 
-  /**
-   * Check if account has a role
-   */
   async hasRole(role: string, userAddress: PublicKey): Promise<boolean> {
-    try {
-      const members = await this.getRoleMembers(role);
-      return members.includes(userAddress.toBase58());
-    } catch {
-      return false;
-    }
+    return this.unifiedService.hasRole(role, userAddress.toBase58());
   }
 
-  /**
-   * Check if account has a role by hash
-   */
-  async hasRoleByHash(roleHash: string, userAddress: PublicKey): Promise<boolean> {
-    return this.hasRole(roleHash, userAddress);
+  async getAccountBalance(_address: PublicKey): Promise<number> {
+    console.warn('getAccountBalance is not implemented in UnifiedSupplyChainService');
+    return 0;
   }
 
-  /**
-   * Get role name by hash
-   */
-  async getRoleByName(roleName: string): Promise<string> {
-    return ROLE_NAMES[roleName] || roleName;
-  }
-
-  /**
-   * Get role hash by name
-   */
-  async getRoleHash(roleName: string): Promise<string> {
-    return DEFAULT_ROLE_HASHES[roleName] || DEFAULT_ROLE_HASHES[roleName.toUpperCase() + '_ROLE'] || '';
-  }
-
-  /**
-   * Get account balance
-   */
-  async getAccountBalance(address: PublicKey): Promise<number> {
-    try {
-      const balance = await this.program.provider.connection.getBalance(address);
-      return balance / 1000000000; // Convert lamports to SOL
-    } catch {
-      return 0;
-    }
-  }
-
-  /**
-   * Build a serial-to-tokenId mapping client-side
-   * Issue #45: O(n) RPC calls replaced with single batch fetch + local mapping
-   */
-  private async buildSerialToTokenIdMap(): Promise<Map<string, number>> {
-    const mapping = new Map<string, number>();
-    try {
-      const config = await this.queryConfig();
-      if (!config) return mapping;
-      
-      const totalNetbooks = config.totalNetbooks?.toNumber() || 0;
-      
-      // Fetch all netbooks in parallel (batched)
-      const promises: Promise<{ serialNumber: string; tokenId: number } | null>[] = [];
-      for (let i = 0; i < totalNetbooks; i++) {
-        const [netbookPda] = findNetbookPda(i);
-        promises.push(
-          (this.program.account as any).netbook
-            .fetch(netbookPda)
-            .then((netbook: any) => ({ serialNumber: netbook.serialNumber, tokenId: i }))
-            .catch(() => null)
-        );
-      }
-      
-      const results = await Promise.all(promises);
-      results.forEach(r => {
-        if (r && r.serialNumber) {
-          mapping.set(r.serialNumber, r.tokenId);
-        }
-      });
-    } catch {
-      // Config not initialized
-    }
-    return mapping;
-  }
-  
-  /**
-   * Find token ID by serial number
-   * Issue #35: Replaces hardcoded findNetbookPda(0) with proper serial lookup
-   */
-  private async findTokenIdBySerial(serialNumber: string): Promise<number | null> {
-    const mapping = await this.buildSerialToTokenIdMap();
-    return mapping.get(serialNumber) || null;
-  }
-  
-  /**
-   * Get netbook by serial number
-   * Issue #45: Uses serial-to-tokenId mapping instead of brute-force loop
-   */
   async getNetbook(serialNumber: string): Promise<NetbookInfo | null> {
-    try {
-      const tokenId = await this.findTokenIdBySerial(serialNumber);
-      if (tokenId === null) return null;
-      
-      const [netbookPda] = findNetbookPda(tokenId);
-      const netbook = await (this.program.account as any).netbook.fetch(netbookPda);
-      
-      return {
-        serialNumber: (netbook as any).serialNumber,
-        batchId: (netbook as any).batchId,
-        modelSpecs: (netbook as any).initialModelSpecs,
-        state: (netbook as any).state,
-        tokenId: BigInt((netbook as any).tokenId || tokenId)
-      };
-    } catch {
-      return null;
-    }
+    const data = await this.unifiedService.findNetbookBySerial(serialNumber);
+    if (!data) return null;
+    return {
+      serialNumber: data.serialNumber,
+      batchId: data.batchId,
+      modelSpecs: data.modelSpecs,
+      state: data.state,
+      tokenId: BigInt(data.tokenId.toString()),
+    };
   }
 
-  /**
-   * Get netbook report
-   */
-  async getNetbookReport(serialNumber: string): Promise<NetbookInfo | null> {
-    return this.getNetbook(serialNumber);
-  }
-
-  /**
-   * Get netbook state
-   */
   async getNetbookState(serial: string): Promise<number> {
-    const netbook = await this.getNetbook(serial);
-    return netbook?.state ?? -1;
+    return this.unifiedService.getNetbookState(serial);
   }
 
-  /**
-   * Get all serial numbers
-   */
   async getAllSerialNumbers(): Promise<string[]> {
-    const serials: string[] = [];
-    try {
-      const config = await this.queryConfig();
-      if (!config) return serials;
-      
-      const totalNetbooks = config.totalNetbooks?.toNumber() || 0;
-      
-      for (let i = 0; i < totalNetbooks; i++) {
-        const [netbookPda] = findNetbookPda(i);
-        try {
-          const netbook = await (this.program.account as any).netbook.fetch(netbookPda);
-          serials.push((netbook as any).serialNumber);
-        } catch {
-          // Netbook doesn't exist at this ID
-        }
-      }
-    } catch {
-      // Config not initialized
-    }
-    return serials;
+    return this.unifiedService.getAllSerialNumbers();
   }
 
-  /**
-   * Get config
-   */
-  async getConfig(): Promise<ConfigData | null> {
-    return this.queryConfig();
-  }
-
-  /**
-   * Get role request
-   */
-  async getRoleRequest(userAddress: PublicKey): Promise<any> {
-    try {
-      const [roleRequestPda] = findRoleRequestPda(userAddress);
-      const roleRequest = await (this.program.account as any).roleRequest.fetch(roleRequestPda);
-      return roleRequest;
-    } catch {
-      return null;
-    }
+  async getRoleRequest(_userAddress: PublicKey): Promise<any> {
+    const requests = await this.unifiedService.getRoleRequests();
+    return requests[0] || null;
   }
 }
+
+// Role names mapping (kept for backward compatibility)
+export const ROLE_NAMES: Record<string, string> = {
+  'ADMIN_ROLE': 'ADMIN_ROLE',
+  'FABRICANTE_ROLE': 'FABRICANTE_ROLE',
+  'AUDITOR_HW_ROLE': 'AUDITOR_HW_ROLE',
+  'TECNICO_SW_ROLE': 'TECNICO_SW_ROLE',
+  'ESCUELA_ROLE': 'ESCUELA_ROLE',
+};

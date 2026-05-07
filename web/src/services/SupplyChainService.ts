@@ -1,14 +1,14 @@
 "use client";
 
-// Legacy Ethereum-based SupplyChainService - now migrated to Solana
-// This file is kept for backward compatibility but all operations go through SolanaSupplyChainService
+// Legacy service - now migrated to UnifiedSupplyChainService
+// This file is kept for backward compatibility but all operations go through UnifiedSupplyChainService
 
-// Re-export Solana service for convenience
-export type { SolanaSupplyChainService, TransactionResult, NetbookInfo } from './SolanaSupplyChainService';
+// Re-export unified service for convenience
+export type { UnifiedSupplyChainService, TransactionResult, NetbookData, ConfigData, RoleRequestData, NetbookReport } from './UnifiedSupplyChainService';
 
 // Legacy class stub for backward compatibility
 export class SupplyChainService {
   static getInstance(): any {
-    return import('./SolanaSupplyChainService').then(m => m.SolanaSupplyChainService.getInstance());
+    return import('./UnifiedSupplyChainService').then(m => m.UnifiedSupplyChainService.getInstance());
   }
 }

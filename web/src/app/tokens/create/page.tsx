@@ -15,7 +15,7 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PublicKey } from '@solana/web3.js';
-import { SolanaSupplyChainService } from '@/services/SolanaSupplyChainService';
+import { UnifiedSupplyChainService } from '@/services/UnifiedSupplyChainService';
 
 // Esquema de validación con Zod
 const formSchema = z.object({
@@ -51,8 +51,8 @@ export default function CreateTokensPage() {
       if (isConnected && publicKey) {
         setLoadingRole(true);
         try {
-          // Check if user has FABRICANTE role using Solana service
-          const service = SolanaSupplyChainService.getInstance();
+          // Check if user has FABRICANTE role using unified service
+          const service = UnifiedSupplyChainService.getInstance();
           const hasManufacturerRole = await service.hasRole('FABRICANTE_ROLE', publicKey);
           setIsManufacturer(hasManufacturerRole);
         } catch (error) {

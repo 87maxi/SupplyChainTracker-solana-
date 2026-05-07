@@ -1,0 +1,51 @@
+// Deploy SupplyChainTracker program to Solana network
+// Uses Surfpool SVM addon to deploy Anchor-built programs
+
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Signers - deployer and authority
+signer "deployer" "svm::web_wallet" {
+  description = "Deployer/Authority account for the program"
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+// Get program artifacts from Anchor project
+// svm::get_program_from_anchor_project returns {idl, binary, keypair, program_id}
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+// Deploy the program
+action "deploy" "svm::deploy_program" {
+  description = "Deploy SupplyChainTracker program to localnet"
+  program = variable.program
+  authority = signer.deployer
+  payer = signer.deployer
+  auto_extend = true
+}
+
+// Outputs
+output "program_id" {
+  description = "Deployed program ID"
+  value = action.deploy.program_id
+}
+
+output "program_idl" {
+  description = "Program IDL"
+  value = action.deploy.program_idl
+}
+
+output "signatures" {
+  description = "Deployment transaction signatures"
+  value = action.deploy.signatures
+}
+
+output "slot" {
+  description = "Slot at which the program was deployed"
+  value = action.deploy.slot
+}

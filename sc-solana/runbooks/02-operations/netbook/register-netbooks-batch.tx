@@ -1,0 +1,101 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Register multiple netbooks in batch
+// All arrays must have the same length
+// Usage: surfpool run register-netbooks-batch --env localnet --browser -f
+
+// Signers
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account (must have FABRICANTE role)"
+  keypair_path = env.FABRICANTE_KEYPAIR
+}
+
+// Program artifacts from Anchor project
+variable "program" {
+  description = "Program artifacts (IDL, binary, keypair, program_id)"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// Input arrays - must have same length
+variable "serial_numbers" {
+  description = "Array of serial numbers"
+  value = env.NETBOOK_SERIALS
+}
+
+variable "batch_ids" {
+  description = "Array of batch IDs (same length as serial_numbers)"
+  value = env.NETBOOK_BATCHES
+}
+
+variable "model_specs" {
+  description = "Array of model specs (same length as serial_numbers)"
+  value = env.NETBOOK_MODELS
+}
+
+// PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "serial_hashes_pda" {
+  description = "Serial hashes registry PDA"
+  value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
+}
+
+// Batch registration action
+action "register_batch" "svm::process_instructions" {
+  description = "Register multiple netbooks in batch"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "register_netbooks_batch"
+    instruction_args = [
+      variable.serial_numbers,
+      variable.batch_ids,
+      variable.model_specs
+    ]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.serial_hashes_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.fabricante.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.fabricante]
+}
+
+// Outputs
+output "batch_signature" {
+  description = "Batch registration transaction signature"
+  value = action.register_batch.signatures[0]
+}
+
+output "serial_numbers_registered" {
+  description = "List of serial numbers registered"
+  value = variable.serial_numbers
+}

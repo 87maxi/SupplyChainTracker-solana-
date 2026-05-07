@@ -1,0 +1,94 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Setup complete test environment with all required accounts
+// Airdrops SOL to test wallets and verifies deployment
+// Usage: surfpool run setup-test-env --env localnet --browser -f
+//
+// Prerequisites:
+//   - Source config: source config/config.env && source runbooks/environments/localnet.env
+//   - Keypairs must exist in config/keypairs/ directory
+//
+// Inputs: None (uses env vars from config/config.env)
+
+// Test signers - each role gets its own wallet from centralized config
+signer "admin" "svm::web_wallet" {
+  description = "Admin/Deployer account"
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account"
+  keypair_path = env.FABRICANTE_KEYPAIR
+}
+
+signer "auditor_hw" "svm::web_wallet" {
+  description = "Hardware auditor account"
+  keypair_path = env.AUDITOR_HW_KEYPAIR
+}
+
+signer "tecnico_sw" "svm::web_wallet" {
+  description = "Software technician account"
+  keypair_path = env.TECNICO_SW_KEYPAIR
+}
+
+signer "escuela" "svm::web_wallet" {
+  description = "School account"
+  keypair_path = env.ESCUELA_KEYPAIR
+}
+
+// Airdrop configuration
+variable "airdrop_amount" {
+  description = "Airdrop amount in lamports (5 SOL = 5000000000)"
+  value = 5000000000
+}
+
+// Airdrop to each test wallet
+action "airdrop_fabricante" "svm::send_token" {
+  description = "Airdrop SOL to fabricante wallet"
+  amount = variable.airdrop_amount
+  recipient = signer.fabricante.public_key
+}
+
+action "airdrop_auditor_hw" "svm::send_token" {
+  description = "Airdrop SOL to auditor_hw wallet"
+  amount = variable.airdrop_amount
+  recipient = signer.auditor_hw.public_key
+}
+
+action "airdrop_tecnico_sw" "svm::send_token" {
+  description = "Airdrop SOL to tecnico_sw wallet"
+  amount = variable.airdrop_amount
+  recipient = signer.tecnico_sw.public_key
+}
+
+action "airdrop_escuela" "svm::send_token" {
+  description = "Airdrop SOL to escuela wallet"
+  amount = variable.airdrop_amount
+  recipient = signer.escuela.public_key
+}
+
+// Outputs
+output "test_wallets" {
+  description = "All test wallet addresses"
+  value = {
+    admin: signer.admin.public_key,
+    fabricante: signer.fabricante.public_key,
+    auditor_hw: signer.auditor_hw.public_key,
+    tecnico_sw: signer.tecnico_sw.public_key,
+    escuela: signer.escuela.public_key
+  }
+}
+
+output "airdrop_signatures" {
+  description = "Airdrop transaction signatures"
+  value = {
+    fabricante: action.airdrop_fabricante.signature,
+    auditor_hw: action.airdrop_auditor_hw.signature,
+    tecnico_sw: action.airdrop_tecnico_sw.signature,
+    escuela: action.airdrop_escuela.signature
+  }
+}

@@ -1,0 +1,116 @@
+// Register a single netbook in the supply chain
+// This is the first step in the netbook lifecycle
+// Usage: surfpool run register-netbook --env localnet --browser -f
+
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Signers
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account (must have FABRICANTE role)"
+  keypair_path = env.FABRICANTE_KEYPAIR
+}
+
+// Program artifacts from Anchor project
+variable "program" {
+  description = "Program artifacts (IDL, binary, keypair, program_id)"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// Inputs with defaults
+variable "serial_number" {
+  description = "Serial number of the netbook"
+  value = env.NETBOOK_SERIAL
+}
+
+variable "batch_id" {
+  description = "Batch identifier"
+  value = env.NETBOOK_BATCH
+}
+
+variable "model_specs" {
+  description = "Initial model specifications"
+  value = env.NETBOOK_MODEL
+}
+
+// PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "serial_hashes_pda" {
+  description = "Serial hashes registry PDA"
+  value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
+}
+
+variable "netbook_pda" {
+  description = "Netbook account PDA"
+  value = svm::find_pda(variable.program_id, ["netbook", variable.serial_number])
+}
+
+// Register action
+action "register" "svm::process_instructions" {
+  description = "Register netbook in supply chain"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "register_netbook"
+    instruction_args = [
+      variable.serial_number,
+      variable.batch_id,
+      variable.model_specs
+    ]
+    accounts = [
+      {
+        public_key = variable.netbook_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.serial_hashes_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.fabricante.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.fabricante]
+}
+
+// Outputs
+output "serial_number" {
+  description = "Registered serial number"
+  value = variable.serial_number
+}
+
+output "registration_signature" {
+  description = "Transaction signature"
+  value = action.register.signatures[0]
+}
+
+output "netbook_pda" {
+  description = "Derived netbook PDA address"
+  value = variable.netbook_pda.pda
+}

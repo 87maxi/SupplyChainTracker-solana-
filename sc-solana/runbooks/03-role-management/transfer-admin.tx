@@ -1,0 +1,98 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Transfer admin ownership
+// Current admin transfers admin rights to a new account
+// Usage: surfpool run transfer-admin --env localnet --browser -f
+//
+// Prerequisites:
+//   - Config must be initialized
+//   - Current admin must sign the transaction
+//
+// Inputs:
+//   - new_admin_keypair: Path to the new admin's keypair
+//
+// Accounts:
+//   - config PDA
+//   - current_admin (signer)
+//   - new_admin (signer)
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// Signers
+// ============================================================================
+signer "current_admin" "svm::web_wallet" {
+  description = "Current admin account (must be config admin)"
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+signer "new_admin" "svm::web_wallet" {
+  description = "New admin account receiving ownership"
+  keypair_path = input.new_admin_keypair
+}
+
+// ============================================================================
+// PDA Derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+// ============================================================================
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+// ============================================================================
+// Transfer Admin Action
+// ============================================================================
+action "transfer" "svm::process_instructions" {
+  description = "Transfer admin ownership to new account"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "transfer_admin"
+    instruction_args = []
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.current_admin.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = signer.new_admin.public_key
+        writable = false
+        signer = true
+      }
+    ]
+  }
+  signers = [signer.current_admin, signer.new_admin]
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+output "transfer_signature" {
+  description = "Transaction signature for the admin transfer"
+  value = action.transfer.signatures[0]
+}
+
+output "new_admin_address" {
+  description = "Address of the new admin"
+  value = signer.new_admin.public_key
+}

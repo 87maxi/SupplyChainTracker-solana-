@@ -1,7 +1,7 @@
 ---
 name: supply-chain-tracker
 id: sc-solana
-version: 0.1.0
+version: 0.2.0
 description: SupplyChainTracker - Solana/Anchor Program Deployment and Operations
 
 addons:
@@ -9,69 +9,114 @@ addons:
     description: "Solana Virtual Machine addon for program deployment and operations"
 
 runbooks:
-  # === Deployment Runbooks ===
+  # ============================================================================
+  # Deployment Runbooks (Phase 1)
+  # ============================================================================
   - name: deploy-program
     description: Deploy SupplyChainTracker program to network
-    location: runbooks/deployment/deploy-program.tx
-    state:
-      location: runbooks/states/deploy
+    location: runbooks/01-deployment/deploy-program.tx
 
   - name: initialize-config
     description: Initialize supply chain configuration
-    location: runbooks/deployment/initialize-config.tx
-    state:
-      location: runbooks/states/deploy
+    location: runbooks/01-deployment/initialize-config.tx
 
   - name: grant-roles
     description: Grant initial roles to administrators
-    location: runbooks/deployment/grant-roles.tx
-    state:
-      location: runbooks/states/deploy
+    location: runbooks/01-deployment/grant-roles.tx
 
-  # === Operations Runbooks ===
+  - name: upgrade-program
+    description: Upgrade deployed program
+    location: runbooks/01-deployment/upgrade-program.tx
+
+  # ============================================================================
+  # Operations Runbooks - Netbook Lifecycle (Phase 2)
+  # ============================================================================
   - name: register-netbook
     description: Register a single netbook in the supply chain
-    location: runbooks/operations/register-netbook.tx
+    location: runbooks/02-operations/netbook/register-netbook.tx
 
   - name: register-netbooks-batch
     description: Register multiple netbooks in batch
-    location: runbooks/operations/register-netbooks-batch.tx
+    location: runbooks/02-operations/netbook/register-netbooks-batch.tx
 
   - name: audit-hardware
     description: Perform hardware audit on a netbook
-    location: runbooks/operations/audit-hardware.tx
+    location: runbooks/02-operations/netbook/audit-hardware.tx
 
   - name: validate-software
     description: Validate software on a netbook
-    location: runbooks/operations/validate-software.tx
+    location: runbooks/02-operations/netbook/validate-software.tx
 
   - name: assign-student
     description: Assign netbook to a student
-    location: runbooks/operations/assign-student.tx
+    location: runbooks/02-operations/netbook/assign-student.tx
 
-  # === Testing Runbooks ===
+  # ============================================================================
+  # Query Runbooks
+  # ============================================================================
+  - name: query-netbook
+    description: Query netbook state
+    location: runbooks/02-operations/netbook/query-netbook.tx
+
+  - name: query-config
+    description: Query system configuration
+    location: runbooks/02-operations/query/query-config.tx
+
+  - name: query-role
+    description: Query role holders
+    location: runbooks/02-operations/query/query-role.tx
+
+  # ============================================================================
+  # Role Management Runbooks (Phase 3)
+  # ============================================================================
+  - name: request-role
+    description: Request a role
+    location: runbooks/02-operations/netbook/request-role.tx
+
+  - name: revoke-role
+    description: Revoke a role
+    location: runbooks/02-operations/netbook/revoke-role.tx
+
+  - name: approve-role-request
+    description: Admin approves a pending role request
+    location: runbooks/03-role-management/approve-role-request.tx
+
+  - name: reject-role-request
+    description: Admin rejects a pending role request
+    location: runbooks/03-role-management/reject-role-request.tx
+
+  - name: add-role-holder
+    description: Admin adds a new role holder (multi-holder support)
+    location: runbooks/03-role-management/add-role-holder.tx
+
+  - name: remove-role-holder
+    description: Admin removes a role holder
+    location: runbooks/03-role-management/remove-role-holder.tx
+
+  - name: transfer-admin
+    description: Transfer admin ownership to new account
+    location: runbooks/03-role-management/transfer-admin.tx
+
+  # ============================================================================
+  # Testing Runbooks (Phase 4)
+  # ============================================================================
   - name: setup-test-env
     description: Setup complete test environment with all accounts
-    location: runbooks/testing/setup-test-env.tx
+    location: runbooks/04-testing/setup-test-env.tx
     state:
       location: runbooks/states/test
 
   - name: full-lifecycle
     description: Complete lifecycle test from manufacturing to distribution
-    location: runbooks/testing/full-lifecycle.tx
+    location: runbooks/04-testing/full-lifecycle.tx
 
   - name: edge-cases
     description: Edge cases and error handling tests
-    location: runbooks/testing/edge-cases.tx
+    location: runbooks/04-testing/edge-cases.tx
 
-  # === Examples ===
-  - name: basic-deploy
-    description: Basic program deployment example
-    location: runbooks/examples/basic-deploy.tx
-
-  - name: hello-world
-    description: Hello world example for learning txtx
-    location: runbooks/examples/hello-world.tx
+  - name: role-workflow
+    description: Complete role request/approval/revocation workflow test
+    location: runbooks/04-testing/role-workflow.tx
 
 environments:
   localnet:

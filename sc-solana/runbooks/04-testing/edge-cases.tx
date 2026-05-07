@@ -1,0 +1,72 @@
+// Edge cases and error handling tests
+// Tests various error conditions
+// Usage: surfpool run edge-cases --env localnet --browser -f
+
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+signer "fabricante" "svm::web_wallet" {
+  keypair_path = env.FABRICANTE_KEYPAIR
+}
+
+signer "escuela" "svm::web_wallet" {
+  keypair_path = env.ESCUELA_KEYPAIR
+}
+
+// Program artifacts from Anchor project
+variable "program" {
+  description = "Program artifacts (IDL, binary, keypair, program_id)"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+// Test: Unauthorized access (escuela trying to grant role)
+action "test_unauthorized" "svm::process_instructions" {
+  description = "Test: Escuela trying to grant role (should fail with Unauthorized=6000)"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["AUDITOR_HW"]
+    accounts = [
+      { public_key = variable.config_pda.pda, writable = true, signer = false },
+      { public_key = signer.escuela.public_key, writable = true, signer = true },
+      { public_key = signer.fabricante.public_key, writable = false, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.escuela, signer.fabricante]
+  expected_error = 6000
+}
+
+// Error codes reference
+output "error_codes" {
+  value = {
+    Unauthorized: 6000,
+    InvalidStateTransition: 6001,
+    NetbookNotFound: 6002,
+    InvalidInput: 6003,
+    DuplicateSerial: 6004,
+    ArrayLengthMismatch: 6005,
+    RoleAlreadyGranted: 6006,
+    RoleNotFound: 6007,
+    InvalidSignature: 6008,
+    EmptySerial: 6009,
+    StringTooLong: 6010,
+    MaxRoleHoldersReached: 6011,
+    RoleHolderNotFound: 6012,
+    InvalidRequestState: 6013,
+    RateLimited: 6014
+  }
+}

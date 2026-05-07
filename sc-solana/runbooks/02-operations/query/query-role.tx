@@ -1,0 +1,80 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Query role holders
+// Retrieves all holders for a specific role
+// Usage: surfpool run query-role --env localnet --browser -f
+//
+// Prerequisites:
+//   - Config must be initialized
+//
+// Inputs:
+//   - role: Role to query (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)
+//
+// Outputs:
+//   - List of role holders
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// Inputs
+// ============================================================================
+variable "role" {
+  description = "Role to query (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)"
+  value = env.ROLE_TO_QUERY
+}
+
+// ============================================================================
+// PDA Derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+// ============================================================================
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+// ============================================================================
+// Query Action
+// ============================================================================
+action "query" "svm::process_instructions" {
+  description = "Query holders for the specified role"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_role"
+    instruction_args = [variable.role]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+output "query_signature" {
+  description = "Transaction signature for the role query"
+  value = action.query.signatures[0]
+}
+
+output "role" {
+  description = "Role that was queried"
+  value = variable.role
+}

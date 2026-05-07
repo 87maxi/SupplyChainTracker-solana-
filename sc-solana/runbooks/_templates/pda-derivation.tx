@@ -1,0 +1,40 @@
+// PDA Derivation Template
+// Use these patterns for consistent PDA derivation across runbooks
+//
+// IMPORTANT: svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+// Access the PDA address with .pda, NOT [0]
+//
+// ============================================================================
+// Config PDA (always needed)
+// ============================================================================
+// variable "config_pda" {
+//   value = svm::find_pda(variable.program_id, ["config"])
+// }
+//
+// ============================================================================
+// Netbook PDA (for netbook operations)
+// ============================================================================
+// variable "netbook_pda" {
+//   value = svm::find_pda(variable.program_id, ["netbook", variable.serial_number])
+// }
+//
+// ============================================================================
+// Role Holder PDA (for role operations)
+// ============================================================================
+// variable "role_holder_pda" {
+//   value = svm::find_pda(variable.program_id, [variable.role, signer.account.public_key])
+// }
+//
+// ============================================================================
+// Role Request PDA (for role request operations)
+// ============================================================================
+// variable "role_request_pda" {
+//   value = svm::find_pda(variable.program_id, ["role_request", signer.requester.public_key])
+// }
+//
+// ============================================================================
+// Serial Hash Registry PDA (for registration operations)
+// ============================================================================
+// variable "serial_hashes_pda" {
+//   value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
+// }

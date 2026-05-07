@@ -1,0 +1,68 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Revoke a role from an account
+// Usage: surfpool run revoke-role --env localnet --browser -f
+//
+// Prerequisites:
+//   - Source config: source config/config.env && source runbooks/environments/localnet.env
+//
+// Inputs:
+//   - account_keypair: Path to the account's keypair to revoke
+//   - role: Role to revoke
+
+signer "admin" "svm::web_wallet" {
+  description = "Admin account (must be config admin)"
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+signer "account_to_revoke" "svm::web_wallet" {
+  description = "Account to revoke role from"
+  keypair_path = env.ACCOUNT_TO_REVOKE_KEYPAIR
+}
+
+// Program artifacts from Anchor project
+variable "program" {
+  description = "Program artifacts (IDL, binary, keypair, program_id)"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+variable "role_to_revoke" {
+  description = "Role to revoke"
+  value = env.ROLE_TO_REVOKE
+}
+
+// PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+action "revoke" "svm::process_instructions" {
+  description = "Revoke role from account"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "revoke_role"
+    instruction_args = [variable.role_to_revoke]
+    accounts = [
+      { public_key = variable.config_pda.pda, writable = true, signer = false },
+      { public_key = signer.admin.public_key, writable = true, signer = true },
+      { public_key = signer.account_to_revoke.public_key, writable = false, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.admin, signer.account_to_revoke]
+}
+
+output "revoke_signature" {
+  description = "Revoke transaction signature"
+  value = action.revoke.signatures[0]
+}

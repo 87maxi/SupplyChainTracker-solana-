@@ -12,6 +12,24 @@
 ❌ INCORRECTO: txtx run <runbook> --env <environment>
 ```
 
+## Configuration
+
+Before running any runbook, source the centralized configuration:
+
+```bash
+cd sc-solana
+
+# Load central configuration (program_id, keypairs, etc.)
+source config/config.env
+
+# Load environment-specific settings
+source runbooks/environments/localnet.env   # For localnet (Surfpool)
+# source runbooks/environments/devnet.env   # For devnet
+# source runbooks/environments/mainnet.env  # For mainnet
+```
+
+All runbooks use environment variables from `config/config.env` instead of hardcoded values.
+
 ## Quick Start - Deployment
 
 ### Prerequisites
@@ -19,11 +37,16 @@
 1. **Surfpool Simnet running**: `surfpool start` (on localhost:8899)
 2. **Program compiled**: Run `anchor build` in the `sc-solana` directory
 3. **Wallet keypair**: Ensure `~/.config/solana/id.json` exists
+4. **Role keypairs**: Generated in `config/keypairs/` directory
 
 ### Deploy to Localnet
 
 ```bash
 cd sc-solana
+
+# Load configuration
+source config/config.env
+source runbooks/environments/localnet.env
 
 # 1. Deploy the program (opens browser UI for signing)
 surfpool run deploy-program --env localnet --browser -f --port 8488
@@ -37,292 +60,153 @@ surfpool run grant-roles --env localnet --browser -f
 
 For detailed instructions, troubleshooting, and reference documentation, see [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md).
 
-## Deployment Guides
+## Runbooks Structure
 
-| Guide | Description |
-|-------|-------------|
-| [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md) | Complete deployment guide with Surfpool/txtx runbooks |
-| [devnet-deployment.md](devnet-deployment.md) | Step-by-step devnet deployment runbook |
-| [mainnet-deployment.md](mainnet-deployment.md) | Mainnet deployment runbook with security procedures |
+```
+runbooks/
+├── README.md                           # This file
+├── DEPLOYMENT-GUIDE.md                 # Complete deployment guide
+├── _templates/                         # Reusable templates
+│   ├── common.tx                       # Common patterns for all runbooks
+│   ├── pda-derivation.tx              # PDA derivation patterns
+│   └── env-vars.tx                    # Environment variable patterns
+├── deployment/                         # Phase 1: Deployment
+│   ├── deploy-program.tx              # Deploy the program
+│   ├── initialize-config.tx           # Initialize configuration
+│   ├── grant-roles.tx                 # Grant initial roles
+│   └── upgrade-program.tx             # Upgrade program
+├── operations/                         # Phase 2: Operations
+│   ├── register-netbook.tx            # Register single netbook
+│   ├── register-netbooks-batch.tx     # Register batch of netbooks
+│   ├── audit-hardware.tx              # Hardware audit
+│   ├── validate-software.tx           # Software validation
+│   ├── assign-student.tx              # Assign to student
+│   ├── query-netbook.tx               # Query netbook state
+│   ├── request-role.tx                # Request a role
+│   └── revoke-role.tx                 # Revoke a role
+├── 02-operations/query/               # Query operations
+│   ├── query-config.tx                # Query system configuration
+│   └── query-role.tx                  # Query role holders
+├── 03-role-management/                # Phase 3: Role Management
+│   ├── approve-role-request.tx        # Approve role request
+│   ├── reject-role-request.tx         # Reject role request
+│   ├── add-role-holder.tx             # Add role holder
+│   ├── remove-role-holder.tx          # Remove role holder
+│   └── transfer-admin.tx              # Transfer admin ownership
+├── 04-testing/                        # Phase 4: Testing
+│   └── role-workflow.tx               # Role workflow test
+├── testing/                           # Legacy testing runbooks
+│   ├── setup-test-env.tx              # Setup test environment
+│   ├── full-lifecycle.tx              # Full lifecycle test
+│   └── edge-cases.tx                  # Edge case tests
+└── environments/                      # Environment configurations
+    ├── localnet.env                   # Localnet (Surfpool)
+    ├── devnet.env                     # Devnet
+    └── mainnet.env                    # Mainnet
+```
 
-## Runbooks Available
+## Available Runbooks
 
 ### Deployment Runbooks
 
-#### deploy-program
-Deploy SupplyChainTracker program to Solana network using Surfpool SVM addon.
-- **Location:** `deployment/deploy-program.tx`
-- **Description:** Deploys the Anchor program using `svm::deploy_program` action
-- **Usage:** `surfpool run deploy-program --env localnet --browser -f`
-- **Note:** Requires browser UI for wallet signing. See [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md) for details.
+| Runbook | Description | Usage |
+|---------|-------------|-------|
+| `deploy-program` | Deploy program to network | `surfpool run deploy-program --env localnet --browser -f` |
+| `initialize-config` | Initialize config PDA | `surfpool run initialize-config --env localnet --browser -f` |
+| `grant-roles` | Grant initial roles | `surfpool run grant-roles --env localnet --browser -f` |
+| `upgrade-program` | Upgrade deployed program | `surfpool run upgrade-program --env localnet --browser -f` |
 
-#### initialize-config
-Initialize supply chain configuration.
-- **Location:** `deployment/initialize-config.tx`
-- **Description:** Sets up the initial config PDA and serial hash registry
-- **Usage:** `surfpool run initialize-config --env localnet --browser -f`
+### Operations Runbooks - Netbook Lifecycle
 
-#### grant-roles
-Grant initial roles to administrators.
-- **Location:** `deployment/grant-roles.tx`
-- **Description:** Grants all 4 roles (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)
-- **Usage:** `surfpool run grant-roles --env localnet --browser -f`
+| Runbook | Description | State Transition |
+|---------|-------------|------------------|
+| `register-netbook` | Register single netbook | → Fabricada (0) |
+| `register-netbooks-batch` | Register batch of netbooks | → Fabricada (0) |
+| `audit-hardware` | Hardware audit | Fabricada → HwAprobado (1) |
+| `validate-software` | Software validation | HwAprobado → SwValidado (2) |
+| `assign-student` | Assign to student | SwValidado → Distribuida (3) |
 
-### Operations Runbooks
+### Query Runbooks
 
-#### register-netbook
-Register a single netbook in the supply chain.
-- **Location:** `operations/register-netbook.tx`
-- **Description:** First step in the netbook lifecycle (manufacturing)
-- **Usage:** `surfpool run register-netbook --env localnet --browser -f`
+| Runbook | Description |
+|---------|-------------|
+| `query-netbook` | Query netbook state |
+| `query-config` | Query system configuration |
+| `query-role` | Query role holders |
 
-#### register-netbooks-batch
-Register multiple netbooks in batch.
-- **Location:** `operations/register-netbooks-batch.tx`
-- **Description:** Validates and stores serial hashes for duplicate detection
-- **Usage:** `surfpool run register-netbooks-batch --env localnet --browser -f`
+### Role Management Runbooks
 
-#### audit-hardware
-Perform hardware audit on a netbook.
-- **Location:** `operations/audit-hardware.tx`
-- **Description:** State transition: Fabricada → HwAprobado
-- **Usage:** `surfpool run audit-hardware --env localnet --browser -f`
-
-#### validate-software
-Validate software on a netbook.
-- **Location:** `operations/validate-software.tx`
-- **Description:** State transition: HwAprobado → SwValidado
-- **Usage:** `surfpool run validate-software --env localnet --browser -f`
-
-#### assign-student
-Assign netbook to a student.
-- **Location:** `operations/assign-student.tx`
-- **Description:** Final state transition: SwValidado → Distribuida
-- **Usage:** `surfpool run assign-student --env localnet --browser -f`
-
-#### revoke-role
-Revoke a role from an account.
-- **Location:** `operations/revoke-role.tx`
-- **Description:** Remove a previously granted role
-- **Usage:** `surfpool run revoke-role --env localnet --browser -f`
-
-#### request-role
-Request a role from admin.
-- **Location:** `operations/request-role.tx`
-- **Description:** Submit a role request for admin approval
-- **Usage:** `surfpool run request-role --env localnet --browser -f`
-
-#### query-netbook
-Query netbook state.
-- **Location:** `operations/query-netbook.tx`
-- **Description:** Query the current state of a netbook
-- **Usage:** `surfpool run query-netbook --env localnet --browser -f`
+| Runbook | Description |
+|---------|-------------|
+| `request-role` | Request a role |
+| `revoke-role` | Revoke a role |
+| `approve-role-request` | Admin approves role request |
+| `reject-role-request` | Admin rejects role request |
+| `add-role-holder` | Add new role holder |
+| `remove-role-holder` | Remove role holder |
+| `transfer-admin` | Transfer admin ownership |
 
 ### Testing Runbooks
 
-#### setup-test-env
-Setup complete test environment with all accounts.
-- **Location:** `testing/setup-test-env.tx`
-- **Description:** Airdrops to test wallets and verifies deployment
-- **Usage:** `surfpool run setup-test-env --env localnet --browser -f`
+| Runbook | Description |
+|---------|-------------|
+| `setup-test-env` | Setup test environment |
+| `full-lifecycle` | Complete lifecycle test |
+| `edge-cases` | Edge case tests |
+| `role-workflow` | Role workflow test |
 
-#### full-lifecycle
-Complete lifecycle test from manufacturing to distribution.
-- **Location:** `testing/full-lifecycle.tx`
-- **Description:** Tests all state transitions in sequence
-- **Usage:** `surfpool run full-lifecycle --env localnet --browser -f`
+## Keypair Management
 
-#### edge-cases
-Edge cases and error handling tests.
-- **Location:** `testing/edge-cases.tx`
-- **Description:** Tests error conditions (duplicate serial, unauthorized, etc.)
-- **Usage:** `surfpool run edge-cases --env localnet --browser -f`
-
-### Examples
-
-#### basic-deploy
-Basic program deployment example.
-- **Location:** `examples/basic-deploy.tx`
-- **Description:** Simplified deployment for learning
-- **Usage:** `surfpool run basic-deploy --env localnet --browser -f`
-
-#### hello-world
-Hello world example for learning txtx.
-- **Location:** `examples/hello-world.tx`
-- **Description:** Simplest possible runbook
-- **Usage:** `surfpool run hello-world --env localnet --browser -f`
-
----
-
-## Getting Started
-
-### Prerequisites
-
-1. **Rust & Anchor**
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   cargo install --git https://github.com/coral-xyz/anchor avm --locked
-   avm install 0.32.0
-   avm use 0.32.0
-   ```
-
-2. **Txtx & Surfpool**
-   ```bash
-   # Install txtx
-   curl -sL https://install.txtx.sh/ | bash
-   
-   # Install surfpool (macOS)
-   brew install txtx/taps/surfpool
-   
-   # Or (Linux)
-   snap install surfpool
-   ```
-
-### Quick Start
+All role keypairs are stored in `config/keypairs/`:
 
 ```bash
-# 1. Build the program
-cd sc-solana
-anchor build
-
-# 2. Start Surfpool localnet
-surfpool start
-
-# 3. Deploy program
-surfpool run deploy-program --env localnet --browser -f
-
-# 4. Initialize config
-surfpool run initialize-config --env localnet --browser -f
-
-# 5. Grant roles
-surfpool run grant-roles --env localnet --browser -f
-
-# 6. Register a netbook
-surfpool run register-netbook --env localnet --browser -f
-
-# 7. Run full lifecycle test
-surfpool run full-lifecycle --env localnet --browser -f
+config/keypairs/
+├── fabricante.json      # Manufacturer wallet
+├── auditor_hw.json      # Hardware auditor wallet
+├── tecnico_sw.json      # Software technician wallet
+└── escuela.json         # School wallet
 ```
 
-### Environment Configuration
-
-Environment files are located in `runbooks/environments/`:
-
-| File | Network | RPC URL |
-|------|---------|---------|
-| `localnet.env` | Local development | `http://localhost:8899` |
-| `devnet.env` | Solana devnet | `https://api.devnet.solana.com` |
-| `mainnet.env` | Solana mainnet | `https://api.mainnet-beta.solana.com` |
-
-To use an environment:
+Generate keypairs with:
 ```bash
-surfpool run deploy-program --env localnet --browser -f
+./scripts/setup-keypairs.sh
 ```
 
-### Common Commands
+## Environment Variables
 
-```bash
-# List runbooks
-surfpool ls
+All configuration is centralized in `config/config.env`:
 
-# Run a specific runbook
-surfpool run deploy-program --env localnet --browser -f
+| Variable | Description |
+|----------|-------------|
+| `PROGRAM_ID` | Deployed program ID |
+| `DEPLOYER_KEYPAIR` | Admin/deployer wallet path |
+| `KEYPAIRS_DIR` | Directory for role keypairs |
+| `FABRICANTE_KEYPAIR` | Manufacturer keypair path |
+| `AUDITOR_HW_KEYPAIR` | Hardware auditor keypair path |
+| `TECNICO_SW_KEYPAIR` | Software technician keypair path |
+| `ESCUELA_KEYPAIR` | School keypair path |
 
-# Run with inputs
-surfpool run register-netbook --env localnet --browser -f --input serial_number="SN001"
+## Templates
 
-# Check status
-surfpool status
-```
+The `_templates/` directory contains reusable patterns:
 
----
+- [`common.tx`](_templates/common.tx) - Common patterns for all runbooks
+- [`pda-derivation.tx`](_templates/pda-derivation.tx) - PDA derivation patterns
+- [`env-vars.tx`](_templates/env-vars.tx) - Environment variable patterns
 
-## Netbook Lifecycle
+Use these templates as reference when creating new runbooks.
 
-The SupplyChainTracker program follows a strict state machine:
+## Best Practices
 
-```
-Fabricada (0) → HwAprobado (1) → SwValidado (2) → Distribuida (3)
-     ↑              ↑                ↑                ↑
-     │              │                │                │
-  register    audit_hardware    validate_software    assign_to_student
-```
+1. **Always source config before running**: `source config/config.env && source runbooks/environments/localnet.env`
+2. **Use environment variables**: Never hardcode program IDs or keypair paths
+3. **Follow the lifecycle order**: register → audit → validate → assign
+4. **Test on localnet first**: Always test on localnet before devnet/mainnet
+5. **Check prerequisites**: Each runbook documents its prerequisites
 
-### State Transitions
+## Troubleshooting
 
-| Transition | Instruction | Required Role | Runbook |
-|------------|-------------|---------------|---------|
-| 0 → 1 | `audit_hardware` | `AUDITOR_HW` | `audit-hardware` |
-| 1 → 2 | `validate_software` | `TECNICO_SW` | `validate-software` |
-| 2 → 3 | `assign_to_student` | `ESCUELA` | `assign-student` |
-
-### Error Codes
-
-| Code | Error | Description |
-|------|-------|-------------|
-| 6000 | Unauthorized | Caller is not authorized |
-| 6001 | InvalidStateTransition | Invalid state transition |
-| 6002 | NetbookNotFound | Netbook not found |
-| 6003 | InvalidInput | Invalid input |
-| 6004 | DuplicateSerial | Serial number already registered |
-| 6005 | ArrayLengthMismatch | Array lengths do not match |
-| 6006 | RoleAlreadyGranted | Role already granted to this account |
-| 6007 | RoleNotFound | Role not found |
-| 6008 | InvalidSignature | Invalid signature |
-| 6009 | EmptySerial | Serial number is empty |
-| 6010 | StringTooLong | String exceeds maximum length |
-| 6011 | MaxRoleHoldersReached | Maximum role holders reached |
-| 6012 | RoleHolderNotFound | Account not found in role holders |
-| 6013 | InvalidRequestState | Role request is not in pending state |
-| 6014 | RateLimited | Role request rate limited |
-
----
-
-## Program Structure
-
-```
-sc-solana/
-├── txtx.yml                              # Main manifest
-├── runbooks/
-│   ├── states/                           # State management (gitignored)
-│   ├── environments/                     # Environment configs
-│   │   ├── localnet.env
-│   │   ├── devnet.env
-│   │   └── mainnet.env
-│   ├── deployment/                       # Deployment runbooks
-│   │   ├── deploy-program.tx
-│   │   ├── initialize-config.tx
-│   │   └── grant-roles.tx
-│   ├── operations/                       # Operational runbooks
-│   │   ├── register-netbook.tx
-│   │   ├── register-netbooks-batch.tx
-│   │   ├── audit-hardware.tx
-│   │   ├── validate-software.tx
-│   │   ├── assign-student.tx
-│   │   ├── revoke-role.tx
-│   │   ├── request-role.tx
-│   │   └── query-netbook.tx
-│   ├── testing/                          # Testing runbooks
-│   │   ├── setup-test-env.tx
-│   │   ├── full-lifecycle.tx
-│   │   └── edge-cases.tx
-│   └── examples/                         # Example runbooks
-│       ├── basic-deploy.tx
-│       └── hello-world.tx
-└── .gitignore
-```
-
----
-
-## Accessing Documentation
-
-- [Txtx Documentation](https://docs.txtx.sh)
-- [Surfpool Language Reference](https://docs.surfpool.run/iac/language)
-- [Surfpool SVM Actions](https://docs.surfpool.run/iac/svm/actions)
-- [Surfpool CLI](https://docs.surfpool.run/toolchain/cli)
-
----
-
-## VS Code Extension
-
-Install the [Txtx VS Code extension](https://marketplace.visualstudio.com/items?itemName=txtx.txtx) for syntax highlighting and IntelliSense support.
+- **Program not found**: Ensure `anchor build` was run and program is deployed
+- **KeyPair not found**: Run `./scripts/setup-keypairs.sh` to generate keypairs
+- **RPC connection failed**: Ensure Surfpool is running on localhost:8899
+- **Permission denied**: Ensure admin wallet has proper roles

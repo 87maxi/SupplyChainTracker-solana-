@@ -1,0 +1,63 @@
+// Common template for all runbooks
+// Include this pattern at the top of each runbook for consistency
+//
+// Usage: Copy these blocks into your runbook file
+//
+// ============================================================================
+// Program Configuration (use svm::get_program_from_anchor_project)
+// ============================================================================
+// variable "program" {
+//   description = "Program artifacts from Anchor project"
+//   value = svm::get_program_from_anchor_project("sc_solana")
+// }
+//
+// variable "program_id" {
+//   description = "Deployed program ID"
+//   value = variable.program.program_id
+// }
+//
+// variable "idl" {
+//   description = "Program IDL data"
+//   value = variable.program.idl
+// }
+//
+// ============================================================================
+// PDA Derivations (svm::find_pda(program_id, seeds) returns {pda, bump_seed})
+// ============================================================================
+// variable "config_pda" {
+//   description = "Config account PDA"
+//   value = svm::find_pda(variable.program_id, ["config"])
+// }
+//
+// variable "serial_hashes_pda" {
+//   description = "Serial hashes registry PDA"
+//   value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
+// }
+//
+// ============================================================================
+// Signer Templates (use config/keypairs/ directory)
+// ============================================================================
+// signer "admin" "svm::web_wallet" {
+//   description = "Admin/Deployer account"
+//   keypair_path = env.DEPLOYER_KEYPAIR
+// }
+//
+// signer "fabricante" "svm::web_wallet" {
+//   description = "Manufacturer account"
+//   keypair_path = env.FABRICANTE_KEYPAIR
+// }
+//
+// signer "auditor_hw" "svm::web_wallet" {
+//   description = "Hardware auditor account"
+//   keypair_path = env.AUDITOR_HW_KEYPAIR
+// }
+//
+// signer "tecnico_sw" "svm::web_wallet" {
+//   description = "Software technician account"
+//   keypair_path = env.TECNICO_SW_KEYPAIR
+// }
+//
+// signer "escuela" "svm::web_wallet" {
+//   description = "School account"
+//   keypair_path = env.ESCUELA_KEYPAIR
+// }

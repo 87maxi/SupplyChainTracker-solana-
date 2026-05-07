@@ -1,0 +1,123 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Add a new role holder (multi-holder support)
+// Admin adds a new account as holder for a specific role
+// Usage: surfpool run add-role-holder --env localnet --browser -f
+//
+// Prerequisites:
+//   - Config must be initialized
+//   - Admin must be the config admin
+//
+// Inputs:
+//   - role: Role name (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)
+//   - new_holder_keypair: Path to the new holder's keypair
+//
+// Accounts:
+//   - config PDA
+//   - admin (signer)
+//   - new_holder (signer)
+//   - role_holder PDA (derived from role + holder)
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// Signers
+// ============================================================================
+signer "admin" "svm::web_wallet" {
+  description = "Admin account (must be config admin)"
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+signer "new_holder" "svm::web_wallet" {
+  description = "New role holder account"
+  keypair_path = env.NEW_HOLDER_KEYPAIR
+}
+
+// ============================================================================
+// Inputs
+// ============================================================================
+variable "role" {
+  description = "Role to grant (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)"
+  value = env.ROLE_TO_GRANT
+}
+
+// ============================================================================
+// PDA Derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+// ============================================================================
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "role_holder_pda" {
+  description = "Role holder PDA (derived from role + holder address)"
+  value = svm::find_pda(variable.program_id, [variable.role, signer.new_holder.public_key])
+}
+
+// ============================================================================
+// Add Role Holder Action
+// ============================================================================
+action "add_holder" "svm::process_instructions" {
+  description = "Add new holder for the specified role"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "add_role_holder"
+    instruction_args = [variable.role]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.new_holder.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = variable.role_holder_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin, signer.new_holder]
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+output "add_holder_signature" {
+  description = "Transaction signature for adding role holder"
+  value = action.add_holder.signatures[0]
+}
+
+output "role_holder_pda" {
+  description = "Role holder PDA address"
+  value = variable.role_holder_pda.pda
+}

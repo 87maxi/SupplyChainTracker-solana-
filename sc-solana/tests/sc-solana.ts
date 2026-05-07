@@ -7,7 +7,7 @@
  * PDA derivation, error codes, and config counters.
  *
  * Program: SupplyChainTracker (sc-solana)
- * Program ID: CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS
+ * Program ID: 7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN
  */
 
 import * as anchor from "@coral-xyz/anchor";
@@ -63,7 +63,7 @@ describe("SupplyChainTracker Solana", () => {
       // Manual test run - load from IDL
       const idl = require("../target/idl/sc_solana.json");
       // Use program address from IDL or fallback to deployed program
-      const programIdStr = idl.address || "CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS";
+      const programIdStr = idl.address || "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN";
       const programId = new anchor.web3.PublicKey(programIdStr);
       program = new anchor.Program({ ...idl, address: programIdStr }, provider);
     }

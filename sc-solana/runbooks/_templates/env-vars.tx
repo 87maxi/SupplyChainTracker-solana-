@@ -1,0 +1,36 @@
+// Environment Variables Template
+// All runbooks should use these env vars instead of hardcoded values
+// Source: config/config.env
+//
+// ============================================================================
+// Required Environment Variables (set via config/config.env)
+// ============================================================================
+// PROGRAM_ID          - Deployed program ID
+// DEPLOYER_KEYPAIR    - Path to admin/deployer keypair
+// KEYPAIRS_DIR        - Directory containing role keypairs
+// FABRICANTE_KEYPAIR  - Path to fabricante keypair
+// AUDITOR_HW_KEYPAIR  - Path to auditor_hw keypair
+// TECNICO_SW_KEYPAIR  - Path to tecnico_sw keypair
+// ESCUELA_KEYPAIR     - Path to escuela keypair
+//
+// ============================================================================
+// Loading Configuration
+// ============================================================================
+// Before running any runbook, source the config:
+//   source config/config.env
+//   source runbooks/environments/localnet.env  (or devnet.env, mainnet.env)
+//
+// ============================================================================
+// Example Usage in Runbook
+// ============================================================================
+// variable "program_id" {
+//   value = env.PROGRAM_ID
+// }
+//
+// signer "admin" "svm::web_wallet" {
+//   keypair_path = env.DEPLOYER_KEYPAIR
+// }
+//
+// signer "fabricante" "svm::web_wallet" {
+//   keypair_path = env.FABRICANTE_KEYPAIR
+// }

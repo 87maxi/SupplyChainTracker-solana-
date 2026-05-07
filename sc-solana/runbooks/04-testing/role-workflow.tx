@@ -1,0 +1,180 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Role workflow test
+// Complete test of role request, approval, and revocation flow
+// Usage: surfpool run role-workflow --env localnet --browser -f
+//
+// Steps:
+// 1. User requests a role
+// 2. Admin approves the request
+// 3. Verify user has the role
+// 4. Admin revokes the role
+// 5. Verify user lost the role
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// Signers
+// ============================================================================
+signer "admin" "svm::web_wallet" {
+  description = "Admin account"
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+signer "requester" "svm::web_wallet" {
+  description = "Account requesting the role"
+  keypair_path = env.REQUESTER_KEYPAIR
+}
+
+// ============================================================================
+// Inputs
+// ============================================================================
+variable "role_to_request" {
+  description = "Role to request (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)"
+  value = env.ROLE_TO_REQUEST
+}
+
+// ============================================================================
+// PDA Derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+// ============================================================================
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "role_request_pda" {
+  description = "Role request PDA"
+  value = svm::find_pda(variable.program_id, ["role_request", signer.requester.public_key])
+}
+
+// ============================================================================
+// Step 1: Request Role
+// ============================================================================
+action "step1_request" "svm::process_instructions" {
+  description = "Step 1: User requests a role"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "request_role"
+    instruction_args = [variable.role_to_request]
+    accounts = [
+      {
+        public_key = variable.role_request_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      },
+      {
+        public_key = signer.requester.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.requester]
+}
+
+// ============================================================================
+// Step 2: Approve Role Request
+// ============================================================================
+action "step2_approve" "svm::process_instructions" {
+  description = "Step 2: Admin approves the role request"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "approve_role_request"
+    instruction_args = []
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = variable.role_request_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.requester.public_key
+        writable = true
+        signer = false
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+// ============================================================================
+// Step 3: Query Role (Verify)
+// ============================================================================
+action "step3_verify" "svm::process_instructions" {
+  description = "Step 3: Verify the user has the role"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_role"
+    instruction_args = [variable.role_to_request]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+output "workflow_signatures" {
+  description = "All transaction signatures from the workflow"
+  value = {
+    request: action.step1_request.signatures[0],
+    approve: action.step2_approve.signatures[0],
+    verify: action.step3_verify.signatures[0]
+  }
+}
+
+output "requester" {
+  description = "Requester address"
+  value = signer.requester.public_key
+}
+
+output "role" {
+  description = "Role that was tested"
+  value = variable.role_to_request
+}

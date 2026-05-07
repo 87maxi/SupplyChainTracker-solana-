@@ -55,7 +55,7 @@ describe("Role Management Integration Tests", () => {
       program = anchor.workspace.scSolana as Program<ScSolana>;
     } else {
       const idl = require("../target/idl/sc_solana.json");
-      const programId = new anchor.web3.PublicKey("CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS");
+      const programId = new anchor.web3.PublicKey("7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN");
       // Recreate provider with the program IDL for manual test runs
       const updatedProvider = new anchor.AnchorProvider(provider.connection, provider.wallet, {
         commitment: provider.opts.commitment,

@@ -1,0 +1,124 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Remove a role holder
+// Admin removes an account from a specific role
+// Usage: surfpool run remove-role-holder --env localnet --browser -f
+//
+// Prerequisites:
+//   - Config must be initialized
+//   - Admin must be the config admin
+//   - Holder must exist for the specified role
+//
+// Inputs:
+//   - role: Role name (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)
+//   - holder_keypair: Path to the holder's keypair to remove
+//
+// Accounts:
+//   - config PDA
+//   - admin (signer)
+//   - holder (signer)
+//   - role_holder PDA (derived from role + holder)
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// Signers
+// ============================================================================
+signer "admin" "svm::web_wallet" {
+  description = "Admin account (must be config admin)"
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+signer "holder" "svm::web_wallet" {
+  description = "Role holder account to remove"
+  keypair_path = env.HOLDER_KEYPAIR
+}
+
+// ============================================================================
+// Inputs
+// ============================================================================
+variable "role" {
+  description = "Role to remove (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)"
+  value = env.ROLE_TO_REMOVE
+}
+
+// ============================================================================
+// PDA Derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+// ============================================================================
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "role_holder_pda" {
+  description = "Role holder PDA (derived from role + holder address)"
+  value = svm::find_pda(variable.program_id, [variable.role, signer.holder.public_key])
+}
+
+// ============================================================================
+// Remove Role Holder Action
+// ============================================================================
+action "remove_holder" "svm::process_instructions" {
+  description = "Remove holder from the specified role"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "remove_role_holder"
+    instruction_args = [variable.role]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.holder.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = variable.role_holder_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin, signer.holder]
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+output "remove_holder_signature" {
+  description = "Transaction signature for removing role holder"
+  value = action.remove_holder.signatures[0]
+}
+
+output "role_holder_pda" {
+  description = "Role holder PDA address"
+  value = variable.role_holder_pda.pda
+}

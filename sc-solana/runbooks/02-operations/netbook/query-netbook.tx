@@ -1,0 +1,57 @@
+// Query netbook state
+// Usage: surfpool run query-netbook --env localnet --browser -f
+
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+signer "payer" "svm::web_wallet" {
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+// Program artifacts from Anchor project
+variable "program" {
+  description = "Program artifacts (IDL, binary, keypair, program_id)"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+variable "serial_number" {
+  description = "Serial number to query"
+  value = env.NETBOOK_SERIAL
+}
+
+// PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+variable "netbook_pda" {
+  description = "Netbook account PDA"
+  value = svm::find_pda(variable.program_id, ["netbook", variable.serial_number])
+}
+
+action "query" "svm::process_instructions" {
+  description = "Query netbook state"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_netbook_state"
+    instruction_args = [variable.serial_number]
+    accounts = [
+      { public_key = variable.netbook_pda.pda, writable = false, signer = false },
+      { public_key = signer.payer.public_key, writable = true, signer = true }
+    ]
+  }
+  signers = [signer.payer]
+}
+
+output "query_signature" {
+  description = "Query transaction signature"
+  value = action.query.signatures[0]
+}
+
+output "netbook_pda" {
+  description = "Netbook PDA address"
+  value = variable.netbook_pda.pda
+}

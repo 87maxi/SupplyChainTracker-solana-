@@ -1,0 +1,194 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Full lifecycle test: Manufacturing -> Audit -> Validation -> Distribution
+// Executes all state transitions in sequence
+// Usage: surfpool run full-lifecycle --env localnet --browser -f
+//
+// Prerequisites:
+//   - Source config: source config/config.env && source runbooks/environments/localnet.env
+//   - Keypairs must exist in config/keypairs/ directory
+//
+// Inputs: None (uses env vars from config/config.env)
+
+// All role signers from centralized config
+signer "admin" "svm::web_wallet" {
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+signer "fabricante" "svm::web_wallet" {
+  keypair_path = env.FABRICANTE_KEYPAIR
+}
+
+signer "auditor_hw" "svm::web_wallet" {
+  keypair_path = env.AUDITOR_HW_KEYPAIR
+}
+
+signer "tecnico_sw" "svm::web_wallet" {
+  keypair_path = env.TECNICO_SW_KEYPAIR
+}
+
+signer "escuela" "svm::web_wallet" {
+  keypair_path = env.ESCUELA_KEYPAIR
+}
+
+// Program artifacts from Anchor project
+variable "program" {
+  description = "Program artifacts (IDL, binary, keypair, program_id)"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "serial_hashes_pda" {
+  description = "Serial hashes registry PDA"
+  value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
+}
+
+variable "serial_number" {
+  description = "Test serial number"
+  value = "TEST-LC-001"
+}
+
+variable "netbook_pda" {
+  description = "Netbook account PDA"
+  value = svm::find_pda(variable.program_id, ["netbook", variable.serial_number])
+}
+
+// Step 1: Initialize Config
+action "step1_initialize" "svm::process_instructions" {
+  description = "Step 1: Initialize Config and SerialHashRegistry"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "initialize"
+    instruction_args = []
+    accounts = [
+      { public_key = variable.config_pda.pda, writable = true, signer = false },
+      { public_key = variable.serial_hashes_pda.pda, writable = true, signer = false },
+      { public_key = signer.admin.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+// Step 2: Grant FABRICANTE Role
+action "step2_grant_fabricante" "svm::process_instructions" {
+  description = "Step 2: Grant FABRICANTE role"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["FABRICANTE"]
+    accounts = [
+      { public_key = variable.config_pda.pda, writable = true, signer = false },
+      { public_key = signer.admin.public_key, writable = true, signer = true },
+      { public_key = signer.fabricante.public_key, writable = false, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.admin, signer.fabricante]
+}
+
+// Step 3: Register Netbook (Fabricada = 0)
+action "step3_register" "svm::process_instructions" {
+  description = "Step 3: Register netbook -> State: Fabricada"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "register_netbook"
+    instruction_args = [variable.serial_number, "BATCH-LC-001", "TestModel"]
+    accounts = [
+      { public_key = variable.netbook_pda.pda, writable = true, signer = false },
+      { public_key = variable.config_pda.pda, writable = true, signer = false },
+      { public_key = variable.serial_hashes_pda.pda, writable = true, signer = false },
+      { public_key = signer.fabricante.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.fabricante]
+}
+
+// Step 4: Audit Hardware (Fabricada -> HwAprobado = 1)
+action "step4_audit" "svm::process_instructions" {
+  description = "Step 4: Audit hardware -> State: HwAprobado"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "audit_hardware"
+    instruction_args = [variable.serial_number, true, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]]
+    accounts = [
+      { public_key = variable.netbook_pda.pda, writable = true, signer = false },
+      { public_key = variable.config_pda.pda, writable = false, signer = false },
+      { public_key = signer.auditor_hw.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.auditor_hw]
+}
+
+// Step 5: Validate Software (HwAprobado -> SwValidado = 2)
+action "step5_validate" "svm::process_instructions" {
+  description = "Step 5: Validate software -> State: SwValidado"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "validate_software"
+    instruction_args = [variable.serial_number, "Ubuntu 22.04", true]
+    accounts = [
+      { public_key = variable.netbook_pda.pda, writable = true, signer = false },
+      { public_key = variable.config_pda.pda, writable = false, signer = false },
+      { public_key = signer.tecnico_sw.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.tecnico_sw]
+}
+
+// Step 6: Assign to Student (SwValidado -> Distribuida = 3)
+action "step6_assign" "svm::process_instructions" {
+  description = "Step 6: Assign to student -> State: Distribuida"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "assign_to_student"
+    instruction_args = [variable.serial_number, [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1], [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2]]
+    accounts = [
+      { public_key = variable.netbook_pda.pda, writable = true, signer = false },
+      { public_key = variable.config_pda.pda, writable = false, signer = false },
+      { public_key = signer.escuela.public_key, writable = true, signer = true },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = [signer.escuela]
+}
+
+// Outputs
+output "lifecycle_signatures" {
+  value = {
+    initialize: action.step1_initialize.signatures[0],
+    grant_fabricante: action.step2_grant_fabricante.signatures[0],
+    register: action.step3_register.signatures[0],
+    audit: action.step4_audit.signatures[0],
+    validate: action.step5_validate.signatures[0],
+    assign: action.step6_assign.signatures[0]
+  }
+}
+
+output "state_transitions" {
+  value = {
+    step_1: "Config initialized",
+    step_2: "FABRICANTE role granted",
+    step_3: "Netbook registered -> Fabricada (0)",
+    step_4: "Hardware audited -> HwAprobado (1)",
+    step_5: "Software validated -> SwValidado (2)",
+    step_6: "Student assigned -> Distribuida (3)"
+  }
+}

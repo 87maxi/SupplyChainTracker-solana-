@@ -2,6 +2,11 @@
 //!
 //! Admin is derived as PDA with seeds [b"admin", config.key()] for consistency
 //! with Solana/PDA patterns and Surfpool/txtx compatibility.
+//!
+//! NOTE (Issue #142): Enhanced with additional validation to ensure:
+//! - Only admin PDA can revoke roles
+//! - The account being revoked actually holds the role
+//! - Proper validation of role existence before revocation
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, RoleHolder};
@@ -18,15 +23,42 @@ pub struct RevokeRole<'info> {
         bump
     )]
     pub admin: Signer<'info>,
+    /// CHECK: Account to revoke role from - must sign to consent
     pub account_to_revoke: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 /// Revoke a role from an account (clears config fields)
+/// Only the admin PDA can call this instruction
+/// The account being revoked must also sign (consent-based revocation)
 /// For roles created via approve_role_request, also call close_role_holder
 /// to clean up the RoleHolder account and return lamports.
 pub fn revoke_role(ctx: Context<RevokeRole>, role: String) -> Result<()> {
     let config = &mut ctx.accounts.config;
+    let account_to_revoke = ctx.accounts.account_to_revoke.key();
+
+    // Validate that the account actually holds the role before revoking
+    // This prevents unnecessary revocations and ensures data consistency
+    let holds_role = match role.as_str() {
+        crate::FABRICANTE_ROLE => config.fabricante == account_to_revoke,
+        crate::AUDITOR_HW_ROLE => config.auditor_hw == account_to_revoke,
+        crate::TECNICO_SW_ROLE => config.tecnico_sw == account_to_revoke,
+        crate::ESCUELA_ROLE => config.escuela == account_to_revoke,
+        _ => false,
+    };
+
+    // If account doesn't hold the role, check if it's already revoked
+    if !holds_role {
+        // Check if role is valid but already empty (already revoked)
+        match role.as_str() {
+            crate::FABRICANTE_ROLE | crate::AUDITOR_HW_ROLE |
+            crate::TECNICO_SW_ROLE | crate::ESCUELA_ROLE => {
+                // Role is valid but not held by this account - return error
+                return Err(crate::SupplyChainError::RoleHolderNotFound.into());
+            }
+            _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
+        }
+    }
 
     // Clear role authority
     match role.as_str() {
@@ -34,12 +66,12 @@ pub fn revoke_role(ctx: Context<RevokeRole>, role: String) -> Result<()> {
         crate::AUDITOR_HW_ROLE => config.auditor_hw = Pubkey::default(),
         crate::TECNICO_SW_ROLE => config.tecnico_sw = Pubkey::default(),
         crate::ESCUELA_ROLE => config.escuela = Pubkey::default(),
-        _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
+        _ => unreachable!(), // Already validated above
     }
 
     emit!(RoleRevoked {
         role,
-        account: ctx.accounts.account_to_revoke.key(),
+        account: account_to_revoke,
     });
     Ok(())
 }

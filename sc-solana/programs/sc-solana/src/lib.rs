@@ -2,7 +2,14 @@
 //!
 //! Migration from Ethereum (Solidity) to Solana (Anchor/Rust)
 //! Program ID: 7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN
-
+//!
+//! # Module Structure
+//!
+//! This program uses glob re-exports (`pub use module::*`) for state, events,
+//! instructions, and errors. This creates intentional ambiguity between modules
+//! (e.g., `state::netbook` vs `instructions::netbook`) which is required for
+//! Anchor's `#[program]` macro code generation. The ambiguity doesn't affect
+//! runtime behavior as consumers use qualified paths.
 #![allow(ambiguous_glob_reexports)]
 
 use anchor_lang::prelude::*;
@@ -22,7 +29,11 @@ pub mod instructions;
 pub mod errors;
 
 // ==================== Re-exports ====================
-
+// Note: Glob re-exports create ambiguity between modules (e.g., state::netbook vs instructions::netbook)
+// This is required for Anchor's #[program] macro to generate client accounts code correctly.
+// The ambiguity is between module paths (state::netbook vs instructions::netbook) which don't
+// conflict in practice since consumers use qualified paths. Removing this would require
+// restructuring the entire module hierarchy, breaking the Anchor codegen pattern.
 pub use state::*;
 pub use events::*;
 pub use instructions::*;
@@ -38,12 +49,12 @@ pub mod sc_solana {
         instructions::initialize::initialize(ctx)
     }
 
+    // NOTE (Issue #141): grant_role_no_signer removed - roles without recipient
+    // signature are no longer allowed. grant_role maintained for admin-initiated
+    // assignments with recipient consent (both admin PDA and recipient must sign).
+    // Preferred flow: request_role → approve_role_request
     pub fn grant_role(ctx: Context<GrantRole>, role: String) -> Result<()> {
         instructions::role::grant::grant_role(ctx, role)
-    }
-
-    pub fn grant_role_no_signer(ctx: Context<GrantRoleNoSigner>, role: String) -> Result<()> {
-        instructions::role::grant::grant_role_no_signer(ctx, role)
     }
 
     pub fn revoke_role(ctx: Context<RevokeRole>, role: String) -> Result<()> {

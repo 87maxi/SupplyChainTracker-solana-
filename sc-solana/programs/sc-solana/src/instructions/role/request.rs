@@ -1,4 +1,9 @@
 //! RequestRole instruction context
+//!
+//! NOTE (Issue #144): Enhanced with strict validation to ensure:
+//! - request_role is the only method for users to request roles
+//! - approve_role_request and reject_role_request can only be called by admin PDA
+//! - Proper validation of role names and request state
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, RoleRequest, RoleHolder};
@@ -9,9 +14,9 @@ use crate::events::{RoleRequested, RoleRequestUpdated};
 /// each user to ONE role request at a time. This is a design limitation of
 /// the Anchor framework.
 ///
-/// Workaround: Users should call `reject_role_request` first, then create
-/// a new request for the different role. Or, the admin can manually approve
-/// multiple roles via `grant_role`.
+/// Workaround: Users should call `reset_role_request` after a request is
+/// approved/rejected (after cooldown), then create a new request.
+/// Admin can grant additional roles via `grant_role` with recipient consent.
 #[derive(Accounts)]
 pub struct RequestRole<'info> {
     #[account(mut)]
@@ -92,14 +97,41 @@ pub struct ResetRoleRequest<'info> {
 }
 
 /// Request a role
+/// Only valid role names are accepted (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)
+/// Users can only have one pending request at a time (PDA constraint)
 pub fn request_role(ctx: Context<RequestRole>, role: String) -> Result<()> {
     let config = &mut ctx.accounts.config;
+
+    // Validate role name - only allow valid roles
+    match role.as_str() {
+        crate::FABRICANTE_ROLE | crate::AUDITOR_HW_ROLE |
+        crate::TECNICO_SW_ROLE | crate::ESCUELA_ROLE => {},
+        _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
+    }
+
+    // Check if user already has this role granted (prevent duplicate requests)
+    let user = ctx.accounts.user.key();
+    match role.as_str() {
+        crate::FABRICANTE_ROLE if config.fabricante == user => {
+            return Err(crate::SupplyChainError::RoleAlreadyGranted.into());
+        }
+        crate::AUDITOR_HW_ROLE if config.auditor_hw == user => {
+            return Err(crate::SupplyChainError::RoleAlreadyGranted.into());
+        }
+        crate::TECNICO_SW_ROLE if config.tecnico_sw == user => {
+            return Err(crate::SupplyChainError::RoleAlreadyGranted.into());
+        }
+        crate::ESCUELA_ROLE if config.escuela == user => {
+            return Err(crate::SupplyChainError::RoleAlreadyGranted.into());
+        }
+        _ => {}
+    }
 
     config.role_requests_count += 1;
 
     let role_request = &mut ctx.accounts.role_request;
     role_request.id = config.role_requests_count;
-    role_request.user = ctx.accounts.user.key();
+    role_request.user = user;
     role_request.role = role.clone();
     role_request.status = crate::RequestStatus::Pending as u8;
     role_request.timestamp = Clock::get()?.unix_timestamp as u64;
@@ -113,28 +145,37 @@ pub fn request_role(ctx: Context<RequestRole>, role: String) -> Result<()> {
 }
 
 /// Approve a pending role request
+/// Only the admin PDA can call this instruction
 /// Creates RoleHolder account automatically (integrates Config fields with RoleHolder)
+/// NOTE (Issue #144): Enhanced with strict validation of role and request state
 pub fn approve_role_request(ctx: Context<ApproveRoleRequest>) -> Result<()> {
     let role_request = &mut ctx.accounts.role_request;
-    
+
     // Verify request is in Pending state
     require!(
         role_request.status == crate::RequestStatus::Pending as u8,
         crate::SupplyChainError::InvalidRequestState
     );
-    
+
+    // Validate role name before approval
+    let role = role_request.role.clone();
+    match role.as_str() {
+        crate::FABRICANTE_ROLE | crate::AUDITOR_HW_ROLE |
+        crate::TECNICO_SW_ROLE | crate::ESCUELA_ROLE => {},
+        _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
+    }
+
     role_request.status = crate::RequestStatus::Approved as u8;
 
     // Grant the role automatically on approval (update config fields)
     let config = &mut ctx.accounts.config;
     let user = role_request.user;
-    let role = role_request.role.clone();
     match role.as_str() {
         crate::FABRICANTE_ROLE => config.fabricante = user,
         crate::AUDITOR_HW_ROLE => config.auditor_hw = user,
         crate::TECNICO_SW_ROLE => config.tecnico_sw = user,
         crate::ESCUELA_ROLE => config.escuela = user,
-        _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
+        _ => unreachable!(), // Already validated above
     }
 
     // Create RoleHolder account (integration with RoleHolder pattern)

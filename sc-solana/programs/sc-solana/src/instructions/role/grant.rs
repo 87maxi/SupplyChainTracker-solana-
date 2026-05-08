@@ -2,6 +2,12 @@
 //!
 //! Admin is derived as PDA with seeds [b"admin", config.key()] for consistency
 //! with Solana/PDA patterns and Surfpool/txtx compatibility.
+//!
+//! NOTE (Issue #141): `grant_role_no_signer` has been removed.
+//! Roles should ideally be granted through the request-approval flow:
+//! request_role → approve_role_request
+//! This function is maintained for admin-initiated role assignments
+//! where direct granting is necessary (e.g., initial setup, emergencies).
 
 use anchor_lang::prelude::*;
 use crate::state::SupplyChainConfig;
@@ -25,6 +31,8 @@ pub struct GrantRole<'info> {
 }
 
 /// Grant a role to an account
+/// Only the admin PDA can call this instruction
+/// The recipient must also sign (consent-based granting)
 pub fn grant_role(ctx: Context<GrantRole>, role: String) -> Result<()> {
     let config = &mut ctx.accounts.config;
     let admin = ctx.accounts.admin.key();
@@ -59,69 +67,6 @@ pub fn grant_role(ctx: Context<GrantRole>, role: String) -> Result<()> {
     emit!(RoleGranted {
         role,
         account: ctx.accounts.account_to_grant.key(),
-        admin,
-        timestamp,
-    });
-    Ok(())
-}
-
-/// Grant a role without requiring the recipient's signature
-/// Only admin can use this instruction (for emergencies, automated onboarding)
-/// Admin is derived as PDA with seeds [b"admin", config.key()]
-#[derive(Accounts)]
-pub struct GrantRoleNoSigner<'info> {
-    #[account(mut, has_one = admin)]
-    pub config: Account<'info, SupplyChainConfig>,
-    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
-    /// NOTE: Must be mut because admin lamports may change due to CPI fees
-    #[account(
-        mut,
-        seeds = [b"admin", config.key().as_ref()],
-        bump
-    )]
-    pub admin: Signer<'info>,
-    /// CHECK: Account to grant role to - does not need to sign
-    pub account_to_grant: UncheckedAccount<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-/// Grant a role without requiring the recipient's signature
-/// Only admin can use this instruction (for emergencies, automated onboarding)
-pub fn grant_role_no_signer(ctx: Context<GrantRoleNoSigner>, role: String) -> Result<()> {
-    let config = &mut ctx.accounts.config;
-    let admin = ctx.accounts.admin.key();
-    let account_to_grant = ctx.accounts.account_to_grant.key();
-
-    // Check if role already granted
-    match role.as_str() {
-        crate::FABRICANTE_ROLE if config.fabricante == account_to_grant => {
-            return Err(crate::SupplyChainError::RoleAlreadyGranted.into());
-        }
-        crate::AUDITOR_HW_ROLE if config.auditor_hw == account_to_grant => {
-            return Err(crate::SupplyChainError::RoleAlreadyGranted.into());
-        }
-        crate::TECNICO_SW_ROLE if config.tecnico_sw == account_to_grant => {
-            return Err(crate::SupplyChainError::RoleAlreadyGranted.into());
-        }
-        crate::ESCUELA_ROLE if config.escuela == account_to_grant => {
-            return Err(crate::SupplyChainError::RoleAlreadyGranted.into());
-        }
-        _ => {}
-    }
-
-    // Store role authority
-    match role.as_str() {
-        crate::FABRICANTE_ROLE => config.fabricante = account_to_grant,
-        crate::AUDITOR_HW_ROLE => config.auditor_hw = account_to_grant,
-        crate::TECNICO_SW_ROLE => config.tecnico_sw = account_to_grant,
-        crate::ESCUELA_ROLE => config.escuela = account_to_grant,
-        _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
-    }
-
-    let timestamp = Clock::get()?.unix_timestamp as u64;
-    emit!(RoleGranted {
-        role,
-        account: account_to_grant,
         admin,
         timestamp,
     });

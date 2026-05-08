@@ -34,6 +34,11 @@ variable "program_id" {
 }
 
 // Inputs
+variable "token_id" {
+  description = "Token ID of the netbook (must match registered token_id)"
+  value = env.NETBOOK_TOKEN_ID
+}
+
 variable "serial_number" {
   description = "Serial number of the netbook to audit"
   value = env.NETBOOK_SERIAL
@@ -58,7 +63,7 @@ variable "config_pda" {
 
 variable "netbook_pda" {
   description = "Netbook account PDA"
-  value = svm::find_pda(variable.program_id, ["netbook", variable.serial_number])
+  value = svm::find_pda(variable.program_id, ["netbook", "netbook", svm::u64(variable.token_id)])
 }
 
 // Audit action

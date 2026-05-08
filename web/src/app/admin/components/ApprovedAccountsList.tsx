@@ -79,16 +79,16 @@ export function ApprovedAccountsList() {
 
             if (summary) {
                 Object.entries(summary).forEach(([roleKey, data]: [string, any]) => {
-                if (data && data.members && Array.isArray(data.members)) {
-                    const roleLabel = availableRoles.find(r => r.value === roleKey)?.label || roleKey;
-                    data.members.forEach((address: string) => {
-                        allMembers.push({
-                            address,
-                            role: roleKey,
-                            roleLabel
+                    if (data && data.members && Array.isArray(data.members)) {
+                        const roleLabel = availableRoles.find(r => r.value === roleKey)?.label || roleKey;
+                        data.members.forEach((address: string) => {
+                            allMembers.push({
+                                address,
+                                role: roleKey,
+                                roleLabel
+                            });
                         });
-                    });
-                }
+                    }
                 });
 
                 setMembers(allMembers);
@@ -149,12 +149,12 @@ export function ApprovedAccountsList() {
 
         setProcessingAddress(address);
         try {
-            // 1. Get the role hash using our centralized mapper
-            const roleHash = await roleMapper.getRoleHash(role);
-            
-            // 2. Send transaction with the proper role hash
-            const hash = await revokeRole(roleHash, address);
-            console.log('[ApprovedAccountsList] Revoke TX submitted:', hash);
+            // Send transaction with the role string directly to the Anchor program
+            const signature = await revokeRole({
+                role: role,
+                account: address
+            });
+            console.log('[ApprovedAccountsList] Revoke TX submitted:', signature);
 
             toast({
                 title: "Transacción Enviada",

@@ -107,15 +107,15 @@ export default function ManagerDashboard() {
   const handleNetbookFilterChange = (filter: { key: string; value: string }) => {
     console.log('Netbook filter changed:', filter);
   };
-  
-  const { connected: isConnected, connectWallet } = useWeb3();
+
+  const { isConnected, connectWallet } = useWeb3();
   const { getAllSerialNumbers, getNetbookState, getNetbookReport, clearCaches } = useSupplyChainService();
   const { isHardwareAuditor, isSoftwareTechnician, isSchool, isAdmin } = useUserRoles();
-  
+
   // Event listener integration for real-time updates
   const { events, isConnected: isEventConnected } = useSolanaEventContext();
   const hasFetchedRef = useRef(false);
-  
+
   // Listen for blockchain events and refresh dashboard data
   useEffect(() => {
     if (!isConnected || events.length === 0) return;
@@ -124,7 +124,7 @@ export default function ManagerDashboard() {
       if (event.type === 'success' && event.signature) {
         // Invalidate caches and refresh data
         clearCaches();
-        
+
         // Refresh dashboard data with a delay
         // eslint-disable-next-line no-restricted-globals
         setTimeout(() => {
@@ -142,10 +142,10 @@ export default function ManagerDashboard() {
   // Utilizar datos de estadísticas desde MongoDB en lugar del conteo directo
   // Calcular estadísticas reales desde los datos de la blockchain
   const summary = {
-    FABRICADA: netbooksTable.filter(n => n.currentState === 'FABRICADA').length,
-    HW_APROBADO: netbooksTable.filter(n => n.currentState === 'HW_APROBADO').length,
-    SW_VALIDADO: netbooksTable.filter(n => n.currentState === 'SW_VALIDADO').length,
-    DISTRIBUIDA: netbooksTable.filter(n => n.currentState === 'DISTRIBUIDA').length
+    FABRICADA: netbooksTable.filter((n: any) => n.currentState === 'FABRICADA').length,
+    HW_APROBADO: netbooksTable.filter((n: any) => n.currentState === 'HW_APROBADO').length,
+    SW_VALIDADO: netbooksTable.filter((n: any) => n.currentState === 'SW_VALIDADO').length,
+    DISTRIBUIDA: netbooksTable.filter((n: any) => n.currentState === 'DISTRIBUIDA').length
   };
 
   // Utilizar usuarios y netbooks ya definidos anteriormente
@@ -212,7 +212,7 @@ export default function ManagerDashboard() {
         console.log('Assignment form state set to:', true);
         break;
     }
-  }, []);
+  }, [setSelectedSerial, setShowAuditForm, setShowValidationForm, setShowAssignmentForm]);
 
 
 

@@ -57,24 +57,20 @@ variable "serial_hashes_pda" {
   value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
 }
 
-// Token ID tracking - starts at 1 (config.next_token_id starts at 1, incremented after use)
-// For first registration: token_id = 1, PDA seed = [b"netbook", b"netbook", 1.to_le_bytes()[0..7]]
+// Token ID tracking - specifies the next incremental token_id used by Anchor configuration.
+// Starting from 1, this needs to be tracked per-netbook so subsequent operations can derive the PDA correctly.
+// By default, this runbook reads `NETBOOK_TOKEN_ID` from the environment.
 //
-// IMPORTANT: The Anchor program uses config.next_token_id which increments after each registration.
-// For multiple netbook registrations, you MUST update this value manually:
-//   - First netbook: token_id = 1
-//   - Second netbook: token_id = 2
-//   - Third netbook: token_id = 3
-//   - etc.
+// IMPORTANT: You MUST export `NETBOOK_TOKEN_ID` or edit your environment file for each new netbook.
+// E.g.: `export NETBOOK_TOKEN_ID=1` (for the first), `export NETBOOK_TOKEN_ID=2` (for the second).
 //
 // Reference: instructions/netbook/register.rs
 // seeds = [b"netbook", b"netbook", &config.next_token_id.to_le_bytes()[0..7]]
 //
-// Issue #129: Token ID is hardcoded because Surfpool/txtx does not support dynamic account queries.
-// TODO: Implement dynamic token_id tracking if Surfpool adds account query support.
+// NOTE: Until Surfpool supports dynamic account queries, this must be maintained manually.
 variable "token_id" {
-  description = "Current token ID from config (starts at 1, increments per netbook). UPDATE MANUALLY for each registration!"
-  value = 1
+  description = "Current token ID matching config.next_token_id (starts at 1, increments per netbook)"
+  value = env.NETBOOK_TOKEN_ID
 }
 
 variable "netbook_pda" {

@@ -36,7 +36,7 @@ export function WalletReadyGate({
     // After first render on client, mark as ready
     // This ensures WalletProvider has been mounted by SolanaWalletClientProvider
     hasMounted.current = true;
-    // eslint-disable-next-line react-hooks/sett
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
 
@@ -55,7 +55,7 @@ export function useWalletReady(): boolean {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/sett
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReady(true);
   }, []);
 

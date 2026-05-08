@@ -46,15 +46,17 @@ export const RoleManagementSection = () => {
 
     setLoading(true);
     try {
-      // Use roleMapper to convert role name to hash
-      const roleHash = await roleMapper.getRoleHash(selectedRole);
-      const result = await grantRole(selectedRole as RoleName, newMemberAddress);
+      // Use role string directly for Anchor instead of hash
+      const signature = await grantRole({
+        role: selectedRole,
+        account: newMemberAddress
+      });
 
-      if (result.success) {
+      if (signature) {
         toast({
           title: "Éxito",
           description: `Rol otorgado correctamente al usuario ${newMemberAddress}.`,
-          action: result.hash ? <ToastAction altText="Ver transacción" onClick={() => window.open(`https://explorer.solana.com/tx/${result.hash}${window.location.search.includes('cluster=devnet') ? '?cluster=devnet' : ''}`, '_blank')}>Ver TX</ToastAction> : undefined
+          action: <ToastAction altText="Ver transacción" onClick={() => window.open(`https://explorer.solana.com/tx/${signature}?cluster=custom&customUrl=http://localhost:8899`, '_blank')}>Ver TX</ToastAction>
         });
         setNewMemberAddress('');
         eventBus.emit(EVENTS.ROLE_UPDATED);

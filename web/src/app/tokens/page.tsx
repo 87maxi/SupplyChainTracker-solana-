@@ -13,7 +13,7 @@ import { Laptop, Plus, RefreshCw } from 'lucide-react';
 import { useSolanaEventContext } from '@/lib/solana/event-provider';
 
 export default function TokensPage() {
-  const { connected } = useWeb3();
+  const { isConnected: connected } = useWeb3();
   const router = useRouter();
   const {
     getAllSerialNumbers,
@@ -23,7 +23,7 @@ export default function TokensPage() {
   } = useSupplyChainService();
   const { events, isConnected: isEventConnected } = useSolanaEventContext();
   const hasFetchedRef = useRef(false);
-  
+
   const [netbooks, setNetbooks] = useState<Netbook[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,10 +45,10 @@ export default function TokensPage() {
 
   const fetchNetbooks = useCallback(async () => {
     if (!connected) return;
-    
+
     setLoading(true);
     setError('');
-    
+
     // Mapeo de número de estado a NetbookState
     const stateMap: Record<number, NetbookState> = {
       0: 'FABRICADA',
@@ -56,15 +56,15 @@ export default function TokensPage() {
       2: 'SW_VALIDADO',
       3: 'DISTRIBUIDA'
     };
-    
+
     try {
       const serials = await getAllSerialNumbers();
-      
+
       const netbooksData = await Promise.all(
         serials.map(async (serial: string) => {
           const state = await getNetbookState(serial);
           const report = await getNetbookReport(serial);
-          
+
           return {
             serialNumber: serial,
             batchId: report?.batchId || "N/A",
@@ -82,7 +82,7 @@ export default function TokensPage() {
           };
         })
       );
-      
+
       setNetbooks(netbooksData);
       setLastUpdated(new Date());
     } catch (err) {
@@ -110,7 +110,7 @@ export default function TokensPage() {
       if (event.type === 'success' && event.signature) {
         // Invalidate caches and refresh data when a successful transaction occurs
         clearCaches();
-        
+
         // Refresh the netbooks list with a delay to avoid cascading renders
         // eslint-disable-next-line no-restricted-globals
         setTimeout(() => {
@@ -145,12 +145,12 @@ export default function TokensPage() {
         <div className="absolute inset-0 bg-gradient-overlay opacity-30 pointer-events-none"></div>
         <div className="relative z-10">
           <h1 className="text-3xl font-bold mb-8">Gestión de Netbooks</h1>
-          
+
           <div className="flex justify-between items-center mb-6">
             <div className="h-4 w-32 bg-muted rounded animate-pulse"></div>
             <div className="h-10 w-40 bg-muted rounded animate-pulse"></div>
           </div>
-          
+
           <Card>
             <CardContent className="p-6">
               <div className="space-y-4">
@@ -175,7 +175,7 @@ export default function TokensPage() {
       <div className="absolute inset-0 bg-gradient-overlay opacity-30 pointer-events-none"></div>
       <div className="relative z-10">
         <h1 className="text-3xl font-bold mb-8">Gestión de Netbooks</h1>
-        
+
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
             <p className="text-muted-foreground">
@@ -206,11 +206,11 @@ export default function TokensPage() {
             </Button>
           </div>
         </div>
-        
+
         <Card>
           <CardContent>
             {error && <div className="text-red-500 p-4 rounded-md bg-red-50 mb-4">{error}</div>}
-            
+
             {netbooks.length > 0 ? (
               <Table>
                 <TableHeader>

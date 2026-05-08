@@ -7,5 +7,7 @@ export function useUserStats() {
     totalUsers: 0,
     activeUsers: 0,
     loading: false,
+    stats: { totalUsers: 0, activeUsers: 0 },
+    isLoading: false,
   };
 }

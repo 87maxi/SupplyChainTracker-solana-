@@ -237,7 +237,7 @@ export class SolanaSupplyChainService {
     return {
       serialNumber: data.serialNumber,
       batchId: data.batchId,
-      modelSpecs: data.modelSpecs,
+      modelSpecs: data.initialModelSpecs,
       state: data.state,
       tokenId: BigInt(data.tokenId.toString()),
     };

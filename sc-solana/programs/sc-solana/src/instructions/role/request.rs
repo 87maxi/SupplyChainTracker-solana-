@@ -41,13 +41,7 @@ pub struct RequestRole<'info> {
 pub struct ApproveRoleRequest<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
-    /// NOTE: Must be mut because admin is the payer for role_holder account
-    #[account(
-        mut,
-        seeds = [b"admin", config.key().as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub admin: Signer<'info>,
     #[account(mut)]
     pub role_request: Account<'info, RoleRequest>,
@@ -69,12 +63,7 @@ pub struct ApproveRoleRequest<'info> {
 pub struct RejectRoleRequest<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
-    #[account(
-        mut,
-        seeds = [b"admin", config.key().as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub admin: Signer<'info>,
     #[account(mut)]
     pub role_request: Account<'info, RoleRequest>,

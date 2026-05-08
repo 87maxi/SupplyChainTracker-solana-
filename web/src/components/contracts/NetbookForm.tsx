@@ -49,7 +49,7 @@ export function NetbookForm({
   onComplete
 }: NetbookFormProps) {
   const { toast } = useToast();
-  const { registerNetbook, loading } = useSupplyChainService();
+  const { registerNetbook } = useSupplyChainService();
   const refetchDashboardData = useCallback(() => Promise.resolve(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -77,15 +77,6 @@ export function NetbookForm({
 
   // Maneja el envío del formulario
   const onSubmit = async (data: NetbookFormValues) => {
-    if (loading) {
-      toast({
-        title: 'Error',
-        description: 'Servicio cargando. Verifica tu conexión.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     setSubmitStatus('idle');
 
@@ -99,7 +90,11 @@ export function NetbookForm({
 
       // Note: registerNetbook is used instead of registerNetbooksBatch from legacy Ethereum version
       for (const netbook of data.netbooks) {
-        await registerNetbook(netbook.serialNumber, netbook.batchId, netbook.initialModelSpecs);
+        await registerNetbook({
+          serialNumber: netbook.serialNumber,
+          batchId: netbook.batchId,
+          modelSpecs: netbook.initialModelSpecs
+        });
       }
 
       toast({
@@ -258,7 +253,7 @@ export function NetbookForm({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || loading}
+              disabled={isSubmitting}
               className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
             >
               {isSubmitting ? (

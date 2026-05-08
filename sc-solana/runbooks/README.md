@@ -184,13 +184,14 @@ All configuration is centralized in `config/config.env`:
 
 ## Templates
 
-The `_templates/` directory contains reusable patterns:
+The `_templates/` directory contains reusable code patterns (snippets) that illustrate the standardized configuration used across tracking modules:
 
-- [`common.tx`](_templates/common.tx) - Common patterns for all runbooks
-- [`pda-derivation.tx`](_templates/pda-derivation.tx) - PDA derivation patterns
-- [`env-vars.tx`](_templates/env-vars.tx) - Environment variable patterns
+- [`common.tx`](_templates/common.tx) - Common patterns for all runbooks, such as dynamic Program ID fetch.
+- [`pda-derivation.tx`](_templates/pda-derivation.tx) - PDA derivation patterns ensuring seed consistency with Anchor.
+- [`env-vars.tx`](_templates/env-vars.tx) - Environment variables and keypair patterns.
 
-Use these templates as reference when creating new runbooks.
+**How to Use Templates:**
+Because Txtx does not natively support `include` or `module` directives for partial syntax injection in these runbooks, these templates are designed to be **copied and pasted** at the top of new runbook files to ensure consistent variable names, signers, and PDA derivations across the project. Do not modify the variable names defined in these templates to maintain project-wide coherence.
 
 ## Best Practices
 

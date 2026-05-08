@@ -127,24 +127,18 @@ export function HardwareAuditForm({
         type: 'hardware_audit'
       };
 
-      const result = await auditHardware(serial, passed, reportHash, JSON.stringify(metadata));
+      const signature = await auditHardware({
+        serialNumber: serial,
+        passed: passed,
+        reportHash: hashArray
+      });
 
-      if (result.success) {
+      if (signature) {
         toast({
           title: "Registro completado",
-          description:
-            "El informe de auditoría se ha registrado en la blockchain",
+          description: "El informe de auditoría se ha registrado en la blockchain",
         });
-      } else {
-        throw new Error(result.error);
       }
-
-      // Reset form
-      if (!initialSerial) setSerial("");
-      setPassed(true);
-
-      onComplete();
-      onOpenChange(false);
     } catch (error: any) {
       console.error("Error registering on blockchain:", error);
       toast({

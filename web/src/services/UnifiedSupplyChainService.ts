@@ -32,7 +32,7 @@ export interface TransactionResult {
 export interface NetbookData {
   serialNumber: string;
   batchId: string;
-  modelSpecs: string;
+  initialModelSpecs: string;
   hwAuditor: PublicKey;
   hwIntegrityPassed: boolean;
   hwReportHash: number[];
@@ -54,9 +54,14 @@ export interface ConfigData {
   tecnicoSw: PublicKey;
   escuela: PublicKey;
   adminBump: number;
+  adminPdaBump: number;
   nextTokenId: BN;
   totalNetbooks: BN;
   roleRequestsCount: BN;
+  fabricanteCount: BN;
+  auditorHwCount: BN;
+  tecnicoSwCount: BN;
+  escuelaCount: BN;
 }
 
 export interface RoleRequestData {
@@ -64,6 +69,14 @@ export interface RoleRequestData {
   user: PublicKey;
   role: string;
   status: number;
+  timestamp: BN;
+}
+
+export interface RoleHolderData {
+  id: BN;
+  account: PublicKey;
+  role: string;
+  grantedBy: PublicKey;
   timestamp: BN;
 }
 
@@ -101,7 +114,7 @@ function getRoleRequestAccount(program: AnchorProgram) {
 
 export class UnifiedSupplyChainService {
   static instance: UnifiedSupplyChainService | null = null;
-  
+
   private program: AnchorProgram | null = null;
   private provider: AnchorProvider | null = null;
   private walletPubkey: PublicKey | null = null;
@@ -155,22 +168,22 @@ export class UnifiedSupplyChainService {
       const [configPda] = findConfigPda();
       const configAccount = await getConfigAccount(this.program).fetch(configPda);
       const totalNetbooks = (configAccount as any).totalNetbooks as BN;
-      
+
       const searchLimit = Math.min(Number(totalNetbooks), maxSearch);
-      
+
       for (let start = 1; start <= searchLimit; start += batchSize) {
         const end = Math.min(start + batchSize - 1, searchLimit);
         const batch = [];
-        
+
         for (let i = start; i <= end; i++) {
           const [netbookPda] = findNetbookPda(i);
           batch.push(
             getNetbookAccount(this.program).fetchNullable(netbookPda).catch(() => null)
           );
         }
-        
+
         const results = await Promise.all(batch);
-        
+
         for (const result of results) {
           if (
             result &&
@@ -183,7 +196,7 @@ export class UnifiedSupplyChainService {
           }
         }
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error finding netbook by serial:', error);
@@ -194,7 +207,7 @@ export class UnifiedSupplyChainService {
   async getNetbookPdaBySerial(serialNumber: string): Promise<PublicKey | null> {
     const netbookData = await this.findNetbookBySerial(serialNumber);
     if (!netbookData) return null;
-    
+
     const [netbookPda] = findNetbookPda(Number(netbookData.tokenId));
     return netbookPda;
   }
@@ -212,31 +225,31 @@ export class UnifiedSupplyChainService {
       const [configPda] = findConfigPda();
       const configAccount = await getConfigAccount(this.program).fetch(configPda);
       const totalNetbooks = (configAccount as any).totalNetbooks as BN;
-      
+
       const searchLimit = Math.min(Number(totalNetbooks), maxSearch);
       const serials: string[] = [];
-      
+
       const batchSize = 20;
       for (let start = 1; start <= searchLimit; start += batchSize) {
         const end = Math.min(start + batchSize - 1, searchLimit);
         const batch = [];
-        
+
         for (let i = start; i <= end; i++) {
           const [netbookPda] = findNetbookPda(i);
           batch.push(
             getNetbookAccount(this.program).fetchNullable(netbookPda).catch(() => null)
           );
         }
-        
+
         const results = await Promise.all(batch);
-        
+
         for (const result of results) {
           if (result && result.exists && result.serialNumber) {
             serials.push(result.serialNumber);
           }
         }
       }
-      
+
       CacheService.set(cacheKey, serials, { tags: [CACHE_TAGS.NETBOOKS_LIST] });
       return serials;
     } catch (error) {
@@ -268,14 +281,14 @@ export class UnifiedSupplyChainService {
     try {
       const allSerials = await this.getAllSerialNumbers(maxSearch);
       const result: string[] = [];
-      
+
       for (const serial of allSerials) {
         const netbook = await this.findNetbookBySerial(serial, maxSearch, 50);
         if (netbook && netbook.state === state) {
           result.push(serial);
         }
       }
-      
+
       CacheService.set(cacheKey, result, { tags: [CACHE_TAGS.NETBOOKS_LIST] });
       return result;
     } catch (error) {
@@ -292,11 +305,11 @@ export class UnifiedSupplyChainService {
     try {
       const netbook = await this.findNetbookBySerial(serial);
       if (!netbook) return null;
-      
+
       const report: NetbookReport = {
         serialNumber: netbook.serialNumber,
         batchId: netbook.batchId,
-        modelSpecs: netbook.modelSpecs,
+        modelSpecs: netbook.initialModelSpecs,
         hwAuditor: netbook.hwAuditor.toString(),
         hwIntegrityPassed: netbook.hwIntegrityPassed,
         hwReportHash: Buffer.from(netbook.hwReportHash).toString('hex'),
@@ -309,7 +322,7 @@ export class UnifiedSupplyChainService {
         currentState: netbook.state,
         tokenId: netbook.tokenId.toBigInt(),
       };
-      
+
       CacheService.set(cacheKey, report, { tags: [CACHE_TAGS.NETBOOK] });
       return report;
     } catch (error) {
@@ -337,16 +350,16 @@ export class UnifiedSupplyChainService {
     }
 
     const [configPda] = findConfigPda();
-    
+
     try {
       const configAccount = await getConfigAccount(this.program).fetch(configPda);
       const configData = configAccount as unknown as ConfigData;
-      
+
       CacheService.set(cacheKey, configData, { tags: [CACHE_TAGS.CONFIG] });
       return configData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       // Distinguir entre "account no existe" y "error de red"
       if (errorMessage.includes('does not exist') || errorMessage.includes('No accounts found')) {
         console.warn(
@@ -355,7 +368,7 @@ export class UnifiedSupplyChainService {
         );
         return null;
       }
-      
+
       // Error de red u otro problema
       console.error('[SupplyChain] Error querying config:', error);
       return null;
@@ -412,7 +425,7 @@ export class UnifiedSupplyChainService {
       if (!config) return false;
 
       const userPubkey = new PublicKey(address);
-      
+
       const roleMap: Record<string, PublicKey> = {
         'fabricante': config.fabricante,
         'auditor_hw': config.auditorHw,
@@ -446,10 +459,10 @@ export class UnifiedSupplyChainService {
 
       const count = Number(config.roleRequestsCount);
       const requests: RoleRequestData[] = [];
-      
+
       for (let i = 1; i <= count; i++) {
         const [roleRequestPda] = findRoleRequestPda(config.admin);
-        
+
         try {
           const request = await getRoleRequestAccount(this.program).fetch(roleRequestPda);
           requests.push(request as unknown as RoleRequestData);
@@ -457,7 +470,7 @@ export class UnifiedSupplyChainService {
           // Skip non-existent requests
         }
       }
-      
+
       CacheService.set(cacheKey, requests, { tags: [CACHE_TAGS.ROLE_REQUESTS] });
       return requests;
     } catch (error) {
@@ -481,9 +494,9 @@ export class UnifiedSupplyChainService {
       const [configPda] = findConfigPda();
       const configAccount = await getConfigAccount(this.program).fetch(configPda);
       const nextTokenId = (configAccount as any).nextTokenId as BN;
-      
+
       const [netbookPda] = findNetbookPda(nextTokenId.toNumber());
-      
+
       // Use as any to avoid type instantiation issues
       const programAny = this.program as any;
       const tx = await programAny.methods
@@ -495,10 +508,10 @@ export class UnifiedSupplyChainService {
           systemProgram: PublicKey.default,
         })
         .rpc();
-      
+
       // Invalidate caches
       CacheService.invalidateByTag(CACHE_TAGS.NETBOOK, CACHE_TAGS.NETBOOKS_LIST, CACHE_TAGS.CONFIG);
-      
+
       return { signature: tx, tokenId: nextTokenId.toBigInt() };
     } catch (error) {
       console.error('Error in registerNetbook:', error);
@@ -529,13 +542,13 @@ export class UnifiedSupplyChainService {
         .rpc();
 
       CacheService.invalidateByTag(CACHE_TAGS.NETBOOK, CACHE_TAGS.NETBOOKS_LIST, CACHE_TAGS.CONFIG);
-      
+
       return { success: true, signature: tx };
     } catch (error) {
       console.error('Error in registerNetbooksBatch:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -566,7 +579,7 @@ export class UnifiedSupplyChainService {
           auditor: this.walletPubkey,
         })
         .rpc();
-      
+
       return tx;
     } catch (error) {
       console.error('Error in auditHardware:', error);
@@ -600,7 +613,7 @@ export class UnifiedSupplyChainService {
           technician: this.walletPubkey,
         })
         .rpc();
-      
+
       return tx;
     } catch (error) {
       console.error('Error in validateSoftware:', error);
@@ -638,7 +651,7 @@ export class UnifiedSupplyChainService {
           school: this.walletPubkey,
         })
         .rpc();
-      
+
       return tx;
     } catch (error) {
       console.error('Error in assignToStudent:', error);
@@ -653,7 +666,7 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
-      
+
       const programAny = this.program as any;
       const tx = await programAny.methods
         .grantRole(role)
@@ -664,9 +677,9 @@ export class UnifiedSupplyChainService {
           systemProgram: PublicKey.default,
         })
         .rpc();
-      
+
       CacheService.invalidateByTag(CACHE_TAGS.ROLE, CACHE_TAGS.CONFIG);
-      
+
       return tx;
     } catch (error) {
       console.error('Error in grantRole:', error);
@@ -682,7 +695,7 @@ export class UnifiedSupplyChainService {
     try {
       const [configPda] = findConfigPda();
       const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
-      
+
       const programAny = this.program as any;
       const tx = await programAny.methods
         .requestRole(role)
@@ -693,9 +706,9 @@ export class UnifiedSupplyChainService {
           systemProgram: PublicKey.default,
         })
         .rpc();
-      
+
       CacheService.invalidateByTag(CACHE_TAGS.ROLE_REQUESTS);
-      
+
       return tx;
     } catch (error) {
       console.error('Error in requestRole:', error);
@@ -711,7 +724,7 @@ export class UnifiedSupplyChainService {
     try {
       const [configPda] = findConfigPda();
       const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
-      
+
       const programAny = this.program as any;
       const tx = await programAny.methods
         .approveRoleRequest()
@@ -721,9 +734,9 @@ export class UnifiedSupplyChainService {
           roleRequest: roleRequestPda,
         })
         .rpc();
-      
+
       CacheService.invalidateByTag(CACHE_TAGS.ROLE_REQUESTS, CACHE_TAGS.ROLE);
-      
+
       return tx;
     } catch (error) {
       console.error('Error in approveRoleRequest:', error);
@@ -739,7 +752,7 @@ export class UnifiedSupplyChainService {
     try {
       const [configPda] = findConfigPda();
       const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
-      
+
       const programAny = this.program as any;
       const tx = await programAny.methods
         .rejectRoleRequest()
@@ -749,9 +762,9 @@ export class UnifiedSupplyChainService {
           roleRequest: roleRequestPda,
         })
         .rpc();
-      
+
       CacheService.invalidateByTag(CACHE_TAGS.ROLE_REQUESTS);
-      
+
       return tx;
     } catch (error) {
       console.error('Error in rejectRoleRequest:', error);
@@ -766,7 +779,7 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
-      
+
       const programAny = this.program as any;
       const tx = await programAny.methods
         .revokeRole(role)
@@ -777,9 +790,9 @@ export class UnifiedSupplyChainService {
           systemProgram: PublicKey.default,
         })
         .rpc();
-      
+
       CacheService.invalidateByTag(CACHE_TAGS.ROLE, CACHE_TAGS.CONFIG);
-      
+
       return tx;
     } catch (error) {
       console.error('Error in revokeRole:', error);
@@ -794,7 +807,7 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
-      
+
       const programAny = this.program as any;
       const tx = await programAny.methods
         .addRoleHolder(role, holder)
@@ -804,9 +817,9 @@ export class UnifiedSupplyChainService {
           systemProgram: PublicKey.default,
         })
         .rpc();
-      
+
       CacheService.invalidateByTag(CACHE_TAGS.ROLE);
-      
+
       return tx;
     } catch (error) {
       console.error('Error in addRoleHolder:', error);
@@ -821,7 +834,7 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
-      
+
       const programAny = this.program as any;
       const tx = await programAny.methods
         .removeRoleHolder(role, holder)
@@ -831,9 +844,9 @@ export class UnifiedSupplyChainService {
           systemProgram: PublicKey.default,
         })
         .rpc();
-      
+
       CacheService.invalidateByTag(CACHE_TAGS.ROLE);
-      
+
       return tx;
     } catch (error) {
       console.error('Error in removeRoleHolder:', error);
@@ -850,7 +863,7 @@ export class UnifiedSupplyChainService {
     if (!netbookPda) {
       throw new Error(`Netbook with serial ${serialNumber} not found`);
     }
-    
+
     try {
       const programAny = this.program as any;
       const tx = await programAny.methods
@@ -859,7 +872,7 @@ export class UnifiedSupplyChainService {
           netbook: netbookPda,
         })
         .simulate();
-      
+
       return tx;
     } catch (error) {
       console.error('Error in queryNetbookState:', error);

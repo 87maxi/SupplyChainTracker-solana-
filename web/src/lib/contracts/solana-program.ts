@@ -109,7 +109,7 @@ export const findConfigPda = (): [PublicKey, number] => {
 export const findNetbookPda = (tokenId: number | bigint): [PublicKey, number] => {
   const tokenIdBuffer = Buffer.alloc(8);
   tokenIdBuffer.writeBigUInt64LE(BigInt(tokenId), 0);
-  
+
   return PublicKey.findProgramAddressSync(
     [Buffer.from('netbook'), tokenIdBuffer],
     PROGRAM_ID
@@ -129,6 +129,16 @@ export const findRoleRequestPda = (userPubkey: PublicKey): [PublicKey, number] =
   );
 };
 
+/**
+ * Find PDA for role holder
+ */
+export const findRoleHolderPda = (userPubkey: PublicKey): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('role_holder'), userPubkey.toBuffer()],
+    PROGRAM_ID
+  );
+};
+
 // Transaction builders using the actual Anchor IDL
 export const buildRegisterNetbookTx = async (
   program: Program<SupplyChainIDL>,
@@ -139,7 +149,7 @@ export const buildRegisterNetbookTx = async (
 ): Promise<Transaction> => {
   const [configPda] = findConfigPda();
   const [netbookPda] = findNetbookPda(0); // Will be updated with actual token_id after registration
-  
+
   const tx = await program.methods
     .registerNetbook(serialNumber, batchId, modelSpecs)
     .accounts({
@@ -148,7 +158,7 @@ export const buildRegisterNetbookTx = async (
       systemProgram: SystemProgram.programId,
     })
     .transaction();
-  
+
   return tx;
 };
 
@@ -162,7 +172,7 @@ export const buildAuditHardwareTx = async (
 ): Promise<Transaction> => {
   const [configPda] = findConfigPda();
   const [netbookPda] = findNetbookPda(tokenId);
-  
+
   const tx = await program.methods
     .auditHardware(serial, passed, reportHash as [number, 32])
     .accounts({
@@ -171,7 +181,7 @@ export const buildAuditHardwareTx = async (
       netbook: netbookPda,
     })
     .transaction();
-  
+
   return tx;
 };
 
@@ -185,7 +195,7 @@ export const buildValidateSoftwareTx = async (
 ): Promise<Transaction> => {
   const [configPda] = findConfigPda();
   const [netbookPda] = findNetbookPda(tokenId);
-  
+
   const tx = await program.methods
     .validateSoftware(serial, osVersion, passed)
     .accounts({
@@ -194,7 +204,7 @@ export const buildValidateSoftwareTx = async (
       technician: signer,
     })
     .transaction();
-  
+
   return tx;
 };
 
@@ -208,7 +218,7 @@ export const buildAssignToStudentTx = async (
 ): Promise<Transaction> => {
   const [configPda] = findConfigPda();
   const [netbookPda] = findNetbookPda(tokenId);
-  
+
   const tx = await program.methods
     .assignToStudent(serial, schoolHash as [number, 32], studentHash as [number, 32])
     .accounts({
@@ -217,7 +227,7 @@ export const buildAssignToStudentTx = async (
       school: signer,
     })
     .transaction();
-  
+
   return tx;
 };
 
@@ -228,7 +238,7 @@ export const buildGrantRoleTx = async (
   signer: PublicKey
 ): Promise<Transaction> => {
   const [configPda] = findConfigPda();
-  
+
   const tx = await program.methods
     .grantRole(role)
     .accounts({
@@ -238,7 +248,7 @@ export const buildGrantRoleTx = async (
       systemProgram: SystemProgram.programId,
     })
     .transaction();
-  
+
   return tx;
 };
 
@@ -249,7 +259,7 @@ export const buildRevokeRoleTx = async (
   signer: PublicKey
 ): Promise<Transaction> => {
   const [configPda] = findConfigPda();
-  
+
   const tx = await program.methods
     .revokeRole(role)
     .accounts({
@@ -258,7 +268,7 @@ export const buildRevokeRoleTx = async (
       accountToRevoke: targetAccount,
     })
     .transaction();
-  
+
   return tx;
 };
 
@@ -269,7 +279,7 @@ export const buildRequestRoleTx = async (
 ): Promise<Transaction> => {
   const [configPda] = findConfigPda();
   const [roleRequestPda] = findRoleRequestPda(signer);
-  
+
   const tx = await program.methods
     .requestRole(role)
     .accounts({
@@ -279,36 +289,41 @@ export const buildRequestRoleTx = async (
       systemProgram: SystemProgram.programId,
     })
     .transaction();
-  
+
   return tx;
 };
 
 export const buildApproveRoleRequestTx = async (
   program: Program<SupplyChainIDL>,
+  targetAccount: PublicKey,
   signer: PublicKey
 ): Promise<Transaction> => {
   const [configPda] = findConfigPda();
-  const [roleRequestPda] = findRoleRequestPda(signer);
-  
+  const [roleRequestPda] = findRoleRequestPda(targetAccount);
+  const [roleHolderPda] = findRoleHolderPda(targetAccount);
+
   const tx = await program.methods
     .approveRoleRequest()
     .accounts({
       config: configPda,
       admin: signer,
       roleRequest: roleRequestPda,
+      roleHolder: roleHolderPda,
+      systemProgram: SystemProgram.programId,
     })
     .transaction();
-  
+
   return tx;
 };
 
 export const buildRejectRoleRequestTx = async (
   program: Program<SupplyChainIDL>,
+  targetAccount: PublicKey,
   signer: PublicKey
 ): Promise<Transaction> => {
   const [configPda] = findConfigPda();
-  const [roleRequestPda] = findRoleRequestPda(signer);
-  
+  const [roleRequestPda] = findRoleRequestPda(targetAccount);
+
   const tx = await program.methods
     .rejectRoleRequest()
     .accounts({
@@ -317,6 +332,6 @@ export const buildRejectRoleRequestTx = async (
       roleRequest: roleRequestPda,
     })
     .transaction();
-  
+
   return tx;
 };

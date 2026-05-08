@@ -41,7 +41,7 @@ export interface AssignToStudentParams {
 export interface NetbookData {
   serialNumber: string;
   batchId: string;
-  modelSpecs: string;
+  initialModelSpecs: string;
   hwAuditor: PublicKey;
   hwIntegrityPassed: boolean;
   hwReportHash: number[];
@@ -95,7 +95,7 @@ export function useSupplyChainService() {
   // Auto-inicializar cuando se conecta la wallet
   useEffect(() => {
     let mounted = true;
-    
+
     const init = async () => {
       if (wallet && publicKey) {
         await initialize();
@@ -103,9 +103,9 @@ export function useSupplyChainService() {
         setInitialized(false);
       }
     };
-    
+
     init();
-    
+
     return () => {
       mounted = false;
     };
@@ -269,11 +269,7 @@ export function useSupplyChainService() {
     batchId: string;
     modelSpecs: string;
   }): Promise<{ signature: string; tokenId: bigint }> => {
-    try {
-      return await service.registerNetbook(params.serialNumber, params.batchId, params.modelSpecs);
-    } catch (err) {
-      throw err;
-    }
+    return service.registerNetbook(params.serialNumber, params.batchId, params.modelSpecs);
   }, [service]);
 
   /**
@@ -302,11 +298,7 @@ export function useSupplyChainService() {
     passed: boolean;
     reportHash: number[];
   }): Promise<string> => {
-    try {
-      return await service.auditHardware(params.serialNumber, params.passed, params.reportHash);
-    } catch (err) {
-      throw err;
-    }
+    return service.auditHardware(params.serialNumber, params.passed, params.reportHash);
   }, [service]);
 
   /**
@@ -317,11 +309,7 @@ export function useSupplyChainService() {
     osVersion: string;
     passed: boolean;
   }): Promise<string> => {
-    try {
-      return await service.validateSoftware(params.serialNumber, params.osVersion, params.passed);
-    } catch (err) {
-      throw err;
-    }
+    return service.validateSoftware(params.serialNumber, params.osVersion, params.passed);
   }, [service]);
 
   /**
@@ -332,11 +320,7 @@ export function useSupplyChainService() {
     schoolHash: number[];
     studentHash: number[];
   }): Promise<string> => {
-    try {
-      return await service.assignToStudent(params.serialNumber, params.schoolHash, params.studentHash);
-    } catch (err) {
-      throw err;
-    }
+    return service.assignToStudent(params.serialNumber, params.schoolHash, params.studentHash);
   }, [service]);
 
   /**
@@ -346,11 +330,7 @@ export function useSupplyChainService() {
     role: string;
     account: string;
   }): Promise<string> => {
-    try {
-      return await service.grantRole(params.role, new PublicKey(params.account));
-    } catch (err) {
-      throw err;
-    }
+    return service.grantRole(params.role, new PublicKey(params.account));
   }, [service]);
 
   /**
@@ -360,11 +340,7 @@ export function useSupplyChainService() {
     role: string;
     account: string;
   }): Promise<string> => {
-    try {
-      return await service.revokeRole(params.role, new PublicKey(params.account));
-    } catch (err) {
-      throw err;
-    }
+    return service.revokeRole(params.role, new PublicKey(params.account));
   }, [service]);
 
   /**
@@ -373,11 +349,7 @@ export function useSupplyChainService() {
   const requestRole = useCallback(async (params: {
     role: string;
   }): Promise<string> => {
-    try {
-      return await service.requestRole(params.role);
-    } catch (err) {
-      throw err;
-    }
+    return service.requestRole(params.role);
   }, [service]);
 
   /**
@@ -386,11 +358,7 @@ export function useSupplyChainService() {
   const approveRoleRequest = useCallback(async (params: {
     role: string;
   }): Promise<string> => {
-    try {
-      return await service.approveRoleRequest(params.role);
-    } catch (err) {
-      throw err;
-    }
+    return service.approveRoleRequest(params.role);
   }, [service]);
 
   /**
@@ -399,11 +367,7 @@ export function useSupplyChainService() {
   const rejectRoleRequest = useCallback(async (params: {
     role: string;
   }): Promise<string> => {
-    try {
-      return await service.rejectRoleRequest(params.role);
-    } catch (err) {
-      throw err;
-    }
+    return service.rejectRoleRequest(params.role);
   }, [service]);
 
   /**
@@ -413,11 +377,7 @@ export function useSupplyChainService() {
     role: string;
     holder: string;
   }): Promise<string> => {
-    try {
-      return await service.addRoleHolder(params.role, new PublicKey(params.holder));
-    } catch (err) {
-      throw err;
-    }
+    return service.addRoleHolder(params.role, new PublicKey(params.holder));
   }, [service]);
 
   /**
@@ -427,11 +387,7 @@ export function useSupplyChainService() {
     role: string;
     holder: string;
   }): Promise<string> => {
-    try {
-      return await service.removeRoleHolder(params.role, new PublicKey(params.holder));
-    } catch (err) {
-      throw err;
-    }
+    return service.removeRoleHolder(params.role, new PublicKey(params.holder));
   }, [service]);
 
   // ==================== Cache Management ====================
@@ -487,6 +443,18 @@ export function useSupplyChainService() {
     rejectRoleRequest,
     addRoleHolder,
     removeRoleHolder,
+
+    // Legacy mappings
+    getNetbook: findNetbookBySerial,
+    getAllRolesSummary: async () => {
+      const summary: Record<string, { members: string[]; count: number }> = {};
+      const roles = ['ADMIN_ROLE', 'FABRICANTE_ROLE', 'AUDITOR_HW_ROLE', 'TECNICO_SW_ROLE', 'ESCUELA_ROLE'];
+      for (const r of roles) {
+        const members = await service.getAllMembers(r);
+        summary[r] = { members, count: members.length };
+      }
+      return summary;
+    },
 
     // Cache Management
     clearCaches,

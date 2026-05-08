@@ -73,6 +73,11 @@ variable "role_request_pda" {
   value = svm::find_pda(variable.program_id, ["role_request", variable.requester_address])
 }
 
+variable "role_holder_pda" {
+  description = "Role holder PDA (seed: role_holder + requester_address)"
+  value = svm::find_pda(variable.program_id, ["role_holder", variable.requester_address])
+}
+
 // ============================================================================
 // Approve Action
 // ============================================================================
@@ -106,7 +111,7 @@ action "approve" "svm::process_instructions" {
         signer = false
       },
       {
-        public_key = variable.requester_address
+        public_key = variable.role_holder_pda.pda
         writable = true
         signer = false
       },

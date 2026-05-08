@@ -7,6 +7,7 @@ export default {
   },
   testPathIgnorePatterns: ['/node_modules/', '/.next/'],
   transform: {
+    // eslint-disable-next-line no-useless-escape
     '^.+\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   collectCoverageFrom: [

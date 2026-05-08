@@ -28,7 +28,7 @@ type FormInputs = z.infer<typeof formSchema>;
 
 export default function CreateTokensPage() {
   const { address, isConnected, connectWallet, publicKey } = useSolanaWeb3();
-  const { registerNetbook, registerNetbooks } = useSupplyChainService();
+  const { registerNetbook } = useSupplyChainService();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -53,7 +53,7 @@ export default function CreateTokensPage() {
         try {
           // Check if user has FABRICANTE role using unified service
           const service = UnifiedSupplyChainService.getInstance();
-          const hasManufacturerRole = await service.hasRole('FABRICANTE_ROLE', publicKey);
+          const hasManufacturerRole = await service.hasRole('FABRICANTE_ROLE', publicKey.toString());
           setIsManufacturer(hasManufacturerRole);
         } catch (error) {
           console.error("Error checking manufacturer role:", error);
@@ -101,26 +101,26 @@ export default function CreateTokensPage() {
         return;
       }
 
-      // Use Solana service registerNetbook for single or batch registration
-      let result;
-      if (serialArray.length === 1) {
-        result = await registerNetbook(serialArray[0], batchArray[0], modelArray[0]);
-      } else {
-        // For batch, use registerNetbooks with empty metadata array
-        const emptyMetadata = serialArray.map(() => '');
-        result = await registerNetbooks(serialArray, batchArray, modelArray, emptyMetadata);
+      let allSuccess = true;
+      for (let i = 0; i < serialArray.length; i++) {
+        const signature = await registerNetbook({
+          serialNumber: serialArray[i],
+          batchId: batchArray[i],
+          modelSpecs: modelArray[i]
+        });
+        if (!signature) {
+          allSuccess = false;
+        }
       }
 
-      if (result.success) {
+      if (allSuccess) {
         toast({
           title: "Registro Exitoso",
           description: `Se registraron ${serialArray.length} netbooks.`,
         });
-      } else {
-        throw new Error(result.error || 'Unknown error');
+        reset(); // Limpiar formulario
+        router.push('/tokens'); // Redirigir a la lista de tokens
       }
-      reset(); // Limpiar formulario
-      router.push('/tokens'); // Redirigir a la lista de tokens
     } catch (error: any) {
       console.error('Error registering netbooks:', error);
       toast({

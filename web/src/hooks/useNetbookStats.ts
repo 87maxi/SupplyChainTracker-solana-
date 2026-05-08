@@ -7,5 +7,7 @@ export function useNetbookStats() {
     totalNetbooks: 0,
     netbooksByState: {},
     loading: false,
+    stats: { totalNetbooks: 0, netbooksByState: {} },
+    isLoading: false,
   };
 }

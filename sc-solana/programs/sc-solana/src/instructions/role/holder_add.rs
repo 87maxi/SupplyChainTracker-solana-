@@ -13,13 +13,7 @@ use crate::events::RoleHolderAdded;
 pub struct AddRoleHolder<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
-    /// NOTE: Must be mut because admin is the payer for role_holder account
-    #[account(
-        mut,
-        seeds = [b"admin", config.key().as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
         init,

@@ -1,0 +1,76 @@
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Reset a role request
+// Usage: surfpool run reset-role-request --env localnet --browser -f
+//
+// Prerequisites:
+//   - Config must be initialized
+//   - Role request must exist and not be in Pending state
+//   - Cooldown period must have elapsed
+//
+// Accounts:
+//   - config
+//   - role_request PDA
+//   - user (signer)
+
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+signer "user" "svm::web_wallet" {
+  description = "User account requesting the reset"
+  keypair_path = env.REQUESTER_KEYPAIR
+}
+
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "role_request_pda" {
+  description = "Role request PDA (derived from user address)"
+  value = svm::find_pda(variable.program_id, ["role_request", signer.user.public_key])
+}
+
+action "reset" "svm::process_instructions" {
+  description = "Reset the role request"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "reset_role_request"
+    instruction_args = []
+    
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.role_request_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.user.public_key
+        writable = true
+        signer = true
+      }
+    ]
+  }
+  signers = [signer.user]
+}
+
+output "reset_signature" {
+  description = "Transaction signature"
+  value = action.reset.signatures | first()
+}

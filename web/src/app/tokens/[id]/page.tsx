@@ -19,10 +19,10 @@ interface TokenDetailsProps {
 export default function TokenDetailsPage({ params }: TokenDetailsProps) {
   const router = useRouter();
   const { id } = params;
-  const { connected } = useWeb3();
+  const { isConnected: connected } = useWeb3();
   const { getNetbookReport, clearCaches } = useSupplyChainService();
   const { events, isConnected: isEventConnected } = useSolanaEventContext();
-  
+
   const [netbook, setNetbook] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,10 +31,10 @@ export default function TokenDetailsPage({ params }: TokenDetailsProps) {
 
   const fetchNetbook = useCallback(async () => {
     if (!connected) return;
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       const report = await getNetbookReport(id);
       setNetbook(report);
@@ -64,7 +64,7 @@ export default function TokenDetailsPage({ params }: TokenDetailsProps) {
       if (event.type === 'success' && event.signature) {
         // Invalidate caches and refresh data when a successful transaction occurs
         clearCaches();
-        
+
         // Refresh the netbook data with a delay to avoid cascading renders
         // eslint-disable-next-line no-restricted-globals
         setTimeout(() => {

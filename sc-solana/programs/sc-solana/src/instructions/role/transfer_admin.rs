@@ -15,13 +15,7 @@ use crate::SupplyChainError;
 pub struct TransferAdmin<'info> {
     #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
-    /// Current Admin PDA - derived from config key using seeds [b"admin", config.key()]
-    /// Must be mut because config.admin will be updated
-    #[account(
-        mut,
-        seeds = [b"admin", config.key().as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub current_admin: Signer<'info>,
     /// New admin - external account that must sign to accept the transfer
     pub new_admin: Signer<'info>,

@@ -42,7 +42,7 @@ variable "program" {
 
 variable "program_id" {
   description = "Deployed program ID"
-  value = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+  value = variable.program.program_id
 }
 
 // Get Config PDA - svm::find_pda(program_id, seeds) returns {pda, bump_seed}

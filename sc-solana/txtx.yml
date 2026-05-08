@@ -71,11 +71,19 @@ runbooks:
   # ============================================================================
   - name: request-role
     description: Request a role
-    location: runbooks/02-operations/netbook/request-role.tx
+    location: runbooks/03-role-management/request-role.tx
 
   - name: revoke-role
     description: Revoke a role
-    location: runbooks/02-operations/netbook/revoke-role.tx
+    location: runbooks/03-role-management/revoke-role.tx
+
+  - name: reset-role-request
+    description: Reset a role request
+    location: runbooks/03-role-management/reset-role-request.tx
+
+  - name: close-role-holder
+    description: Close a role holder account
+    location: runbooks/03-role-management/close-role-holder.tx
 
   - name: approve-role-request
     description: Admin approves a pending role request

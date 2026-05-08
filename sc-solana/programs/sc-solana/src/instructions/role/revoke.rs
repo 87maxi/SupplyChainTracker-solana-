@@ -17,11 +17,7 @@ use crate::events::RoleRevoked;
 pub struct RevokeRole<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
-    #[account(
-        seeds = [b"admin", config.key().as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub admin: Signer<'info>,
     /// CHECK: Account to revoke role from - must sign to consent
     pub account_to_revoke: Signer<'info>,
@@ -84,11 +80,7 @@ pub fn revoke_role(ctx: Context<RevokeRole>, role: String) -> Result<()> {
 pub struct CloseRoleHolder<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
-    #[account(
-        seeds = [b"admin", config.key().as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub admin: Signer<'info>,
     /// RoleHolder account to close - returns lamports to admin
     /// Seeds derived from the stored account field (same pattern as holder_remove)

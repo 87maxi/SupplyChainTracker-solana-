@@ -22,17 +22,16 @@ signer "initializer" "svm::web_wallet" {
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
-// Program ID - Fixed for localnet (matches deployed program)
-// IMPORTANT: This is the actual program ID deployed on localnet test validator
-variable "program_id" {
-  description = "Program ID deployed on localnet"
-  value = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
-}
-
 // Get program artifacts from Anchor project (IDL for instruction encoding)
 variable "program" {
   description = "Program artifacts (IDL, binary, keypair, program_id)"
   value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+// Program ID dynamically fetched from anchor project
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
 }
 
 // Derive PDAs - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
@@ -124,10 +123,5 @@ output "config_pda" {
 
 output "serial_hashes_pda" {
   description = "Serial Hashes Registry PDA address"
-  value = variable.serial_hashes_pda.pda
-}
-
-output "serial_hashes_pda" {
-  description = "Serial hashes PDA address"
   value = variable.serial_hashes_pda.pda
 }

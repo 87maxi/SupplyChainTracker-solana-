@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 
 // Polyfill para Node.js environment
 if (typeof global.TextEncoder === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { TextEncoder, TextDecoder } = require('util');
   global.TextEncoder = TextEncoder;
   global.TextDecoder = TextDecoder;
@@ -94,6 +95,7 @@ jest.mock('@coral-xyz/anchor', () => ({
         fetch: jest.fn().mockResolvedValue({ roleHolders: [] }),
       },
     },
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     programId: new (require('@solana/web3.js').PublicKey)('CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS'),
   })),
   AnchorProvider: jest.fn().mockImplementation(() => ({})),

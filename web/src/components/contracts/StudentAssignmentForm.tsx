@@ -45,7 +45,7 @@ export function StudentAssignmentForm({
   initialSerial
 }: StudentAssignmentFormProps) {
   const { toast } = useToast();
-  const { assignToStudent, loading } = useSupplyChainService();
+  const { assignToStudent } = useSupplyChainService();
   const refetchDashboardData = useCallback(() => Promise.resolve(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -66,47 +66,37 @@ export function StudentAssignmentForm({
 
   // Maneja el envío del formulario
   const onSubmit = async (data: AssignmentFormValues) => {
-    if (loading) {
-      toast({
-        title: 'Error',
-        description: 'Servicio cargando. Verifica tu conexión.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     setSubmitStatus('idle');
-    
+
     try {
       // Fix: assignToStudent expects (serial, schoolHash, studentHash, _metadata?) not object
-      await assignToStudent(
-        data.serialNumber,
-        data.schoolHash,
-        data.studentHash,
-        data.notes
-      );
-      
+      await assignToStudent({
+        serialNumber: data.serialNumber,
+        schoolHash: Array.from(Buffer.from(data.schoolHash.replace('0x', ''), 'hex')),
+        studentHash: Array.from(Buffer.from(data.studentHash.replace('0x', ''), 'hex'))
+      });
+
       toast({
         title: 'Éxito',
         description: 'Netbook asignada al estudiante correctamente',
         variant: 'default',
       });
-      
+
       setSubmitStatus('success');
       await refetchDashboardData();
-      
+
       if (onComplete) {
         onComplete();
       }
-      
+
       reset({
         serialNumber: initialSerial || '',
         schoolHash: '',
         studentHash: '',
         notes: ''
       });
-      
+
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -118,7 +108,7 @@ export function StudentAssignmentForm({
       setIsSubmitting(false);
     }
   };
-  
+
   // Resetea el formulario cuando se cierra el diálogo
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -215,19 +205,19 @@ export function StudentAssignmentForm({
               )}
             </div>
           </div>
-          
+
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              disabled={!isValid || isSubmitting || loading}
+            <Button
+              type="submit"
+              disabled={!isValid || isSubmitting}
               className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600"
             >
               {isSubmitting ? (

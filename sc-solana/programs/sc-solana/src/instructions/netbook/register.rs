@@ -22,7 +22,7 @@ pub struct RegisterNetbook<'info> {
         init,
         payer = manufacturer,
         space = Netbook::INIT_SPACE,
-        seeds = [b"netbook", b"netbook", &config.next_token_id.to_le_bytes()[0..7]],
+        seeds = [b"netbook", config.next_token_id.to_le_bytes().as_ref()],
         bump
     )]
     pub netbook: Account<'info, Netbook>,

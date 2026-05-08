@@ -45,7 +45,7 @@ export function SoftwareValidationForm({
   initialSerial
 }: SoftwareValidationFormProps) {
   const { toast } = useToast();
-  const { validateSoftware, loading } = useSupplyChainService();
+  const { validateSoftware } = useSupplyChainService();
   const refetchDashboardData = useCallback(() => Promise.resolve(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -66,47 +66,37 @@ export function SoftwareValidationForm({
 
   // Maneja el envío del formulario
   const onSubmit = async (data: ValidationFormValues) => {
-    if (loading) {
-      toast({
-        title: 'Error',
-        description: 'Servicio cargando. Verifica tu conexión.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     setSubmitStatus('idle');
-    
+
     try {
       // Fix: validateSoftware expects (serial, osVersion, passed, _metadata?) not object
-      await validateSoftware(
-        data.serialNumber,
-        data.osVersion,
-        data.passed,
-        data.notes
-      );
-      
+      await validateSoftware({
+        serialNumber: data.serialNumber,
+        osVersion: data.osVersion,
+        passed: data.passed
+      });
+
       toast({
         title: 'Éxito',
         description: 'Software validado correctamente',
         variant: 'default',
       });
-      
+
       setSubmitStatus('success');
       await refetchDashboardData();
-      
+
       if (onComplete) {
         onComplete();
       }
-      
+
       reset({
         serialNumber: initialSerial || '',
         osVersion: '',
         passed: true,
         notes: ''
       });
-      
+
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -118,7 +108,7 @@ export function SoftwareValidationForm({
       setIsSubmitting(false);
     }
   };
-  
+
   // Resetea el formulario cuando se cierra el diálogo
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -209,19 +199,19 @@ export function SoftwareValidationForm({
               )}
             </div>
           </div>
-          
+
           <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              disabled={!isValid || isSubmitting || loading}
+            <Button
+              type="submit"
+              disabled={!isValid || isSubmitting}
               className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
             >
               {isSubmitting ? (

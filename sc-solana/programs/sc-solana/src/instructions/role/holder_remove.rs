@@ -17,11 +17,7 @@ use crate::events::RoleHolderRemoved;
 pub struct RemoveRoleHolder<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
-    #[account(
-        seeds = [b"admin", config.key().as_ref()],
-        bump
-    )]
+    #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
         mut,

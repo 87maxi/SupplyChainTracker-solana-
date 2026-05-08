@@ -25,6 +25,7 @@ export function useSafeWallet() {
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsClient(true);
   }, []);
 
@@ -32,6 +33,7 @@ export function useSafeWallet() {
   // During SSR this will throw, but we catch it at the component level
   let walletAdapter: ReturnType<typeof useWalletAdapter>;
   try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     walletAdapter = useWalletAdapter();
   } catch {
     // WalletProvider not available (SSR phase)
@@ -39,9 +41,9 @@ export function useSafeWallet() {
       wallet: undefined,
       connected: false,
       connecting: false,
-      disconnect: async () => {},
-      connect: async () => {},
-      select: async () => {},
+      disconnect: async () => { },
+      connect: async () => { },
+      select: async () => { },
       publicKey: null,
       signMessage: null,
       signTransaction: null,
@@ -71,9 +73,9 @@ export function useSafeWallet() {
       connected: walletAdapter.connected || false,
       connecting: walletAdapter.connecting || false,
       publicKey: walletAdapter.publicKey || null,
-      connect: walletAdapter.connect || (async () => {}),
-      disconnect: walletAdapter.disconnect || (async () => {}),
-      select: walletAdapter.select || (async () => {}),
+      connect: walletAdapter.connect || (async () => { }),
+      disconnect: walletAdapter.disconnect || (async () => { }),
+      select: walletAdapter.select || (async () => { }),
       signMessage: walletAdapter.signMessage || null,
       signTransaction: walletAdapter.signTransaction || null,
       signAllTransactions: walletAdapter.signAllTransactions || null,

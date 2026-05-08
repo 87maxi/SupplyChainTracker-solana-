@@ -7,5 +7,9 @@ export function useProcessedUserAndNetbookData() {
     processedData: [],
     loading: false,
     error: null,
+    users: [] as any[],
+    netbooks: [] as any[],
+    isLoading: false,
+    refetch: () => Promise.resolve(),
   };
 }

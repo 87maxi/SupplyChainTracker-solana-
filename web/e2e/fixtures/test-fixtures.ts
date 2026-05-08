@@ -21,14 +21,17 @@ export const test = base.extend<{
 }>({
   mockWallet: async ({ page }, use) => {
     await mockWalletConnection(page);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(() => mockWalletConnection(page));
   },
   setupTestEnv: async ({ page }, use) => {
     await setupTestEnvironment(page);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use();
     await cleanupTestEnvironment(page);
   },
   cleanupTestEnv: async ({ page }, use) => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use();
     await cleanupTestEnvironment(page);
   },

@@ -64,5 +64,5 @@ action "revoke" "svm::process_instructions" {
 
 output "revoke_signature" {
   description = "Revoke transaction signature"
-  value = action.revoke.signatures[0]
+  value = action.revoke.signatures | first()
 }

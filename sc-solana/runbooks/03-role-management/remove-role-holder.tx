@@ -66,8 +66,8 @@ variable "config_pda" {
 }
 
 variable "role_holder_pda" {
-  description = "Role holder PDA (derived from role + holder address)"
-  value = svm::find_pda(variable.program_id, [variable.role, signer.holder.public_key])
+  description = "Role holder PDA (seed: 'role_holder' const + account_to_remove)"
+  value = svm::find_pda(variable.program_id, ["role_holder", signer.holder.public_key])
 }
 
 // ============================================================================
@@ -79,6 +79,12 @@ action "remove_holder" "svm::process_instructions" {
     program_idl = variable.program.idl
     instruction_name = "remove_role_holder"
     instruction_args = [variable.role]
+    // Account order matches RemoveRoleHolder struct in Anchor:
+    // 1. config (mut, has_one = admin)
+    // 2. admin (mut, signer)
+    // 3. role_holder (mut, seeds = [b"role_holder", role_holder.account], close = admin)
+    // 4. system_program
+    // NOTE: holder signers is NOT part of the Anchor struct - only admin signs
     accounts = [
       {
         public_key = variable.config_pda.pda
@@ -88,11 +94,6 @@ action "remove_holder" "svm::process_instructions" {
       {
         public_key = signer.admin.public_key
         writable = true
-        signer = true
-      },
-      {
-        public_key = signer.holder.public_key
-        writable = false
         signer = true
       },
       {
@@ -107,7 +108,7 @@ action "remove_holder" "svm::process_instructions" {
       }
     ]
   }
-  signers = [signer.admin, signer.holder]
+  signers = [signer.admin]
 }
 
 // ============================================================================
@@ -115,7 +116,8 @@ action "remove_holder" "svm::process_instructions" {
 // ============================================================================
 output "remove_holder_signature" {
   description = "Transaction signature for removing role holder"
-  value = action.remove_holder.signatures[0]
+  // Use first() to safely handle empty signatures array (Issue #129)
+  value = action.remove_holder.signatures | first()
 }
 
 output "role_holder_pda" {

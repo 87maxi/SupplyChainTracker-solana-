@@ -1,0 +1,153 @@
+// ============================================================================
+// [INSTRUCTION NAME]
+// ============================================================================
+// Descripcion breve de la instruccion y su proposito
+// Referencia: instructions/[modulo]/[nombre].rs en el programa Anchor
+//
+// Ejemplo de ejecucion:
+//   surfpool run [runbook-name] --env localnet -f
+//
+// ============================================================================
+// SURFPOOL/TXTX LIMITATIONS (Issue #129)
+// ============================================================================
+// 1. NO usar notacion hexadecimal en arrays: [0xaf, 0xbf] CAUSA ERROR
+//    USAR siempre notacion decimal: [175, 191]
+//
+// 2. NO confiar en program_idl + instruction_name para derivar accounts
+//    ESPECIFICAR todos los accounts explicitamente en el runbook
+//
+// 3. NO usar --no-web flag: causa "unexpected argument" error
+//    USAR solo: surfpool run [name] --env [env] -f
+//
+// 4. SIEMPRE usar signatures | first() para outputs de signature
+//    signatures[0] puede fallar si el array esta vacio
+//
+// 5. System Program Transfer requiere discriminador [2, 0, 0, 0] antes del amount
+//    Formato: [2, 0, 0, 0] ++ svm::u64(amount) = 12 bytes totales
+//
+// 6. CRITICAL: initialize instruction NO funciona con svm::process_instructions
+//    ERROR: "data not found" en instruction.rs:117:60
+//    CAUSA: Surfpool/txtx no puede procesar instrucciones con cuentas sin PDA/relations
+//           en la IDL, incluso con instruction_data manual proporcionado
+//    WORKAROUND: Usar solana CLI directamente para initialize:
+//      solana program deploy --program-id <KEYPAIR> <SO_FILE>  # Deploy
+//      # Luego usar Anchor/CLI para llamar initialize con context adecuado
+//
+// Referencia: Issue #129 - https://github.com/87maxi/SupplyChainTracker-solana-/issues/129
+// ============================================================================
+
+// ============================================================================
+// Addon Configuration
+// ============================================================================
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("[program_name]")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// Signers
+// ============================================================================
+// Cada signer debe ser documentado con su rol y keypair_path
+signer "[signer_name]" "svm::web_wallet" {
+  description = "[Description of signer role]"
+  keypair_path = env.[ENV_VAR_FOR_KEYPAIR]
+}
+
+// ============================================================================
+// Inputs (Optional - if runbook requires user-provided values)
+// ============================================================================
+// Usar env.* para valores configurables, NUNCA hardcodear
+variable "[input_name]" {
+  description = "[Description of input]"
+  value = env.[INPUT_ENV_VAR]
+}
+
+// ============================================================================
+// PDA Derivation
+// ============================================================================
+// Cada PDA debe documentar los seeds exactos usados en el programa Anchor
+// Referencia: seeds exactos del codigo fuente de Anchor
+//
+// Formato: svm::find_pda(program_id, seeds) retorna {pda, bump_seed}
+
+variable "[pda_name]_pda" {
+  description = "[Description] PDA (seed: [seed description])"
+  // Referencia: instructions/[modulo]/[nombre].rs:line
+  // Anchor seeds: [b"seed1", b"seed2", &account.key().as_ref()]
+  value = svm::find_pda(variable.program_id, ["seed1", "seed2"])
+}
+
+// ============================================================================
+// Action
+// ============================================================================
+// NOTA: Para instrucciones con cuentas sin PDA/relations en IDL (ej: initialize con 'admin'),
+// svm::process_instructions NO funciona - causa "data not found" panic.
+//
+// Para estas instrucciones, usar solana CLI directamente o modificar el programa Anchor
+// para que todas las cuentas tengan PDA seeds o relations.
+
+action "[action_name]" "svm::process_instructions" {
+  description = "[Description of action]"
+  instruction {
+    // SURFPOOL/TXTX LIMITATION (Issue #129):
+    // Si usas program_idl + instruction_name, Surfpool intenta derivar TODAS las cuentas desde la IDL.
+    // Si alguna cuenta NO tiene PDA seeds O relations en la IDL (ej: 'admin'), fallara.
+    //
+    // OPCIÓN A: program_idl + instruction_name (funciona si todas las cuentas tienen PDA/relations)
+    program_idl = variable.program.idl
+    instruction_name = "[instruction_name]"
+    instruction_args = [arg1, arg2]  // [] si no tiene args
+    
+    // IMPORTANT: ESPECIFICAR TODOS los accounts explicitamente
+    // accounts en el EXACTO orden del struct Anchor en lib.rs
+    // Cada account debe coincidir con #[account(...)] attributes
+    //
+    // NOTA: La sintaxis inline account (recomendada) es:
+    // config { public_key = ...; writable = true; signer = false }
+    // En lugar de: accounts = [{ public_key = ...; writable = true; signer = false }]
+    accounts = [
+      {
+        public_key = variable.[pda_name]_pda.pda
+        writable = true  // Debe coincidir con #[account(mut)]
+        signer = false   // true solo si #[account(signer)]
+      },
+      {
+        public_key = signer.[signer_name].public_key
+        writable = true
+        signer = true
+      }
+    ]
+  }
+  // Signers: solo los accounts que requieren firma
+  signers = [signer.[signer_name]]
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+// SIEMPRE usar signatures | first() para manejar arrays vacios de forma segura
+// Referencia: Issue #129 - Signature Pattern Unification
+
+output "[output_name]" {
+  description = "[Description of output]"
+  // Safe pattern: first() handles empty arrays gracefully
+  value = action.[action_name].signatures | first()
+}
+
+output "[pda_output_name]" {
+  description = "[Description of PDA output]"
+  value = variable.[pda_name]_pda.pda
+}

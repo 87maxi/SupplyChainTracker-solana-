@@ -64,7 +64,8 @@ action "query" "svm::process_instructions" {
 // ============================================================================
 output "query_signature" {
   description = "Transaction signature for the config query"
-  value = action.query.signatures[0]
+  // Use first() to safely handle empty signatures array (queries may not generate signatures)
+  value = action.query.signatures | first()
 }
 
 output "config_address" {

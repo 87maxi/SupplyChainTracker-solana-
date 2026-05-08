@@ -73,10 +73,14 @@ action "reject" "svm::process_instructions" {
     program_idl = variable.program.idl
     instruction_name = "reject_role_request"
     instruction_args = []
+    // Account order matches RejectRoleRequest struct in Anchor:
+    // 1. config (mut, has_one = admin)
+    // 2. admin (mut, signer)
+    // 3. role_request (mut)
     accounts = [
       {
         public_key = variable.config_pda.pda
-        writable = false
+        writable = true
         signer = false
       },
       {
@@ -87,16 +91,6 @@ action "reject" "svm::process_instructions" {
       {
         public_key = variable.role_request_pda.pda
         writable = true
-        signer = false
-      },
-      {
-        public_key = variable.requester_address
-        writable = true
-        signer = false
-      },
-      {
-        public_key = svm::system_program_id()
-        writable = false
         signer = false
       }
     ]
@@ -109,7 +103,8 @@ action "reject" "svm::process_instructions" {
 // ============================================================================
 output "reject_signature" {
   description = "Transaction signature for rejecting role request"
-  value = action.reject.signatures[0]
+  // Use first() to safely handle empty signatures array (Issue #129)
+  value = action.reject.signatures | first()
 }
 
 output "role_request_pda" {

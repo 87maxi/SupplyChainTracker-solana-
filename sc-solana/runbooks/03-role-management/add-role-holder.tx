@@ -1,16 +1,20 @@
 // Addon configuration for Solana/SVM
 addon "svm" {
   network_id = "localnet"
-  rpc_api_url = "http://localhost:8899"
+  rpc_api_url = "http://localhost:8999"
 }
 
 // Add a new role holder (multi-holder support)
 // Admin adds a new account as holder for a specific role
 // Usage: surfpool run add-role-holder --env localnet --browser -f
 //
+// PDA-Based Admin Pattern:
+// - Admin is derived as PDA with seeds [b"admin", config.key()]
+// - This ensures consistency with Solana/PDA patterns and Surfpool compatibility
+//
 // Prerequisites:
 //   - Config must be initialized
-//   - Admin must be the config admin
+//   - Admin PDA must be the config admin
 //
 // Inputs:
 //   - role: Role name (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)
@@ -18,9 +22,9 @@ addon "svm" {
 //
 // Accounts:
 //   - config PDA
-//   - admin (signer)
+//   - admin PDA (derived from config.key())
 //   - new_holder (signer)
-//   - role_holder PDA (derived from role + holder)
+//   - role_holder PDA (derived from account_to_add)
 
 // ============================================================================
 // Program Configuration
@@ -38,8 +42,10 @@ variable "program_id" {
 // ============================================================================
 // Signers
 // ============================================================================
+// NOTE: 'admin' signer is the initializer who knows the admin PDA private key
+// The actual admin account will be derived as PDA
 signer "admin" "svm::web_wallet" {
-  description = "Admin account (must be config admin)"
+  description = "Admin account (initializer keypair that derives admin PDA)"
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
@@ -60,13 +66,19 @@ variable "role" {
 // PDA Derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
 // ============================================================================
 variable "config_pda" {
-  description = "Config account PDA"
+  description = "Config account PDA (seed: config)"
   value = svm::find_pda(variable.program_id, ["config"])
 }
 
+// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+variable "admin_pda" {
+  description = "Admin PDA (seed: admin + config_pda)"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
+}
+
 variable "role_holder_pda" {
-  description = "Role holder PDA (derived from role + holder address)"
-  value = svm::find_pda(variable.program_id, [variable.role, signer.new_holder.public_key])
+  description = "Role holder PDA (seed: role_holder + account_to_add)"
+  value = svm::find_pda(variable.program_id, ["role_holder", signer.new_holder.public_key])
 }
 
 // ============================================================================
@@ -78,14 +90,21 @@ action "add_holder" "svm::process_instructions" {
     program_idl = variable.program.idl
     instruction_name = "add_role_holder"
     instruction_args = [variable.role]
+    // Account order matches AddRoleHolder struct in Anchor:
+    // 1. config (mut, has_one = admin)
+    // 2. admin PDA (mut, signer) - derived from [b"admin", config.key()]
+    // 3. role_holder (init, payer = admin)
+    // 4. account_to_add (CHECK)
+    // 5. system_program
     accounts = [
       {
         public_key = variable.config_pda.pda
         writable = true
         signer = false
       },
+      // Admin as PDA - derived from config key
       {
-        public_key = signer.admin.public_key
+        public_key = variable.admin_pda.pda
         writable = true
         signer = true
       },
@@ -114,7 +133,7 @@ action "add_holder" "svm::process_instructions" {
 // ============================================================================
 output "add_holder_signature" {
   description = "Transaction signature for adding role holder"
-  value = action.add_holder.signatures[0]
+  value = action.add_holder.signatures | first()
 }
 
 output "role_holder_pda" {

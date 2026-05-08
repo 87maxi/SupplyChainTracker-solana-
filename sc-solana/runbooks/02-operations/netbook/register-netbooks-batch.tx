@@ -92,7 +92,7 @@ action "register_batch" "svm::process_instructions" {
 // Outputs
 output "batch_signature" {
   description = "Batch registration transaction signature"
-  value = action.register_batch.signatures[0]
+  value = action.register_batch.signatures | first()
 }
 
 output "serial_numbers_registered" {

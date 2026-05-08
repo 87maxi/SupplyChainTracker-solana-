@@ -52,9 +52,14 @@ action "request" "svm::process_instructions" {
     program_idl = variable.program.idl
     instruction_name = "request_role"
     instruction_args = [variable.role_requested]
+    // Account order matches RequestRole struct in Anchor:
+    // 1. config (mut)
+    // 2. role_request (init, seeds = [b"role_request", user])
+    // 3. user (mut, signer)
+    // 4. system_program
     accounts = [
+      { public_key = variable.config_pda.pda, writable = true, signer = false },
       { public_key = variable.request_pda.pda, writable = true, signer = false },
-      { public_key = variable.config_pda.pda, writable = false, signer = false },
       { public_key = signer.requester.public_key, writable = true, signer = true },
       { public_key = svm::system_program_id(), writable = false, signer = false }
     ]
@@ -64,5 +69,6 @@ action "request" "svm::process_instructions" {
 
 output "request_signature" {
   description = "Request transaction signature"
-  value = action.request.signatures[0]
+  // Use first() to safely handle empty signatures array (Issue #129)
+  value = action.request.signatures | first()
 }

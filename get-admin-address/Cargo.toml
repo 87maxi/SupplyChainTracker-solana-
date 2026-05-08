@@ -1,0 +1,9 @@
+[package]
+name = "get-admin-address"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bs58 = "0.5"
+ed25519-dalek = "2"
+serde_json = "1"

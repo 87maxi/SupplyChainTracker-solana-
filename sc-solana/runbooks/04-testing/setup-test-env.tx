@@ -5,8 +5,11 @@ addon "svm" {
 }
 
 // Setup complete test environment with all required accounts
-// Airdrops SOL to test wallets and verifies deployment
+// Airdrops SOL to test wallets using system program transfers
 // Usage: surfpool run setup-test-env --env localnet --browser -f
+//
+// IMPORTANT: svm::send_token is NOT available in Surfpool.
+// Use system program transfers via svm::process_instructions instead.
 //
 // Prerequisites:
 //   - Source config: source config/config.env && source runbooks/environments/localnet.env
@@ -14,7 +17,9 @@ addon "svm" {
 //
 // Inputs: None (uses env vars from config/config.env)
 
-// Test signers - each role gets its own wallet from centralized config
+// ============================================================================
+// Test Signers - each role gets its own wallet from centralized config
+// ============================================================================
 signer "admin" "svm::web_wallet" {
   description = "Admin/Deployer account"
   keypair_path = env.DEPLOYER_KEYPAIR
@@ -40,38 +45,146 @@ signer "escuela" "svm::web_wallet" {
   keypair_path = env.ESCUELA_KEYPAIR
 }
 
+// ============================================================================
 // Airdrop configuration
+// ============================================================================
 variable "airdrop_amount" {
   description = "Airdrop amount in lamports (5 SOL = 5000000000)"
-  value = 5000000000
+  value = svm::sol_to_lamports(5)
 }
 
-// Airdrop to each test wallet
-action "airdrop_fabricante" "svm::send_token" {
-  description = "Airdrop SOL to fabricante wallet"
-  amount = variable.airdrop_amount
-  recipient = signer.fabricante.public_key
+// ============================================================================
+// Airdrop to each test wallet using system program transfer
+// NOTE: svm::send_token is NOT documented in Surfpool.
+// We use system_program_id with a transfer instruction instead.
+// ============================================================================
+
+// System Program Transfer Instruction Format:
+// According to Solana documentation:
+// https://docs.solana.com/developing/runtime-facilities/programs#system-program
+//
+// Transfer Instruction (type 2):
+// - Bytes 0-3: Discriminator (u32 LE) = 2 → [2, 0, 0, 0]
+// - Bytes 4-11: Lamports (u64 LE) = amount
+// Total: 12 bytes
+//
+// Reference: Issue #129 - System Program Transfer must include discriminator
+
+// Helper variable for transfer discriminator (Transfer instruction type = 2)
+variable "transfer_discriminator" {
+  description = "System program transfer instruction discriminator (type 2 in little-endian)"
+  value = [2, 0, 0, 0]
 }
 
-action "airdrop_auditor_hw" "svm::send_token" {
-  description = "Airdrop SOL to auditor_hw wallet"
-  amount = variable.airdrop_amount
-  recipient = signer.auditor_hw.public_key
+// Helper: Create complete system program transfer instruction data
+// Format: [discriminator] ++ [lamports]
+variable "transfer_data_fabricante" {
+  description = "Complete transfer instruction data for fabricante airdrop"
+  value = variable.transfer_discriminator ++ svm::u64(variable.airdrop_amount)
 }
 
-action "airdrop_tecnico_sw" "svm::send_token" {
-  description = "Airdrop SOL to tecnico_sw wallet"
-  amount = variable.airdrop_amount
-  recipient = signer.tecnico_sw.public_key
+variable "transfer_data_auditor_hw" {
+  description = "Complete transfer instruction data for auditor_hw airdrop"
+  value = variable.transfer_discriminator ++ svm::u64(variable.airdrop_amount)
 }
 
-action "airdrop_escuela" "svm::send_token" {
-  description = "Airdrop SOL to escuela wallet"
-  amount = variable.airdrop_amount
-  recipient = signer.escuela.public_key
+variable "transfer_data_tecnico_sw" {
+  description = "Complete transfer instruction data for tecnico_sw airdrop"
+  value = variable.transfer_discriminator ++ svm::u64(variable.airdrop_amount)
 }
 
+variable "transfer_data_escuela" {
+  description = "Complete transfer instruction data for escuela airdrop"
+  value = variable.transfer_discriminator ++ svm::u64(variable.airdrop_amount)
+}
+
+action "airdrop_fabricante" "svm::process_instructions" {
+  description = "Airdrop SOL to fabricante wallet via system program transfer"
+  instruction {
+    program_id = svm::system_program_id()
+    instruction_data = variable.transfer_data_fabricante
+    accounts = [
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.fabricante.public_key
+        writable = true
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+action "airdrop_auditor_hw" "svm::process_instructions" {
+  description = "Airdrop SOL to auditor_hw wallet via system program transfer"
+  instruction {
+    program_id = svm::system_program_id()
+    instruction_data = variable.transfer_data_auditor_hw
+    accounts = [
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.auditor_hw.public_key
+        writable = true
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+action "airdrop_tecnico_sw" "svm::process_instructions" {
+  description = "Airdrop SOL to tecnico_sw wallet via system program transfer"
+  instruction {
+    program_id = svm::system_program_id()
+    instruction_data = variable.transfer_data_tecnico_sw
+    accounts = [
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.tecnico_sw.public_key
+        writable = true
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+action "airdrop_escuela" "svm::process_instructions" {
+  description = "Airdrop SOL to escuela wallet via system program transfer"
+  instruction {
+    program_id = svm::system_program_id()
+    instruction_data = variable.transfer_data_escuela
+    accounts = [
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.escuela.public_key
+        writable = true
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+// ============================================================================
 // Outputs
+// ============================================================================
 output "test_wallets" {
   description = "All test wallet addresses"
   value = {
@@ -86,9 +199,9 @@ output "test_wallets" {
 output "airdrop_signatures" {
   description = "Airdrop transaction signatures"
   value = {
-    fabricante: action.airdrop_fabricante.signature,
-    auditor_hw: action.airdrop_auditor_hw.signature,
-    tecnico_sw: action.airdrop_tecnico_sw.signature,
-    escuela: action.airdrop_escuela.signature
+    fabricante: action.airdrop_fabricante.signatures,
+    auditor_hw: action.airdrop_auditor_hw.signatures,
+    tecnico_sw: action.airdrop_tecnico_sw.signatures,
+    escuela: action.airdrop_escuela.signatures
   }
 }

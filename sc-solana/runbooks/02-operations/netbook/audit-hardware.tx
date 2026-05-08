@@ -101,7 +101,7 @@ action "audit" "svm::process_instructions" {
 // Outputs
 output "audit_signature" {
   description = "Audit transaction signature"
-  value = action.audit.signatures[0]
+  value = action.audit.signatures | first()
 }
 
 output "new_state" {

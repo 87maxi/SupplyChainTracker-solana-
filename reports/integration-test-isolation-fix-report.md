@@ -173,7 +173,7 @@ yarn run ts-mocha -p ./tsconfig.json -t 1000000 "tests/**/*.ts"
 yarn run ts-mocha -p ./tsconfig.json -t 1000000 "tests/sc-solana.ts" --grep "Cannot assign netbook from wrong state|Cannot assign netbook without school role|Enforces complete state transition flow"
 
 # Run with fresh ledger
-pkill -f solana-test-validator 2>/dev/null; rm -rf /tmp/sc-test-ledger && solana-test-validator --bpf-program CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS /path/to/sc_solana.so --ledger /tmp/sc-test-ledger --bind-address 127.0.0.1 && yarn run ts-mocha -p ./tsconfig.json -t 1000000 "tests/sc-solana.ts" --grep "Cannot assign netbook from wrong state"
+pkill -f solana-test-validator 2>/dev/null; rm -rf /tmp/sc-test-ledger && solana-test-validator --bpf-program 7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN /path/to/sc_solana.so --ledger /tmp/sc-test-ledger --bind-address 127.0.0.1 && yarn run ts-mocha -p ./tsconfig.json -t 1000000 "tests/sc-solana.ts" --grep "Cannot assign netbook from wrong state"
 ```
 
 ### Expected Results
@@ -207,7 +207,7 @@ After implementing Solution 2:
 
 ### Program Information
 
-- **Program ID**: `CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS`
+- **Program ID**: `7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN`
 - **Framework**: Anchor v0.32.1
 - **Test Runner**: ts-mocha
 - **Language**: Rust (BPF)

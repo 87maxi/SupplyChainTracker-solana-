@@ -1,24 +1,29 @@
 // Addon configuration for Solana/SVM
 addon "svm" {
   network_id = "localnet"
-  rpc_api_url = "http://localhost:8899"
+  rpc_api_url = "http://localhost:8999"
 }
 
 // Transfer admin ownership
 // Current admin transfers admin rights to a new account
 // Usage: surfpool run transfer-admin --env localnet --browser -f
 //
+// PDA-Based Admin Pattern:
+// - Current admin is derived as PDA with seeds [b"admin", config.key()]
+// - New admin remains a regular Signer (external account)
+//
+// IMPORTANT: Use env.NEW_ADMIN_KEYPAIR instead of input.new_admin_keypair
+// because input.* variables may not be resolved correctly by txtx/surfpool.
+//
 // Prerequisites:
 //   - Config must be initialized
-//   - Current admin must sign the transaction
-//
-// Inputs:
-//   - new_admin_keypair: Path to the new admin's keypair
+//   - Current admin PDA must be derivable
+//   - Set NEW_ADMIN_KEYPAIR env var or define in localnet.env
 //
 // Accounts:
 //   - config PDA
-//   - current_admin (signer)
-//   - new_admin (signer)
+//   - current_admin PDA (derived from config.key())
+//   - new_admin (regular signer)
 
 // ============================================================================
 // Program Configuration
@@ -36,22 +41,29 @@ variable "program_id" {
 // ============================================================================
 // Signers
 // ============================================================================
+// NOTE: 'current_admin' signer is the initializer who knows the admin PDA private key
 signer "current_admin" "svm::web_wallet" {
-  description = "Current admin account (must be config admin)"
+  description = "Current admin account (initializer keypair that derives admin PDA)"
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
 signer "new_admin" "svm::web_wallet" {
   description = "New admin account receiving ownership"
-  keypair_path = input.new_admin_keypair
+  keypair_path = env.NEW_ADMIN_KEYPAIR
 }
 
 // ============================================================================
 // PDA Derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
 // ============================================================================
 variable "config_pda" {
-  description = "Config account PDA"
+  description = "Config account PDA (seed: config)"
   value = svm::find_pda(variable.program_id, ["config"])
+}
+
+// Current Admin PDA - derived from config key using seeds [b"admin", config.key()]
+variable "current_admin_pda" {
+  description = "Current Admin PDA (seed: admin + config_pda)"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
 }
 
 // ============================================================================
@@ -63,15 +75,20 @@ action "transfer" "svm::process_instructions" {
     program_idl = variable.program.idl
     instruction_name = "transfer_admin"
     instruction_args = []
+    // Account order matches TransferAdmin struct in Anchor:
+    // 1. config (mut)
+    // 2. current_admin PDA (mut, signer) - derived from [b"admin", config.key()]
+    // 3. new_admin (signer) - external account accepting transfer
     accounts = [
       {
         public_key = variable.config_pda.pda
         writable = true
         signer = false
       },
+      // Current admin as PDA - derived from config key
       {
-        public_key = signer.current_admin.public_key
-        writable = false
+        public_key = variable.current_admin_pda.pda
+        writable = true
         signer = true
       },
       {
@@ -89,7 +106,8 @@ action "transfer" "svm::process_instructions" {
 // ============================================================================
 output "transfer_signature" {
   description = "Transaction signature for the admin transfer"
-  value = action.transfer.signatures[0]
+  // Use first() to safely handle empty signatures array
+  value = action.transfer.signatures | first()
 }
 
 output "new_admin_address" {

@@ -101,7 +101,7 @@ action "assign" "svm::process_instructions" {
 // Outputs
 output "assignment_signature" {
   description = "Assignment transaction signature"
-  value = action.assign.signatures[0]
+  value = action.assign.signatures | first()
 }
 
 output "new_state" {

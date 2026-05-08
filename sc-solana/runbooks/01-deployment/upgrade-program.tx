@@ -30,7 +30,7 @@ action "upgrade" "svm::deploy_program" {
 }
 
 output "upgrade_signature" {
-  value = action.upgrade.signatures[0]
+  value = action.upgrade.signatures | first()
 }
 
 output "new_slot" {

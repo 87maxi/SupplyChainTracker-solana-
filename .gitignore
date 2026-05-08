@@ -18,3 +18,5 @@ sc/lib/
 sc-solana/target/
 sc-solana/.anchor/
 sc-solana/test-ledger/
+get-admin-address/target/
+get-admin-address.rs

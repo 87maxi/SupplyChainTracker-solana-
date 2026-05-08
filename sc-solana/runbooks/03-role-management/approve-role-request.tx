@@ -1,16 +1,19 @@
 // Addon configuration for Solana/SVM
 addon "svm" {
   network_id = "localnet"
-  rpc_api_url = "http://localhost:8899"
+  rpc_api_url = "http://localhost:8999"
 }
 
 // Approve a pending role request
 // Admin approves a role request made by a user
 // Usage: surfpool run approve-role-request --env localnet --browser -f
 //
+// PDA-Based Admin Pattern:
+// - Admin is derived as PDA with seeds [b"admin", config.key()]
+//
 // Prerequisites:
 //   - Config must be initialized
-//   - Admin must be the config admin
+//   - Admin PDA must be derivable
 //   - Role request must exist for the requester
 //
 // Inputs:
@@ -18,9 +21,9 @@ addon "svm" {
 //
 // Accounts:
 //   - config PDA
-//   - admin (signer)
+//   - admin PDA (derived from config.key())
 //   - role_request PDA (derived from requester)
-//   - requester account
+//   - role_holder PDA (created on approval)
 
 // ============================================================================
 // Program Configuration
@@ -39,7 +42,7 @@ variable "program_id" {
 // Signers
 // ============================================================================
 signer "admin" "svm::web_wallet" {
-  description = "Admin account (must be config admin)"
+  description = "Admin account (initializer keypair that derives admin PDA)"
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
@@ -55,8 +58,14 @@ variable "requester_address" {
 // PDA Derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
 // ============================================================================
 variable "config_pda" {
-  description = "Config account PDA"
+  description = "Config account PDA (seed: config)"
   value = svm::find_pda(variable.program_id, ["config"])
+}
+
+// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+variable "admin_pda" {
+  description = "Admin PDA (seed: admin + config_pda)"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
 }
 
 variable "role_request_pda" {
@@ -73,14 +82,21 @@ action "approve" "svm::process_instructions" {
     program_idl = variable.program.idl
     instruction_name = "approve_role_request"
     instruction_args = []
+    // Account order matches ApproveRoleRequest struct in Anchor:
+    // 1. config (mut, has_one = admin)
+    // 2. admin PDA (mut, signer) - derived from [b"admin", config.key()]
+    // 3. role_request (mut)
+    // 4. role_holder (init, payer = admin) - PDA: [b"role_holder", role_request.user]
+    // 5. system_program
     accounts = [
       {
         public_key = variable.config_pda.pda
-        writable = false
+        writable = true
         signer = false
       },
+      // Admin as PDA - derived from config key
       {
-        public_key = signer.admin.public_key
+        public_key = variable.admin_pda.pda
         writable = true
         signer = true
       },
@@ -109,7 +125,7 @@ action "approve" "svm::process_instructions" {
 // ============================================================================
 output "approve_signature" {
   description = "Transaction signature for approving role request"
-  value = action.approve.signatures[0]
+  value = action.approve.signatures | first()
 }
 
 output "role_request_pda" {

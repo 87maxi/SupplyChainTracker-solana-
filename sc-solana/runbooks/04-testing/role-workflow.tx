@@ -163,9 +163,9 @@ action "step3_verify" "svm::process_instructions" {
 output "workflow_signatures" {
   description = "All transaction signatures from the workflow"
   value = {
-    request: action.step1_request.signatures[0],
-    approve: action.step2_approve.signatures[0],
-    verify: action.step3_verify.signatures[0]
+    request: action.step1_request.signatures | first(),
+    approve: action.step2_approve.signatures | first(),
+    verify: action.step3_verify.signatures | first()
   }
 }
 

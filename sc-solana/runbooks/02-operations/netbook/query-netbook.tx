@@ -48,7 +48,7 @@ action "query" "svm::process_instructions" {
 
 output "query_signature" {
   description = "Query transaction signature"
-  value = action.query.signatures[0]
+  value = action.query.signatures | first()
 }
 
 output "netbook_pda" {

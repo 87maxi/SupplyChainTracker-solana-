@@ -101,7 +101,7 @@ action "validate" "svm::process_instructions" {
 // Outputs
 output "validation_signature" {
   description = "Validation transaction signature"
-  value = action.validate.signatures[0]
+  value = action.validate.signatures | first()
 }
 
 output "new_state" {

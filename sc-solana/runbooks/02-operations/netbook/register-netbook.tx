@@ -42,19 +42,44 @@ variable "model_specs" {
 }
 
 // PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+// Anchor program uses: seeds = [b"netbook", b"netbook", &next_token_id[0..7]]
+// The netbook PDA depends on config.next_token_id which increments per registration.
+// For runbook testing, we need to track the current token_id and derive the PDA accordingly.
+// NOTE: In practice, the Surfpool/txtx tool may not support dynamic token_id tracking.
+// For now, we use a simplified approach with ["netbook", "netbook", token_id_bytes].
 variable "config_pda" {
   description = "Config account PDA"
   value = svm::find_pda(variable.program_id, ["config"])
 }
 
 variable "serial_hashes_pda" {
-  description = "Serial hashes registry PDA"
+  description = "Serial hashes registry PDA (seed: 'serial_hashes' + config address)"
   value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
 }
 
+// Token ID tracking - starts at 1 (config.next_token_id starts at 1, incremented after use)
+// For first registration: token_id = 1, PDA seed = [b"netbook", b"netbook", 1.to_le_bytes()[0..7]]
+//
+// IMPORTANT: The Anchor program uses config.next_token_id which increments after each registration.
+// For multiple netbook registrations, you MUST update this value manually:
+//   - First netbook: token_id = 1
+//   - Second netbook: token_id = 2
+//   - Third netbook: token_id = 3
+//   - etc.
+//
+// Reference: instructions/netbook/register.rs
+// seeds = [b"netbook", b"netbook", &config.next_token_id.to_le_bytes()[0..7]]
+//
+// Issue #129: Token ID is hardcoded because Surfpool/txtx does not support dynamic account queries.
+// TODO: Implement dynamic token_id tracking if Surfpool adds account query support.
+variable "token_id" {
+  description = "Current token ID from config (starts at 1, increments per netbook). UPDATE MANUALLY for each registration!"
+  value = 1
+}
+
 variable "netbook_pda" {
-  description = "Netbook account PDA"
-  value = svm::find_pda(variable.program_id, ["netbook", variable.serial_number])
+  description = "Netbook account PDA (seed: 'netbook', 'netbook', token_id LE bytes)"
+  value = svm::find_pda(variable.program_id, ["netbook", "netbook", svm::u64(variable.token_id)])
 }
 
 // Register action
@@ -107,7 +132,7 @@ output "serial_number" {
 
 output "registration_signature" {
   description = "Transaction signature"
-  value = action.register.signatures[0]
+  value = action.register.signatures | first()
 }
 
 output "netbook_pda" {

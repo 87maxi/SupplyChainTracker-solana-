@@ -173,12 +173,12 @@ action "step6_assign" "svm::process_instructions" {
 // Outputs
 output "lifecycle_signatures" {
   value = {
-    initialize: action.step1_initialize.signatures[0],
-    grant_fabricante: action.step2_grant_fabricante.signatures[0],
-    register: action.step3_register.signatures[0],
-    audit: action.step4_audit.signatures[0],
-    validate: action.step5_validate.signatures[0],
-    assign: action.step6_assign.signatures[0]
+    initialize: action.step1_initialize.signatures | first(),
+    grant_fabricante: action.step2_grant_fabricante.signatures | first(),
+    register: action.step3_register.signatures | first(),
+    audit: action.step4_audit.signatures | first(),
+    validate: action.step5_validate.signatures | first(),
+    assign: action.step6_assign.signatures | first()
   }
 }
 

@@ -117,7 +117,7 @@ The config has `fabricante` role held by `D7MkzjZonpk6A4ShqQd3QpfwfBW4fnU2b6bpip
 
 1. Start a fresh validator:
    ```bash
-   solana-test-validator --bpf-program CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS /path/to/sc_solana.so --ledger /tmp/sc-test-ledger --bind-address 127.0.0.1
+   solana-test-validator --bpf-program 7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN /path/to/sc_solana.so --ledger /tmp/sc-test-ledger --bind-address 127.0.0.1
    ```
 
 2. Run the full test suite once (to initialize config with roles):
@@ -176,7 +176,7 @@ When the config already exists, use the existing role holder public keys as the 
 - **Anchor**: v0.32.1
 - **Solana**: Latest stable
 - **Test Runner**: ts-mocha
-- **Program ID**: `CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS`
+- **Program ID**: `7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN`
 
 ## Related Files
 

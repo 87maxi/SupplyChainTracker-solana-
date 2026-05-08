@@ -1,4 +1,7 @@
 //! RevokeRole instruction context
+//!
+//! Admin is derived as PDA with seeds [b"admin", config.key()] for consistency
+//! with Solana/PDA patterns and Surfpool/txtx compatibility.
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, RoleHolder};
@@ -9,7 +12,11 @@ use crate::events::RoleRevoked;
 pub struct RevokeRole<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump
+    )]
     pub admin: Signer<'info>,
     pub account_to_revoke: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -40,11 +47,16 @@ pub fn revoke_role(ctx: Context<RevokeRole>, role: String) -> Result<()> {
 /// Close a RoleHolder account and return lamports to the admin
 /// Use this after revoke_role to clean up RoleHolder accounts
 /// created by approve_role_request
+/// Admin is derived as PDA with seeds [b"admin", config.key()]
 #[derive(Accounts)]
 pub struct CloseRoleHolder<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump
+    )]
     pub admin: Signer<'info>,
     /// RoleHolder account to close - returns lamports to admin
     /// Seeds derived from the stored account field (same pattern as holder_remove)

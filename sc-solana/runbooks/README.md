@@ -58,14 +58,13 @@ surfpool run initialize-config --env localnet --browser -f
 surfpool run grant-roles --env localnet --browser -f
 ```
 
-For detailed instructions, troubleshooting, and reference documentation, see [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md).
+For detailed instructions, see the Quick Start section above or the deployment runbooks in `01-deployment/`.
 
 ## Runbooks Structure
 
 ```
 runbooks/
-├── README.md                           # This file
-├── DEPLOYMENT-GUIDE.md                 # Complete deployment guide
+├── README.md                           # This file (main documentation)
 ├── _templates/                         # Reusable templates
 │   ├── common.tx                       # Common patterns for all runbooks
 │   ├── pda-derivation.tx              # PDA derivation patterns
@@ -167,10 +166,7 @@ config/keypairs/
 └── escuela.json         # School wallet
 ```
 
-Generate keypairs with:
-```bash
-./scripts/setup-keypairs.sh
-```
+The keypairs are pre-generated and stored in `config/keypairs/`.
 
 ## Environment Variables
 
@@ -207,6 +203,70 @@ Use these templates as reference when creating new runbooks.
 ## Troubleshooting
 
 - **Program not found**: Ensure `anchor build` was run and program is deployed
-- **KeyPair not found**: Run `./scripts/setup-keypairs.sh` to generate keypairs
+- **KeyPair not found**: Check that keypairs exist in `config/keypairs/` directory
 - **RPC connection failed**: Ensure Surfpool is running on localhost:8899
 - **Permission denied**: Ensure admin wallet has proper roles
+
+## Known Issues & Solutions
+
+### Issue 1: `svm::send_token` Not Available
+
+**Problem**: The `svm::send_token` action is NOT documented in Surfpool's official documentation.
+
+**Solution**: Use `svm::process_instructions` with `svm::system_program_id()` to send SOL via the system program transfer instruction.
+
+**Affected runbooks**:
+- [`04-testing/setup-test-env.tx`](04-testing/setup-test-env.tx) - Refactored to use system program transfers
+
+### Issue 2: `input.*` Variables Not Resolved
+
+**Problem**: The `input.*` syntax may not be resolved correctly by txtx/surfpool at runtime.
+
+**Solution**: Use `env.VARIABLE_NAME` instead and define the variable in the environment file.
+
+**Affected runbooks**:
+- [`03-role-management/transfer-admin.tx`](03-role-management/transfer-admin.tx) - Changed `input.new_admin_keypair` to `env.NEW_ADMIN_KEYPAIR`
+
+### Issue 3: Query Signatures Empty
+
+**Problem**: Query actions (read-only) may not generate transaction signatures, causing `action.query.signatures[0]` to fail.
+
+**Solution**: Use the `first()` function to safely handle empty arrays: `action.query.signatures | first()`
+
+**Affected runbooks**:
+- [`02-operations/query/query-config.tx`](02-operations/query/query-config.tx)
+- [`02-operations/query/query-role.tx`](02-operations/query/query-role.tx)
+
+### Available SVM Functions
+
+The following SVM functions are confirmed available in Surfpool:
+
+| Function | Description |
+|----------|-------------|
+| `svm::find_pda(program_id, seeds)` | Derive PDA address and bump seed |
+| `svm::get_program_from_anchor_project(name)` | Get program artifacts from Anchor project |
+| `svm::system_program_id()` | Get system program ID |
+| `svm::sol_to_lamports(sol)` | Convert SOL to lamports |
+| `svm::lamports_to_sol(lamports)` | Convert lamports to SOL |
+| `svm::u64(value)` | Create u64 byte array |
+| `svm::i64(value)` | Create i64 byte array |
+| `svm::default_pubkey()` | Get default (zero) pubkey |
+| `svm::get_associated_token_account(token_mint, owner)` | Get ATA address |
+| `svm::create_token_account_instruction()` | Create token account instruction |
+
+## Recent Changes (Issue #124 Fixes)
+
+| Date | File | Change | Reason |
+|------|------|--------|--------|
+| 2024-05-07 | [`03-role-management/add-role-holder.tx`](03-role-management/add-role-holder.tx) | Fixed RoleHolder PDA seeds: `[variable.role, ...]` → `["role_holder", ...]` | IDL shows seeds must be `["role_holder", account_to_add]` |
+| 2024-05-07 | [`03-role-management/remove-role-holder.tx`](03-role-management/remove-role-holder.tx) | Fixed RoleHolder PDA seeds + removed extra holder signer | Anchor struct: `seeds = [b"role_holder", role_holder.account]`, only admin signs |
+| 2024-05-07 | [`03-role-management/approve-role-request.tx`](03-role-management/approve-role-request.tx) | Fixed config writable: `false` → `true` | Anchor: `#[account(mut, has_one = admin)]` for config |
+| 2024-05-07 | [`03-role-management/reject-role-request.tx`](03-role-management/reject-role-request.tx) | Fixed config writable + removed extra accounts | Anchor: `#[account(mut, has_one = admin)]`, no role_holder/system_program needed |
+| 2024-05-07 | [`03-role-management/transfer-admin.tx`](03-role-management/transfer-admin.tx) | Fixed current_admin writable: `false` → `true` | Anchor: `#[account(mut)]` for current_admin |
+| 2024-05-07 | [`02-operations/netbook/register-netbook.tx`](02-operations/netbook/register-netbook.tx) | Fixed Netbook PDA derivation + added token_id tracking | Anchor: `seeds = [b"netbook", b"netbook", &next_token_id[0..7]]` |
+| 2024-05-07 | [`02-operations/netbook/request-role.tx`](02-operations/netbook/request-role.tx) | Fixed config writable + account order | Anchor: `config (mut)`, `role_request (init)`, `user (mut, signer)` |
+
+## Related Issues
+
+- **Issue #123**: [Análisis de problemas que impiden la ejecución de runbooks Surfpool/txtx](https://github.com/your-org/SupplyChainTracker-solana/issues/123)
+- **Issue #124**: [🔴 Inconsistencias en Runbooks: PDA Derivation y System Program Transfer no funcionan en Surfpool](https://github.com/87maxi/SupplyChainTracker-solana-/issues/124)

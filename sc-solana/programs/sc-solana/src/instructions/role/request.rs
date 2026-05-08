@@ -31,11 +31,18 @@ pub struct RequestRole<'info> {
 
 /// Approve a role request - creates RoleHolder account automatically
 /// Integrates Config fields with RoleHolder accounts (transitional pattern)
+/// Admin is derived as PDA with seeds [b"admin", config.key()]
 #[derive(Accounts)]
 pub struct ApproveRoleRequest<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    /// NOTE: Must be mut because admin is the payer for role_holder account
+    #[account(
+        mut,
+        seeds = [b"admin", config.key().as_ref()],
+        bump
+    )]
     pub admin: Signer<'info>,
     #[account(mut)]
     pub role_request: Account<'info, RoleRequest>,
@@ -51,11 +58,18 @@ pub struct ApproveRoleRequest<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// Reject a role request
+/// Admin is derived as PDA with seeds [b"admin", config.key()]
 #[derive(Accounts)]
 pub struct RejectRoleRequest<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    #[account(
+        mut,
+        seeds = [b"admin", config.key().as_ref()],
+        bump
+    )]
     pub admin: Signer<'info>,
     #[account(mut)]
     pub role_request: Account<'info, RoleRequest>,

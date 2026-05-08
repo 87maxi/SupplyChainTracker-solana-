@@ -42,7 +42,7 @@ variable "program" {
 
 variable "program_id" {
   description = "Deployed program ID"
-  value = variable.program.program_id
+  value = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
 }
 
 // Get Config PDA - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
@@ -188,14 +188,24 @@ action "grant_escuela" "svm::process_instructions" {
 }
 
 // Outputs
-output "grant_signatures" {
-  description = "All grant transaction signatures"
-  value = {
-    fabricante: action.grant_fabricante.signatures[0],
-    auditor_hw: action.grant_auditor_hw.signatures[0],
-    tecnico_sw: action.grant_tecnico_sw.signatures[0],
-    escuela: action.grant_escuela.signatures[0]
-  }
+output "grant_fabricante_signatures" {
+  description = "FABRICANTE role grant signatures"
+  value = action.grant_fabricante.signatures
+}
+
+output "grant_auditor_hw_signatures" {
+  description = "AUDITOR_HW role grant signatures"
+  value = action.grant_auditor_hw.signatures
+}
+
+output "grant_tecnico_sw_signatures" {
+  description = "TECNICO_SW role grant signatures"
+  value = action.grant_tecnico_sw.signatures
+}
+
+output "grant_escuela_signatures" {
+  description = "ESCUELA role grant signatures"
+  value = action.grant_escuela.signatures
 }
 
 output "config_pda" {

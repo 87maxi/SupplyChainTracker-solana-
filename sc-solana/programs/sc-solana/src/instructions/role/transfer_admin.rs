@@ -1,4 +1,7 @@
 //! TransferAdmin instruction context
+//!
+//! Current admin is derived as PDA with seeds [b"admin", config.key()] for consistency.
+//! New admin remains a regular Signer (external account accepting the transfer).
 
 use anchor_lang::prelude::*;
 use crate::state::SupplyChainConfig;
@@ -7,14 +10,20 @@ use crate::SupplyChainError;
 
 /// Transfer admin ownership to a new account
 /// Requires signatures from both current admin and new admin (acceptance)
+/// Current admin is derived as PDA with seeds [b"admin", config.key()]
 #[derive(Accounts)]
 pub struct TransferAdmin<'info> {
     #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
-    /// Current admin must sign to initiate transfer
-    #[account(mut)]
+    /// Current Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    /// Must be mut because config.admin will be updated
+    #[account(
+        mut,
+        seeds = [b"admin", config.key().as_ref()],
+        bump
+    )]
     pub current_admin: Signer<'info>,
-    /// New admin must sign to accept the transfer
+    /// New admin - external account that must sign to accept the transfer
     pub new_admin: Signer<'info>,
 }
 

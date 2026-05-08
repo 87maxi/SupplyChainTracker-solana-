@@ -21,12 +21,15 @@
 - [Testing](#testing)
 - [Roles y Permisos](#roles-y-permisos)
 - [Ciclo de Vida del Netbook](#ciclo-de-vida-del-netbook)
+- [Estado Actual](#current-status)
+- [Refactoring Status](#refactoring-status)
+- [Changelog](#changelog)
 
 ## Resumen del Proyecto
 
 SupplyChainTracker es una aplicación descentralizada (DApp) que permite rastrear el ciclo de vida completo de netbooks desde su fabricación hasta su distribución a escuelas. El sistema utiliza la blockchain Solana para garantizar la inmutabilidad, transparencia y trazabilidad de cada dispositivo.
 
-**Program ID:** `CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS`
+**Program ID:** `7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN`
 
 ### Casos de Uso
 
@@ -382,9 +385,9 @@ yarn dev
 
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
-| `NEXT_PUBLIC_PROGRAM_ID` | ID del programa desplegado | `CMirNs1A...` |
+| `NEXT_PUBLIC_PROGRAM_ID` | ID del programa desplegado | `7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN` |
 | `NEXT_PUBLIC_CLUSTER` | Cluster de Solana | `devnet` |
-| `NEXT_PUBLIC_DEFAULT_ADMIN_ADDRESS` | Dirección del admin | `AdminPubkey...` |
+| `NEXT_PUBLIC_DEFAULT_ADMIN_ADDRESS` | Dirección del admin | `7eCTmt5LYSqnjgw8jebHjUzf8X7omxEpxYHbsXsmPtZQ` |
 | `NEXT_PUBLIC_RPC_URL` | URL RPC personalizada (opcional) | `https://api.devnet.solana.com` |
 
 ## Desarrollo
@@ -504,6 +507,35 @@ yarn start
      Fabri-                 Audi-                Téc-                  Es-
      cante                  tor HW               nico SW               cuela
 ```
+
+## Current Status
+
+| Component | Status | Completion |
+|-----------|--------|------------|
+| Smart Contract (sc-solana) | Modularized, Core Complete | ~95% |
+| Frontend (web/) | Solana Migrated (Partial) | ~90% |
+| Testing | Basic Unit Tests Only | ~20% |
+| Documentation | Updated | ~85% |
+| Runbooks (txtx) | Consistent with Surfpool | ~90% |
+
+## Refactoring Status
+
+**Active Refactoring:** Completed Phases 0-5
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 0 | Cleanup Documentation | ✅ Completed |
+| Phase 1 | Clean Up Obsolete Code and Scripts | ✅ Completed |
+| Phase 2 | Fix Program ID Inconsistency | ✅ Completed |
+| Phase 3 | Remove Dead Code and Allow Directives | ✅ Completed |
+| Phase 4 | Verify Consistency with Surfpool/txtx IAC | ✅ Completed |
+| Phase 5 | Update Documentation and Create CHANGELOG | ✅ Completed |
+
+See [`plans/refactoring-plan.md`](plans/refactoring-plan.md) for details on the refactoring process.
+
+## Changelog
+
+Refer to [`CHANGELOG.md`](CHANGELOG.md) for a complete history of changes to this project.
 
 ## Licencia
 

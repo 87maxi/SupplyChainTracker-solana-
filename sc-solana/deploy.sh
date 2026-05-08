@@ -1,6 +1,6 @@
 #!/bin/bash
 # SupplyChainTracker Solana - Deployment Script
-# Program ID: CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS
+# Program ID: 7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN (derived from lib.rs)
 # Compatible with Anchor 0.30+ / 0.32+
 
 set -e
@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROGRAM_NAME="sc_solana"
-PROGRAM_ID="CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS"
+PROGRAM_ID="7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
 KEYPAIR_PATH="${SCOLANA_KEYPAIR_PATH:-$HOME/.config/solana/id.json}"
 CLUSTER="${CLUSTER:-localnet}"
 
@@ -121,22 +121,22 @@ deploy() {
         fi
     fi
     
-    # Deploy command (Anchor 0.30+ uses --network instead of --cluster)
+    # Deploy command - for localnet/Surfpool use direct solana program deploy
+    # to avoid Anchor's duplicate URL argument issue
+    local solana_url=""
+    case "$cluster" in
+        localnet) solana_url="http://127.0.0.1:8899" ;;
+        devnet) solana_url="https://api.devnet.solana.com" ;;
+        mainnet) solana_url="https://api.mainnet-beta.solana.com" ;;
+        *) solana_url="http://127.0.0.1:8899" ;;
+    esac
+    
     if [ "$use_program_id" = "true" ]; then
         print_info "Deploying with fixed program ID: $PROGRAM_ID"
-        if [ "$USE_MODERN_DEPLOY" = true ]; then
-            print_info "Using modern Anchor CLI syntax (v0.30+)"
-            anchor deploy --program-name sc-solana --program-keypair target/deploy/sc-solana-keypair.json --network "$cluster"
-        else
-            anchor deploy --program-name sc-solana --program-keypair target/deploy/sc-solana-keypair.json --cluster "$cluster"
-        fi
+        solana program deploy --url "$solana_url" --keypair "$KEYPAIR_PATH" --program-id target/deploy/sc_solana-keypair.json target/deploy/sc_solana.so
     else
         print_info "Deploying (new program ID)..."
-        if [ "$USE_MODERN_DEPLOY" = true ]; then
-            anchor deploy --program-name sc-solana --network "$cluster"
-        else
-            anchor deploy --program-name sc-solana --cluster "$cluster"
-        fi
+        solana program deploy --url "$solana_url" --keypair "$KEYPAIR_PATH" target/deploy/sc_solana.so
     fi
     
     print_success "Deployment completed"

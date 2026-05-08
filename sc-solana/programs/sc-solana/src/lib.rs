@@ -3,8 +3,6 @@
 //! Migration from Ethereum (Solidity) to Solana (Anchor/Rust)
 //! Program ID: 7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN
 
-#![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(ambiguous_glob_reexports)]
 
 use anchor_lang::prelude::*;
@@ -178,7 +176,8 @@ mod tests {
 
     #[test]
     fn test_config_space() {
-        assert_eq!(SupplyChainConfig::INIT_SPACE, 8 + 32 + 32 + 32 + 32 + 32 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8);
+        // Updated: Added admin_pda_bump (1 byte)
+        assert_eq!(SupplyChainConfig::INIT_SPACE, 8 + 32 + 32 + 32 + 32 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8);
     }
 
     #[test]
@@ -190,6 +189,7 @@ mod tests {
 
     #[test]
     fn test_role_holder_counts() {
+        // Updated: Added admin_pda_bump field
         let config = SupplyChainConfig {
             admin: Pubkey::default(),
             fabricante: Pubkey::default(),
@@ -197,6 +197,7 @@ mod tests {
             tecnico_sw: Pubkey::default(),
             escuela: Pubkey::default(),
             admin_bump: 0,
+            admin_pda_bump: 0, // NEW: PDA bump for admin derivation
             next_token_id: 0,
             total_netbooks: 0,
             role_requests_count: 0,

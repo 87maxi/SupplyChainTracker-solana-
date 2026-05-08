@@ -6,18 +6,19 @@ This document outlines the complete migration plan for transforming the SupplyCh
 
 **Source Contract:** [`sc/src/SupplyChainTracker.sol`](sc/src/SupplyChainTracker.sol)  
 **Target Contract:** [`sc-solana/`](sc-solana/)  
-**Program ID:** `CMirNs1A8FfyWcb1TsbUHtxNzAfAUmwaUPmp8VCz2hS`  
+**Program ID:** `7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN`
 **Frontend:** [`web/`](web/) -- Next.js 16 + React 19 + wagmi/viem → @solana/wallet-adapter  
 **Total Estimated Effort:** ~120 hours (Smart Contract: ~52h + Frontend: ~68h)
 
-## Current Status (Updated 2026-05-04)
+## Current Status (Updated 2026-05-07)
 
 | Component | Status | Completion |
 |-----------|--------|------------|
-| Smart Contract (sc-solana) | Complete | ~95% |
-| Frontend (web/) | Solana Migrated | ~90% |
+| Smart Contract (sc-solana) | Modularized, Core Complete | ~95% |
+| Frontend (web/) | Solana Migrated (Partial) | ~90% |
 | CI/CD | Complete | 100% |
-| Documentation | Partial | 75% |
+| Documentation | Updated | ~85% |
+| Runbooks (txtx) | Consistent with Surfpool | ~90% |
 
 ---
 
@@ -72,6 +73,20 @@ This document outlines the complete migration plan for transforming the SupplyCh
 | [#43](https://github.com/87maxi/SupplyChainTracker-solana-/issues/43) | CI/CD Anchor Version Mismatch | ✅ Fixed - 0.32.1 |
 | [#44](https://github.com/87maxi/SupplyChainTracker-solana-/issues/44) | RoleRequest Single-Per-User | ✅ Documented |
 | [#45](https://github.com/87maxi/SupplyChainTracker-solana-/issues/45) | Brute-Force Netbook Lookup | ✅ Fixed - parallel batch |
+
+### Refactoring Phases Completed (2026-05-07)
+
+| Phase | Issue | Description | Status |
+|-------|-------|-------------|--------|
+| Phase 0 | #132 | Cleanup Documentation | ✅ Completed |
+| Phase 1 | #133 | Clean Up Obsolete Code and Scripts | ✅ Completed |
+| Phase 2 | #134 | Fix Program ID Inconsistency (CRITICAL) | ✅ Completed |
+| Phase 3 | #135 | Remove Dead Code and Allow Directives | ✅ Completed |
+| Phase 4 | #136 | Verify Consistency with Surfpool/txtx IAC | ✅ Completed |
+| Phase 5 | #137 | Update Documentation and Create CHANGELOG | ✅ Completed |
+
+**Refactoring Plan:** [`plans/refactoring-plan.md`](plans/refactoring-plan.md)
+**Detailed Issues:** [`plans/issues/phase-0-cleanup-documentation.md`](plans/issues/phase-0-cleanup-documentation.md)
 
 ---
 
@@ -504,6 +519,12 @@ FABRICADA ──→ HW_APROBADO ──→ SW_VALIDADO ──→ DISTRIBUIDA
 | [#14](https://github.com/87maxi/SupplyChainTracker-solana-/issues/14) | Phase 15 | README.md & Project Documentation | P2 | Open |
 | [#15](https://github.com/87maxi/SupplyChainTracker-solana-/issues/15) | Phase 16 | CI/CD Pipeline & GitHub Actions | P2 | Open |
 | [#16](https://github.com/87maxi/SupplyChainTracker-solana-/issues/16) | Phase 17 | IDL Generation & TypeScript Client Types | P2 | Open |
+| [#132](https://github.com/87maxi/SupplyChainTracker-solana-/issues/132) | Refactor Phase 0 | Cleanup Documentation | P2 | ✅ Completed |
+| [#133](https://github.com/87maxi/SupplyChainTracker-solana-/issues/133) | Refactor Phase 1 | Clean Up Obsolete Code and Scripts | P2 | ✅ Completed |
+| [#134](https://github.com/87maxi/SupplyChainTracker-solana-/issues/134) | Refactor Phase 2 | Fix Program ID Inconsistency | P0 | ✅ Completed |
+| [#135](https://github.com/87maxi/SupplyChainTracker-solana-/issues/135) | Refactor Phase 3 | Remove Dead Code and Allow Directives | P1 | ✅ Completed |
+| [#136](https://github.com/87maxi/SupplyChainTracker-solana-/issues/136) | Refactor Phase 4 | Verify Consistency with Surfpool/txtx IAC | P1 | ✅ Completed |
+| [#137](https://github.com/87maxi/SupplyChainTracker-solana-/issues/137) | Refactor Phase 5 | Update Documentation and Create CHANGELOG | P2 | ✅ Completed |
 
 ## Issue Tracking Summary - Frontend Migration
 

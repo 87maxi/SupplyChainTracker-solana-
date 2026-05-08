@@ -15,7 +15,8 @@ pub struct SupplyChainConfig {
     pub auditor_hw: Pubkey,
     pub tecnico_sw: Pubkey,
     pub escuela: Pubkey,
-    pub admin_bump: u8,
+    pub admin_bump: u8,      // Bump seed for config PDA (seeds = [b"config"])
+    pub admin_pda_bump: u8,   // Bump seed for admin PDA (seeds = [b"admin", config.key()])
     pub next_token_id: u64,
     pub total_netbooks: u64,
     pub role_requests_count: u64,
@@ -34,6 +35,7 @@ impl SupplyChainConfig {
         + 32  // tecnico_sw
         + 32  // escuela
         + 1   // admin_bump
+        + 1   // admin_pda_bump (NEW: for admin PDA derivation)
         + 8   // next_token_id
         + 8   // total_netbooks
         + 8   // role_requests_count
@@ -41,7 +43,7 @@ impl SupplyChainConfig {
         + 8   // auditor_hw_count
         + 8   // tecnico_sw_count
         + 8;  // escuela_count
-    // Total: 8 + 280 = 288 bytes
+    // Total: 8 + 281 = 289 bytes
 }
 
 impl SupplyChainConfig {

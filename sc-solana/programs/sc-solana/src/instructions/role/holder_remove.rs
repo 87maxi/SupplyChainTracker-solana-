@@ -1,4 +1,7 @@
 //! RemoveRoleHolder instruction context
+//!
+//! Admin is derived as PDA with seeds [b"admin", config.key()] for consistency
+//! with Solana/PDA patterns and Surfpool/txtx compatibility.
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, RoleHolder};
@@ -10,7 +13,11 @@ use crate::events::RoleHolderRemoved;
 pub struct RemoveRoleHolder<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump
+    )]
     pub admin: Signer<'info>,
     #[account(
         mut,

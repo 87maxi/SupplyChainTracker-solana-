@@ -4,7 +4,7 @@
 // Addon configuration for Solana/SVM
 addon "svm" {
   network_id = "localnet"
-  rpc_api_url = "http://localhost:8899"
+  rpc_api_url = "http://localhost:8999"
 }
 
 // Signers - deployer and authority
@@ -20,11 +20,12 @@ variable "program" {
   value = svm::get_program_from_anchor_project("sc_solana")
 }
 
-// Deploy the program
+// Deploy the program (non-upgradeable, authority = System Program)
+// For non-upgradeable programs, upgrade_authority should be null or System Program
 action "deploy" "svm::deploy_program" {
   description = "Deploy SupplyChainTracker program to localnet"
   program = variable.program
-  authority = signer.deployer
+  authority = null  // Non-upgradeable program (upgradeable = false in Anchor.toml)
   payer = signer.deployer
   auto_extend = true
 }

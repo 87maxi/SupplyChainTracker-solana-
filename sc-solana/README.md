@@ -15,6 +15,32 @@ SupplyChainTracker is a supply chain management system deployed on Solana using 
 - **Bounded Strings**: Input validation for all string fields to prevent account bloat
 - **Event Logging**: All important actions emit on-chain events
 
+## Refactoring Status
+
+**Active Refactoring:** Completed Phases 0-6
+
+| Phase | Description | Status | Key Changes |
+|-------|-------------|--------|-------------|
+| Phase 0 | Cleanup Documentation | ✅ Completed | 7 summary files removed (Issue #132) |
+| Phase 1 | Clean Up Obsolete Code and Scripts | ✅ Completed | 5 files/dirs removed (Issue #133) |
+| Phase 2 | Fix Program ID Inconsistency | ✅ Completed | Program ID standardized (Issue #134) |
+| Phase 3 | Remove Dead Code and Allow Directives | ✅ Completed | lib.rs cleaned (Issue #135) |
+| Phase 4 | Verify Consistency with Surfpool/txtx IAC | ✅ Completed | 8 runbooks fixed (Issue #136) |
+| Phase 5 | Update Documentation and Create CHANGELOG | ✅ Completed | CHANGELOG.md created (Issue #137) |
+| Phase 6 | PDA-based Admin Pattern for REBC | ✅ Completed | Admin as PDA, all role instructions updated (Issue #139) |
+
+### Phase 6: PDA-based Admin Pattern (Issue #139)
+
+The admin account is now derived as a PDA with seeds `[b"admin", config.key()]` for consistency with Solana/PDA patterns and compatibility with Surfpool/txtx runbooks.
+
+**Key Changes:**
+- [`SupplyChainConfig`](programs/sc-solana/src/state/config.rs): Added `admin_pda_bump` field
+- [`initialize.rs`](programs/sc-solana/src/instructions/initialize.rs): Admin derived as PDA
+- All role management instructions: Admin PDA verification
+- Solana CLI workaround script for Surfpool limitation: [`initialize-config-cli.sh`](../runbooks/01-deployment/initialize-config-cli.sh)
+
+For details, see [`CHANGELOG.md`](../CHANGELOG.md), [`plans/refactoring-plan.md`](../plans/refactoring-plan.md), and [`reports/refactoring-remaining-tasks.md`](../reports/refactoring-remaining-tasks.md).
+
 ## State Machine
 
 The system enforces the following state transitions for netbooks:

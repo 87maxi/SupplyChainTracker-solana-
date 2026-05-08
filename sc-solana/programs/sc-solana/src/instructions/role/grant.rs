@@ -1,4 +1,7 @@
 //! GrantRole instruction context
+//!
+//! Admin is derived as PDA with seeds [b"admin", config.key()] for consistency
+//! with Solana/PDA patterns and Surfpool/txtx compatibility.
 
 use anchor_lang::prelude::*;
 use crate::state::SupplyChainConfig;
@@ -9,7 +12,13 @@ use crate::events::RoleGranted;
 pub struct GrantRole<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    /// NOTE: Must be mut because admin lamports may change due to CPI fees
+    #[account(
+        mut,
+        seeds = [b"admin", config.key().as_ref()],
+        bump
+    )]
     pub admin: Signer<'info>,
     pub account_to_grant: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -58,11 +67,18 @@ pub fn grant_role(ctx: Context<GrantRole>, role: String) -> Result<()> {
 
 /// Grant a role without requiring the recipient's signature
 /// Only admin can use this instruction (for emergencies, automated onboarding)
+/// Admin is derived as PDA with seeds [b"admin", config.key()]
 #[derive(Accounts)]
 pub struct GrantRoleNoSigner<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    /// NOTE: Must be mut because admin lamports may change due to CPI fees
+    #[account(
+        mut,
+        seeds = [b"admin", config.key().as_ref()],
+        bump
+    )]
     pub admin: Signer<'info>,
     /// CHECK: Account to grant role to - does not need to sign
     pub account_to_grant: UncheckedAccount<'info>,

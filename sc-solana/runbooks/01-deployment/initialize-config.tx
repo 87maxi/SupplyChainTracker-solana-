@@ -1,33 +1,42 @@
 // Initialize SupplyChainTracker configuration
 // Called after program deployment to set up initial state
-// Initializes Config and SerialHashRegistry accounts
+// Initializes Config, SerialHashRegistry, and derives Admin PDA
+//
+// PDA-Based Admin Pattern:
+// - Config PDA: seeds = [b"config"]
+// - Serial Hashes PDA: seeds = [b"serial_hashes", config.key()]
+// - Admin PDA: seeds = [b"admin", config.key()]
+//   This PDA pattern ensures consistency with Solana/PDA patterns and Surfpool compatibility
 
 // Addon configuration for Solana/SVM
 addon "svm" {
   network_id = "localnet"
-  rpc_api_url = "http://localhost:8899"
+  rpc_api_url = "http://localhost:8999"
 }
 
-// Signers
-signer "admin" "svm::web_wallet" {
-  description = "Initial admin account (also becomes FABRICANTE)"
+// Signers - initializer pays for the initialization
+// NOTE: Renamed from 'admin' to 'initializer' since the actual admin
+// will be derived as a PDA from the config account
+signer "initializer" "svm::web_wallet" {
+  description = "Initial signer who creates the config and admin PDAs"
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
-// Get program artifacts from Anchor project
-// svm::get_program_from_anchor_project returns {idl, binary, keypair, program_id}
+// Program ID - Fixed for localnet (matches deployed program)
+// IMPORTANT: This is the actual program ID deployed on localnet test validator
+variable "program_id" {
+  description = "Program ID deployed on localnet"
+  value = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+}
+
+// Get program artifacts from Anchor project (IDL for instruction encoding)
 variable "program" {
   description = "Program artifacts (IDL, binary, keypair, program_id)"
   value = svm::get_program_from_anchor_project("sc_solana")
 }
 
-// Program ID derived from artifacts
-variable "program_id" {
-  description = "Deployed program ID"
-  value = variable.program.program_id
-}
-
 // Derive PDAs - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+// Order matters: config must be derived first, then serial_hashes and admin depend on it
 variable "config_pda" {
   description = "Config account PDA (seed: config)"
   value = svm::find_pda(variable.program_id, ["config"])
@@ -38,39 +47,64 @@ variable "serial_hashes_pda" {
   value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
 }
 
-// Initialize instruction
-action "initialize" "svm::process_instructions" {
-  description = "Initialize supply chain configuration (creates Config and SerialHashRegistry)"
-  instruction {
-    program_idl = variable.program.idl
-    instruction_name = "initialize"
-    instruction_args = []
-
-    accounts = [
-      {
-        public_key = variable.config_pda.pda
-        writable = true
-        signer = false
-      },
-      {
-        public_key = variable.serial_hashes_pda.pda
-        writable = true
-        signer = false
-      },
-      {
-        public_key = signer.admin.public_key
-        writable = true
-        signer = true
-      },
-      {
-        public_key = svm::system_program_id()
-        writable = false
-        signer = false
-      }
-    ]
-  }
-  signers = [signer.admin]
+// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+// This is the key change: admin is now a PDA that can be derived by Surfpool
+variable "admin_pda" {
+  description = "Admin PDA (seed: admin + config_pda)"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
 }
+
+// Initialize instruction
+// Uses PDA-based admin pattern for Surfpool/txtx compatibility
+//
+// Account structure:
+// 1. config - PDA with seeds [b"config"], initialized new account
+// 2. serial_hash_registry - PDA with seeds [b"serial_hashes", config.key()], initialized new account
+// 3. admin - PDA with seeds [b"admin", config.key()], derived (not initialized)
+// 4. initializer - Signer who pays for the initialization
+// 5. system_program - System program for account creation
+action "initialize" "svm::process_instructions" {
+  description = "Initialize supply chain configuration (creates Config, SerialHashRegistry, derives Admin PDA)"
+  instruction {
+    program_id = variable.program_id
+    // Anchor discriminator for initialize: [175, 175, 109, 31, 13, 152, 155, 237]
+    // The initialize instruction has NO args, so the data is just the discriminator
+    instruction_data = [175, 175, 109, 31, 13, 152, 155, 237]
+    
+    config {
+      public_key = variable.config_pda.pda
+      writable = true
+      signer = false
+    }
+    serial_hash_registry {
+      public_key = variable.serial_hashes_pda.pda
+      writable = true
+      signer = false
+    }
+    // Admin as PDA - derived from config key
+    // NOTE: admin is a Signer because Anchor PDAs can sign via seeder
+    admin {
+      public_key = variable.admin_pda.pda
+      writable = true
+      signer = true
+    }
+    // Initializer - the actual payer and signer
+    initializer {
+      public_key = signer.initializer.public_key
+      writable = true
+      signer = true
+    }
+    system_program {
+      public_key = svm::system_program_id()
+      writable = false
+      signer = false
+    }
+  }
+  signers = [signer.initializer]
+}
+
+// Note: Admin PDA address can be derived using:
+// variable.admin_pda.pda = svm::find_pda(program_id, ["admin", config_pda.pda]).pda
 
 // Outputs
 output "program_id" {
@@ -78,9 +112,9 @@ output "program_id" {
   value = variable.program_id
 }
 
-output "admin_address" {
-  description = "Admin address"
-  value = signer.admin.public_key
+output "admin_pda_address" {
+  description = "Admin PDA address (derived from config)"
+  value = variable.admin_pda.pda
 }
 
 output "config_pda" {
@@ -89,11 +123,11 @@ output "config_pda" {
 }
 
 output "serial_hashes_pda" {
-  description = "Serial hashes registry PDA"
+  description = "Serial Hashes Registry PDA address"
   value = variable.serial_hashes_pda.pda
 }
 
-output "initialization_signature" {
-  description = "Initialize transaction signature"
-  value = action.initialize.signatures[0]
+output "serial_hashes_pda" {
+  description = "Serial hashes PDA address"
+  value = variable.serial_hashes_pda.pda
 }

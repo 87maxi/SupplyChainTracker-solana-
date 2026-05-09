@@ -386,6 +386,19 @@ async function _performInitialization(
   const [deployerPda] = getDeployerPda(program);
 
   try {
+    // Ensure funder has enough SOL for the operation
+    // Always top up to guarantee sufficient funds for parallel test execution
+    const funderBalance = await provider.connection.getBalance(funder.publicKey);
+    const targetBalance = amount + 10 * anchor.web3.LAMPORTS_PER_SOL;
+    if (funderBalance < targetBalance) {
+      const airdropAmount = targetBalance - funderBalance;
+      const airdropTx = await provider.connection.requestAirdrop(
+        funder.publicKey,
+        airdropAmount
+      );
+      await provider.connection.confirmTransaction(airdropTx, "confirmed");
+    }
+
     // Check if config already exists (idempotent initialization)
     try {
       const existingConfig = await program.account.supplyChainConfig.fetchNullable(configPda);

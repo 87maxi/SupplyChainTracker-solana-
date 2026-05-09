@@ -13,11 +13,13 @@ use crate::events::RoleHolderAdded;
 pub struct AddRoleHolder<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
     pub admin: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
     #[account(
         init,
-        payer = admin,
+        payer = payer,
         space = RoleHolder::INIT_SPACE,
         seeds = [b"role_holder", account_to_add.key().as_ref()],
         bump

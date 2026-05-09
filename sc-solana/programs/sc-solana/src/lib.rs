@@ -45,6 +45,14 @@ pub use errors::*;
 pub mod sc_solana {
     use super::*;
 
+    pub fn fund_deployer(ctx: Context<FundDeployer>, amount: u64) -> Result<()> {
+        instructions::deployer::fund_deployer(ctx, amount)
+    }
+
+    pub fn close_deployer(ctx: Context<CloseDeployer>) -> Result<()> {
+        instructions::deployer::close_deployer(ctx)
+    }
+
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         instructions::initialize::initialize(ctx)
     }

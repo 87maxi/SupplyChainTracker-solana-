@@ -25,7 +25,7 @@ runbooks:
     location: runbooks/01-deployment/grant-roles.tx
 
   # NOTE: upgrade-program removed - program is deployed as non-upgradeable
-  # (upgradeable = false in Anchor.toml, authority = null in deploy-program.tx)
+  # (upgradeable = false in Anchor.toml, authority = signer.deployer in deploy-program.tx)
 
   # ============================================================================
   # Operations Runbooks - Netbook Lifecycle (Phase 2)

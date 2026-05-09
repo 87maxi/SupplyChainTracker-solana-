@@ -23,6 +23,7 @@ import {
 import {
   getConfigPda,
   getRoleRequestPda,
+  getAdminPda,
   fundKeypair,
   RequestStatus,
 } from "./test-helpers";
@@ -48,6 +49,7 @@ describe("Role Management Integration Tests", () => {
   let escuela: Keypair;
   let randomUser: Keypair;
   let configPda: PublicKey;
+  let adminPda: PublicKey;
 
   before(async () => {
     // Load program
@@ -55,7 +57,7 @@ describe("Role Management Integration Tests", () => {
       program = anchor.workspace.scSolana as Program<ScSolana>;
     } else {
       const idl = require("../target/idl/sc_solana.json");
-      const programId = new anchor.web3.PublicKey("7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN");
+      const programId = new anchor.web3.PublicKey("7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb");
       // Recreate provider with the program IDL for manual test runs
       const updatedProvider = new anchor.AnchorProvider(provider.connection, provider.wallet, {
         commitment: provider.opts.commitment,
@@ -79,6 +81,40 @@ describe("Role Management Integration Tests", () => {
     }
 
     configPda = (await getConfigPda(program))[0];
+    adminPda = getAdminPda(configPda, program.programId);
+
+    // Initialize config using PDA-first pattern
+    const funder = Keypair.generate();
+    await fundKeypair(provider, funder, 10);
+    const [deployerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("deployer")],
+      program.programId
+    );
+    const serialHashRegistryPda = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("serial_hashes"), configPda.toBuffer()],
+      program.programId
+    )[0];
+
+    await (program.methods as any)
+      .fundDeployer(new anchor.BN(10 * LAMPORTS_PER_SOL))
+      .accounts({
+        deployer: deployerPda,
+        funder: funder.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([funder])
+      .rpc();
+
+    await (program.methods as any)
+      .initialize()
+      .accounts({
+        config: configPda,
+        serialHashRegistry: serialHashRegistryPda,
+        admin: adminPda,
+        deployer: deployerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
 
     // Fund accounts if needed
     for (const kp of [fabricante, auditor, tecnico, escuela]) {
@@ -95,7 +131,7 @@ describe("Role Management Integration Tests", () => {
         .grantRole(FABRICANTE_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -112,7 +148,7 @@ describe("Role Management Integration Tests", () => {
         .grantRole(AUDITOR_HW_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -129,7 +165,7 @@ describe("Role Management Integration Tests", () => {
         .grantRole(TECNICO_SW_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: tecnico.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -146,7 +182,7 @@ describe("Role Management Integration Tests", () => {
         .grantRole(ESCUELA_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: escuela.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -164,7 +200,7 @@ describe("Role Management Integration Tests", () => {
           .grantRole(FABRICANTE_ROLE)
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -183,7 +219,7 @@ describe("Role Management Integration Tests", () => {
           .grantRole("INVALID_ROLE")
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -223,7 +259,7 @@ describe("Role Management Integration Tests", () => {
           .grantRole(TECNICO_SW_ROLE)
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -336,7 +372,7 @@ describe("Role Management Integration Tests", () => {
         .approveRoleRequest()
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([admin])
@@ -358,7 +394,7 @@ describe("Role Management Integration Tests", () => {
         .approveRoleRequest()
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([admin])
@@ -381,7 +417,7 @@ describe("Role Management Integration Tests", () => {
           .approveRoleRequest()
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             roleRequest: roleRequestPda,
           })
           .signers([admin])
@@ -404,7 +440,7 @@ describe("Role Management Integration Tests", () => {
           .approveRoleRequest()
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             roleRequest: roleRequestPda,
           })
           .signers([admin])
@@ -476,7 +512,7 @@ describe("Role Management Integration Tests", () => {
         .rejectRoleRequest()
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([admin])
@@ -507,7 +543,7 @@ describe("Role Management Integration Tests", () => {
         .rejectRoleRequest()
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([admin])
@@ -519,7 +555,7 @@ describe("Role Management Integration Tests", () => {
           .rejectRoleRequest()
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             roleRequest: roleRequestPda,
           })
           .signers([admin])
@@ -645,7 +681,7 @@ describe("Role Management Integration Tests", () => {
         .grantRole(AUDITOR_HW_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: multiRoleUser.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -656,7 +692,7 @@ describe("Role Management Integration Tests", () => {
         .grantRole(TECNICO_SW_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: multiRoleUser.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -679,7 +715,7 @@ describe("Role Management Integration Tests", () => {
         .grantRole(AUDITOR_HW_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: user1.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -690,7 +726,7 @@ describe("Role Management Integration Tests", () => {
         .grantRole(TECNICO_SW_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: user2.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -701,7 +737,7 @@ describe("Role Management Integration Tests", () => {
         .grantRole(ESCUELA_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: user3.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -742,7 +778,7 @@ describe("Role Management Integration Tests", () => {
         .approveRoleRequest()
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([admin])
@@ -781,7 +817,7 @@ describe("Role Management Integration Tests", () => {
         .rejectRoleRequest()
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([admin])
@@ -800,7 +836,7 @@ describe("Role Management Integration Tests", () => {
           .grantRole("NOT_A_VALID_ROLE")
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -823,7 +859,7 @@ describe("Role Management Integration Tests", () => {
           .grantRole(FABRICANTE_ROLE)
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -836,7 +872,7 @@ describe("Role Management Integration Tests", () => {
           .grantRole(FABRICANTE_ROLE)
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -858,7 +894,7 @@ describe("Role Management Integration Tests", () => {
           .approveRoleRequest()
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             roleRequest: roleRequestPda,
           })
           .signers([admin])
@@ -982,7 +1018,7 @@ describe("Role Management Integration Tests", () => {
           .grantRole("")
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })

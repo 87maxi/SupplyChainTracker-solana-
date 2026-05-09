@@ -17,7 +17,7 @@ use crate::events::RoleRevoked;
 pub struct RevokeRole<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
     pub admin: Signer<'info>,
     /// CHECK: Account to revoke role from - must sign to consent
     pub account_to_revoke: Signer<'info>,

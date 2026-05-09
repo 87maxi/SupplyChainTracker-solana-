@@ -64,13 +64,38 @@ describe("Query Instruction Integration Tests", () => {
       await fundKeypair(provider, kp, 1);
     }
 
-    // Initialize the program
-    await program.methods.initialize().accountsStrict({
-      config: configPda,
-      serialHashRegistry: serialHashRegistryPda,
-      admin: admin.publicKey,
-      systemProgram: SystemProgram.programId,
-    }).signers([admin]).rpc();
+    // Initialize the program using PDA-first pattern
+    const funder = Keypair.generate();
+    await fundKeypair(provider, funder, 10);
+    const [deployerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("deployer")],
+      program.programId
+    );
+    const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("admin"), configPda.toBuffer()],
+      program.programId
+    )[0];
+    
+    await (program.methods as any)
+      .fundDeployer(new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL))
+      .accounts({
+        deployer: deployerPda,
+        funder: funder.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([funder])
+      .rpc();
+    
+    await (program.methods as any)
+      .initialize()
+      .accounts({
+        config: configPda,
+        serialHashRegistry: serialHashRegistryPda,
+        admin: adminPda,
+        deployer: deployerPda,
+        systemProgram: SystemProgram.programId,
+      })
+      .rpc();
 
     // Grant roles
     for (const [role, account] of [

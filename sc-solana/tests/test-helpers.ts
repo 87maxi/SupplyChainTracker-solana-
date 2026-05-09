@@ -285,6 +285,101 @@ export async function fundAllAccounts(
 }
 
 // ============================================================================
+// Deployer PDA Helper Functions
+// ============================================================================
+
+/**
+ * Get deployer PDA and bump
+ * Seeds: [b"deployer"]
+ */
+export function getDeployerPda(program: Program<ScSolana>): [PublicKey, number] {
+  const [pda, bump] = PublicKey.findProgramAddressSync(
+    [Buffer.from("deployer")],
+    program.programId
+  );
+  return [pda, bump];
+}
+
+/**
+ * Get admin PDA
+ * Seeds: [b"admin", config_key]
+ */
+export function getAdminPda(
+  configPda: PublicKey,
+  programId: PublicKey
+): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("admin"), configPda.toBuffer()],
+    programId
+  );
+  return pda;
+}
+
+/**
+ * Fund the deployer PDA and initialize the config in one step.
+ * This is the PDA-first initialization pattern that replaces the old
+ * pattern of using an external signer for initialize.
+ *
+ * @param program - Anchor program instance
+ * @param funder - Keypair that will fund the deployer PDA (must have SOL)
+ * @param amount - Amount of lamports to fund the deployer PDA (default: 10 SOL)
+ */
+export async function fundAndInitialize(
+  program: Program<ScSolana>,
+  provider: AnchorProvider,
+  funder: Keypair,
+  amount: number = 10 * anchor.web3.LAMPORTS_PER_SOL
+): Promise<string> {
+  const [configPda] = getConfigPda(program);
+  const serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
+  const adminPda = getAdminPda(configPda, program.programId);
+  const [deployerPda] = getDeployerPda(program);
+
+  // Check if config already exists (idempotent initialization)
+  try {
+    const existingConfig = await program.account.supplyChainConfig.fetchNullable(configPda);
+    if (existingConfig) {
+      console.log("Config already exists, skipping initialization");
+      return "";
+    }
+  } catch (e: any) {
+    // Account doesn't exist yet, continue with initialization
+    if (!e.message.includes("does not exist")) {
+      throw e;
+    }
+  }
+
+  // Step 1: Fund the deployer PDA
+  const fundTx = await (program.methods as any)
+    .fundDeployer(new anchor.BN(amount))
+    .accounts({
+      deployer: deployerPda,
+      funder: funder.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .signers([funder])
+    .rpc();
+
+  await provider.connection.confirmTransaction(fundTx, "confirmed");
+
+  // Step 2: Initialize config using deployer PDA as payer
+  const initTx = await (program.methods as any)
+    .initialize()
+    .accounts({
+      config: configPda,
+      serialHashRegistry: serialHashRegistryPda,
+      admin: adminPda,
+      deployer: deployerPda,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
+
+  await provider.connection.confirmTransaction(initTx, "confirmed");
+
+  return initTx;
+}
+
+// ============================================================================
 // Transaction Helper Functions
 // ============================================================================
 

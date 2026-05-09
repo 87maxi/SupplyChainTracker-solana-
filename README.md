@@ -71,6 +71,10 @@ SupplyChainTracker es una aplicación descentralizada (DApp) que permite rastrea
 
 ## Arquitectura del Sistema
 
+### Arquitectura PDA-First (Deployer Pattern)
+
+**Toda la inicialización del sistema utiliza PDAs**, eliminando la necesidad de signers externos para crear cuentas. El patrón Deployer PDA financia la creación de todas las cuentas del sistema:
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Frontend (Next.js)                       │
@@ -101,11 +105,44 @@ SupplyChainTracker es una aplicación descentralizada (DApp) que permite rastrea
 │  │              Anchor Program (Rust)                        │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌──────────────────┐  │  │
 │  │  │ Instructions │  │   State     │  │     Events       │  │  │
-│  │  │  (18 total)  │  │  (5 PDAs)   │  │  (emitted)       │  │  │
+│  │  │  (20 total)  │  │  (6 PDAs)   │  │  (emitted)       │  │  │
 │  │  └─────────────┘  └─────────────┘  └──────────────────┘  │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Flujo de Despliegue PDA-First
+
+```
+1. Deploy Program (Anchor)
+         │
+         ▼
+2. fund_deployer(amount)          ← Financia el Deployer PDA
+         │                        [seeds: [b"deployer"]]
+         ▼
+3. initialize()                   ← Deployer PDA paga la creación
+         │                        de Config + SerialHashRegistry
+         ▼
+4. Sistema inicializado           ← Admin PDA derivado
+                                    [seeds: [b"admin", config]]
+         │
+         ▼
+5. close_deployer()               ← Recupera fondos restantes
+         │
+         ▼
+6. Sistema operativo              ← Listo para operaciones
+```
+
+### Cuentas PDA del Sistema
+
+| Cuenta | Seeds | Propósito |
+|--------|-------|-----------|
+| `DeployerState` | `[b"deployer"]` | Financia creación de cuentas |
+| `SupplyChainConfig` | `[b"config"]` | Configuración principal |
+| `SerialHashRegistry` | `[b"serial_hashes", config]` | Registro de hashes |
+| `Admin` | `[b"admin", config]` | Cuenta admin derivada |
+| `Netbook` | `[b"netbook", config, tokenId]` | Estado de netbook |
+| `RoleHolder` | `[b"role_holder", user]` | Roles de usuario |
 
 ## Diagramas
 

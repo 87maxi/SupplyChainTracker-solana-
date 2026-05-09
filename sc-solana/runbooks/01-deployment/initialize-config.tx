@@ -1,12 +1,15 @@
-// Initialize SupplyChainTracker configuration
+// Initialize SupplyChainTracker configuration (PDA-First Architecture)
 // Called after program deployment to set up initial state
-// Initializes Config, SerialHashRegistry, and derives Admin PDA
 //
-// PDA-Based Admin Pattern:
+// PDA-First Pattern:
+// - Deployer PDA: seeds = [b"deployer"] - Payer for account creation
 // - Config PDA: seeds = [b"config"]
 // - Serial Hashes PDA: seeds = [b"serial_hashes", config.key()]
 // - Admin PDA: seeds = [b"admin", config.key()]
-//   This PDA pattern ensures consistency with Solana/PDA patterns and Surfpool compatibility
+//
+// Flow:
+// 1. fund_deployer - Create and fund deployer PDA (external wallet signer)
+// 2. initialize - All PDAs, fully IDL-derivable
 
 // Addon configuration for Solana/SVM
 addon "svm" {
@@ -14,15 +17,13 @@ addon "svm" {
   rpc_api_url = "http://localhost:8899"
 }
 
-// Signers - initializer pays for the initialization
-// NOTE: Renamed from 'admin' to 'initializer' since the actual admin
-// will be derived as a PDA from the config account
-signer "initializer" "svm::web_wallet" {
-  description = "Initial signer who creates the config and admin PDAs"
+// Signer for funding the deployer PDA
+signer "funder" "svm::web_wallet" {
+  description = "Wallet that funds the deployer PDA"
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
-// Get program artifacts from Anchor project (IDL for instruction encoding)
+// Get program artifacts from Anchor project
 variable "program" {
   description = "Program artifacts (IDL, binary, keypair, program_id)"
   value = svm::get_program_from_anchor_project("sc_solana")
@@ -34,8 +35,12 @@ variable "program_id" {
   value = variable.program.program_id
 }
 
-// Derive PDAs - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
-// Order matters: config must be derived first, then serial_hashes and admin depend on it
+// Derive PDAs - all accounts are PDA-derivable from IDL
+variable "deployer_pda" {
+  description = "Deployer PDA (seed: deployer)"
+  value = svm::find_pda(variable.program_id, ["deployer"])
+}
+
 variable "config_pda" {
   description = "Config account PDA (seed: config)"
   value = svm::find_pda(variable.program_id, ["config"])
@@ -46,69 +51,96 @@ variable "serial_hashes_pda" {
   value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
 }
 
-// Admin PDA - derived from config key using seeds [b"admin", config.key()]
-// This is the key change: admin is now a PDA that can be derived by Surfpool
 variable "admin_pda" {
   description = "Admin PDA (seed: admin + config_pda)"
   value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
 }
 
-// Initialize instruction
-// Uses PDA-based admin pattern for Surfpool/txtx compatibility
-//
-// Account structure:
-// 1. config - PDA with seeds [b"config"], initialized new account
-// 2. serial_hash_registry - PDA with seeds [b"serial_hashes", config.key()], initialized new account
-// 3. admin - PDA with seeds [b"admin", config.key()], derived (not initialized)
-// 4. initializer - Signer who pays for the initialization
-// 5. system_program - System program for account creation
-action "initialize" "svm::process_instructions" {
-  description = "Initialize supply chain configuration (creates Config, SerialHashRegistry, derives Admin PDA)"
-  instruction {
-    program_id = variable.program_id
-    // Anchor discriminator for initialize: [175, 175, 109, 31, 13, 152, 155, 237]
-    // The initialize instruction has NO args, so the data is just the discriminator
-    instruction_data = [175, 175, 109, 31, 13, 152, 155, 237]
-    
-    config {
-      public_key = variable.config_pda.pda
-      writable = true
-      signer = false
-    }
-    serial_hash_registry {
-      public_key = variable.serial_hashes_pda.pda
-      writable = true
-      signer = false
-    }
-    // Admin as PDA - derived from config key
-    // NOTE: admin is a Signer because Anchor PDAs can sign via seeder
-    admin {
-      public_key = variable.admin_pda.pda
-      writable = true
-      signer = true
-    }
-    // Initializer - the actual payer and signer
-    initializer {
-      public_key = signer.initializer.public_key
-      writable = true
-      signer = true
-    }
-    system_program {
-      public_key = svm::system_program_id()
-      writable = false
-      signer = false
-    }
-  }
-  signers = [signer.initializer]
+// Helper variables for fund_deployer instruction data
+// Anchor discriminator for "global:fund_deployer": sha256("global:fund_deployer")[:8]
+// Full instruction data = discriminator (8 bytes) + amount u64 little-endian (8 bytes)
+// Amount: 10000000000 = 0x2540BE40 -> [0, 228, 11, 84, 2, 0, 0, 0]
+variable "fund_deployer_data" {
+  description = "Complete instruction data for fund_deployer (discriminator + amount)"
+  value = [223, 191, 31, 96, 237, 187, 189, 54, 0, 228, 11, 84, 2, 0, 0, 0]
 }
 
-// Note: Admin PDA address can be derived using:
-// variable.admin_pda.pda = svm::find_pda(program_id, ["admin", config_pda.pda]).pda
+// Step 1: Fund the deployer PDA
+// Uses program_id (not program_idl) because funder is an external signer not derivable from IDL
+action "fund_deployer" "svm::process_instructions" {
+  description = "Create and fund the deployer PDA with SOL"
+  instruction {
+    program_id = variable.program_id
+    instruction_data = variable.fund_deployer_data
+    accounts = [
+      {
+        public_key = variable.deployer_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.funder.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.funder]
+}
+
+// Step 2: Initialize supply chain configuration
+// ALL accounts are PDAs - fully IDL-derivable for Surfpool/txtx
+action "initialize" "svm::process_instructions" {
+  description = "Initialize supply chain configuration (creates Config, SerialHashRegistry, derives Admin PDA)"
+  depends_on = ["fund_deployer"]
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "initialize"
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.serial_hashes_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.admin_pda.pda
+        writable = false
+        signer = true
+      },
+      {
+        public_key = variable.deployer_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []  // No external signers needed - all PDAs
+}
 
 // Outputs
 output "program_id" {
   description = "Program ID"
   value = variable.program_id
+}
+
+output "deployer_pda_address" {
+  description = "Deployer PDA address"
+  value = variable.deployer_pda.pda
 }
 
 output "admin_pda_address" {

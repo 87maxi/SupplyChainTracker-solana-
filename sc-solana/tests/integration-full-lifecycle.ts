@@ -229,16 +229,37 @@ describe("Integration Testing with Local Solana Network", () => {
     [configPda, configBump] = getConfigPda(program);
     serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
 
-    // Initialize program
-    const initSig = await program.methods
-      .initialize()
-      .accountsStrict({
-        admin: admin.publicKey,
-        config: configPda,
-        serialHashRegistry: serialHashRegistryPda,
+    // Initialize program using PDA-first pattern
+    const funder = Keypair.generate();
+    await fundKeypair(provider, funder, 10);
+    const [deployerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("deployer")],
+      program.programId
+    );
+    const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("admin"), configPda.toBuffer()],
+      program.programId
+    )[0];
+    
+    await (program.methods as any)
+      .fundDeployer(new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL))
+      .accounts({
+        deployer: deployerPda,
+        funder: funder.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .signers([admin])
+      .signers([funder])
+      .rpc();
+    
+    const initSig = await (program.methods as any)
+      .initialize()
+      .accounts({
+        config: configPda,
+        serialHashRegistry: serialHashRegistryPda,
+        admin: adminPda,
+        deployer: deployerPda,
+        systemProgram: SystemProgram.programId,
+      })
       .rpc();
     console.log("Initialized config:", initSig);
   });

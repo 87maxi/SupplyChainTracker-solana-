@@ -406,12 +406,46 @@ export function useSupplyChainService() {
     service.invalidateCachePrefix(prefix);
   }, [service]);
 
+  /**
+   * Fund and Initialize - PDA-First Architecture
+   *
+   * This method funds the deployer PDA and then initializes the config.
+   * Used for initial deployment of the supply chain system.
+   */
+  const fundAndInitialize = useCallback(async (amount: number = 10_000_000_000): Promise<TransactionResult> => {
+    if (!wallet || !publicKey) {
+      return { success: false, error: 'Wallet not connected' };
+    }
+
+    try {
+      const provider = new AnchorProvider(
+        connection,
+        wallet as any,
+        { commitment: 'confirmed' }
+      );
+
+      service.initialize(provider, publicKey);
+      
+      // Fund deployer PDA first, then initialize
+      const result = await service.fundAndInitialize(amount);
+      setInitialized(true);
+      setError(null);
+      return result;
+    } catch (err: any) {
+      setInitialized(false);
+      const errorMsg = err?.message ?? 'Error en fundAndInitialize';
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }, [wallet, publicKey, connection, service]);
+
   // Exponer todas las funciones del servicio
   return {
     service,
     initialized,
     error,
     refresh: initialize,
+    fundAndInitialize,
 
     // Query Functions
     getAllSerialNumbers,

@@ -1,9 +1,3 @@
-// Addon configuration for Solana/SVM
-addon "svm" {
-  network_id = "localnet"
-  rpc_api_url = "http://localhost:8899"
-}
-
 // Full lifecycle test: Manufacturing -> Audit -> Validation -> Distribution
 // Executes all state transitions in sequence
 // Usage: surfpool run full-lifecycle --env localnet --browser -f
@@ -12,7 +6,16 @@ addon "svm" {
 //   - Source config: source config/config.env && source runbooks/environments/localnet.env
 //   - Keypairs must exist in config/keypairs/ directory
 //
-// Inputs: None (uses env vars from config/config.env)
+// PDA-First Architecture:
+//   - Deployer PDA is used as payer for account creation
+//   - All accounts are PDA-derivable from IDL
+//   - Uses program_idl + instruction_name encoding
+
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
 
 // All role signers from centralized config
 signer "admin" "svm::web_wallet" {
@@ -47,6 +50,11 @@ variable "program_id" {
 }
 
 // PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+variable "deployer_pda" {
+  description = "Deployer PDA (seed: deployer)"
+  value = svm::find_pda(variable.program_id, ["deployer"])
+}
+
 variable "config_pda" {
   description = "Config account PDA"
   value = svm::find_pda(variable.program_id, ["config"])
@@ -55,6 +63,11 @@ variable "config_pda" {
 variable "serial_hashes_pda" {
   description = "Serial hashes registry PDA"
   value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
+}
+
+variable "admin_pda" {
+  description = "Admin PDA (seed: admin + config_pda)"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
 }
 
 variable "serial_number" {
@@ -67,21 +80,38 @@ variable "netbook_pda" {
   value = svm::find_pda(variable.program_id, ["netbook", variable.serial_number])
 }
 
-// Step 1: Initialize Config
-action "step1_initialize" "svm::process_instructions" {
-  description = "Step 1: Initialize Config and SerialHashRegistry"
+// Step 0: Fund Deployer PDA (PDA-First Architecture)
+action "step0_fund_deployer" "svm::process_instructions" {
+  description = "Step 0: Fund the deployer PDA with SOL"
   instruction {
-    program_idl = variable.program.idl
-    instruction_name = "initialize"
-    instruction_args = []
+    program_id = variable.program_id
+    instruction_data = program_idl + instruction_name("fund_deployer")
+    instruction_args = [10000000000]
     accounts = [
-      { public_key = variable.config_pda.pda, writable = true, signer = false },
-      { public_key = variable.serial_hashes_pda.pda, writable = true, signer = false },
+      { public_key = variable.deployer_pda.pda, writable = true, signer = false },
       { public_key = signer.admin.public_key, writable = true, signer = true },
       { public_key = svm::system_program_id(), writable = false, signer = false }
     ]
   }
   signers = [signer.admin]
+}
+
+// Step 1: Initialize Config (PDA-First)
+action "step1_initialize" "svm::process_instructions" {
+  description = "Step 1: Initialize Config and SerialHashRegistry"
+  depends_on = ["step0_fund_deployer"]
+  instruction {
+    program_id = variable.program_id
+    instruction_data = program_idl + instruction_name("initialize")
+    accounts = [
+      { public_key = variable.config_pda.pda, writable = true, signer = false },
+      { public_key = variable.serial_hashes_pda.pda, writable = true, signer = false },
+      { public_key = variable.admin_pda.pda, writable = false, signer = true },
+      { public_key = variable.deployer_pda.pda, writable = true, signer = false },
+      { public_key = svm::system_program_id(), writable = false, signer = false }
+    ]
+  }
+  signers = []
 }
 
 // Step 2: Grant FABRICANTE Role
@@ -93,12 +123,12 @@ action "step2_grant_fabricante" "svm::process_instructions" {
     instruction_args = ["FABRICANTE"]
     accounts = [
       { public_key = variable.config_pda.pda, writable = true, signer = false },
-      { public_key = signer.admin.public_key, writable = true, signer = true },
+      { public_key = variable.admin_pda.pda, writable = false, signer = true },
       { public_key = signer.fabricante.public_key, writable = false, signer = true },
       { public_key = svm::system_program_id(), writable = false, signer = false }
     ]
   }
-  signers = [signer.admin, signer.fabricante]
+  signers = [signer.fabricante]
 }
 
 // Step 3: Register Netbook (Fabricada = 0)
@@ -172,7 +202,9 @@ action "step6_assign" "svm::process_instructions" {
 
 // Outputs
 output "lifecycle_signatures" {
+  description = "Transaction signatures for each lifecycle step"
   value = {
+    fund_deployer: action.step0_fund_deployer.signatures | first(),
     initialize: action.step1_initialize.signatures | first(),
     grant_fabricante: action.step2_grant_fabricante.signatures | first(),
     register: action.step3_register.signatures | first(),
@@ -183,7 +215,9 @@ output "lifecycle_signatures" {
 }
 
 output "state_transitions" {
+  description = "State transitions for the full lifecycle"
   value = {
+    step_0: "Deployer PDA funded",
     step_1: "Config initialized",
     step_2: "FABRICANTE role granted",
     step_3: "Netbook registered -> Fabricada (0)",

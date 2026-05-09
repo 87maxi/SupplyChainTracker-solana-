@@ -17,9 +17,6 @@ export const metadata: Metadata = {
   description: "Plataforma para rastrear la cadena de suministro de netbooks",
 };
 
-// Importar el módulo de diagnóstico
-import '@/lib/diagnostics/service-debug';
-
 export default function RootLayout({
   children,
 }: Readonly<{

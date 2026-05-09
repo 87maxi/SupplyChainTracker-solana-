@@ -93,6 +93,17 @@ export function useSupplyChainProgram() {
 }
 
 /**
+ * Find PDA for deployer (PDA-First Architecture)
+ * Deployer PDA is the central payer for account creation.
+ */
+export const findDeployerPda = (): [PublicKey, number] => {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('deployer')],
+    PROGRAM_ID
+  );
+};
+
+/**
  * Find PDA (Program Derived Address) for config
  */
 export const findConfigPda = (): [PublicKey, number] => {

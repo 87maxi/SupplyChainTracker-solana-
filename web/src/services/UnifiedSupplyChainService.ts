@@ -7,14 +7,36 @@
 
 'use client';
 
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import {
   findConfigPda,
+  findDeployerPda,
   findNetbookPda,
   findRoleRequestPda,
   getProgram,
+  PROGRAM_ID,
 } from '@/lib/contracts/solana-program';
+
+/**
+ * Find PDA for serial hashes registry
+ */
+function findSerialHashesPda(configPda: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('serial_hashes'), configPda.toBuffer()],
+    PROGRAM_ID
+  );
+}
+
+/**
+ * Find PDA for admin
+ */
+function findAdminPda(configPda: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('admin'), configPda.toBuffer()],
+    PROGRAM_ID
+  );
+}
 import { CacheService, CACHE_TAGS } from '@/lib/cache/cache-service';
 import { safeJsonStringify } from '@/lib/utils';
 
@@ -135,6 +157,57 @@ export class UnifiedSupplyChainService {
     this.program = getProgram(provider);
     this.walletPubkey = walletPubkey || null;
     console.log('✅ UnifiedSupplyChainService program inicializado');
+  }
+
+  /**
+   * Fund and Initialize - PDA-First Architecture
+   *
+   * Funds the deployer PDA and then initializes the config.
+   * Used for initial deployment of the supply chain system.
+   */
+  async fundAndInitialize(amount: number = 10_000_000_000): Promise<TransactionResult> {
+    if (!this.program || !this.provider || !this.walletPubkey) {
+      return { success: false, error: 'Service not initialized' };
+    }
+
+    try {
+      const [deployerPda] = findDeployerPda();
+      const [configPda] = findConfigPda();
+      const [serialHashesPda] = findSerialHashesPda(configPda);
+      const [adminPda] = findAdminPda(configPda);
+
+      // Step 1: Fund deployer PDA
+      const fundTx = await (this.program as any)
+        .methods
+        .fundDeployer(new BN(amount))
+        .accounts({
+          deployer: deployerPda,
+          funder: this.walletPubkey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      // Step 2: Initialize config
+      const initTx = await (this.program as any)
+        .methods
+        .initialize()
+        .accounts({
+          config: configPda,
+          serialHashRegistry: serialHashesPda,
+          admin: adminPda,
+          deployer: deployerPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      return { success: true, signature: initTx };
+    } catch (err: any) {
+      console.error('Error in fundAndInitialize:', err);
+      return {
+        success: false,
+        error: err?.message ?? 'Error en fundAndInitialize',
+      };
+    }
   }
 
   getProgram(): AnchorProgram | null {

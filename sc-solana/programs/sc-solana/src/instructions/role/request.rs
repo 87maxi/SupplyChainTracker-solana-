@@ -41,14 +41,16 @@ pub struct RequestRole<'info> {
 pub struct ApproveRoleRequest<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
     pub admin: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
     #[account(mut)]
     pub role_request: Account<'info, RoleRequest>,
     /// RoleHolder PDA created on approval - seeds by user key
     #[account(
         init,
-        payer = admin,
+        payer = payer,
         space = RoleHolder::INIT_SPACE,
         seeds = [b"role_holder", role_request.user.as_ref()],
         bump
@@ -63,7 +65,7 @@ pub struct ApproveRoleRequest<'info> {
 pub struct RejectRoleRequest<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
     pub admin: Signer<'info>,
     #[account(mut)]
     pub role_request: Account<'info, RoleRequest>,

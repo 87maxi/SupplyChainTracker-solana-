@@ -17,13 +17,13 @@ use crate::events::RoleHolderRemoved;
 pub struct RemoveRoleHolder<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
     pub admin: Signer<'info>,
     #[account(
         mut,
         seeds = [b"role_holder", role_holder.account.as_ref()],
         bump,
-        close = admin  // Return lamports to admin
+        close = admin  // Return lamports to admin PDA
     )]
     pub role_holder: Account<'info, RoleHolder>,
     pub system_program: Program<'info, System>,

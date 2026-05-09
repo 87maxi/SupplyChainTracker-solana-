@@ -23,6 +23,7 @@ import {
   getConfigPda,
   getNetbookPda,
   getSerialHashRegistryPda,
+  getAdminPda,
   createHash,
   NetbookState,
 } from "./test-helpers";
@@ -40,6 +41,7 @@ describe("Role Enforcement Boundary Tests", () => {
   const anotherRandom = Keypair.generate();
 
   let configPda: PublicKey;
+  let adminPda: PublicKey;
   let serialHashRegistryPda: PublicKey;
   let crossRoleNetbookPda: PublicKey;
 
@@ -60,6 +62,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
     // Get PDAs
     [configPda] = getConfigPda(program);
+    adminPda = getAdminPda(configPda, program.programId);
     serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
   });
 
@@ -68,15 +71,36 @@ describe("Role Enforcement Boundary Tests", () => {
   // ========================================================================
 
   async function initializeConfig() {
-    await program.methods
-      .initialize()
-      .accountsStrict({
-        config: configPda,
-        serialHashRegistry: serialHashRegistryPda,
-        admin: admin.publicKey,
+    const funder = Keypair.generate();
+    await provider.connection.requestAirdrop(funder.publicKey, 10 * LAMPORTS_PER_SOL);
+    const [deployerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("deployer")],
+      program.programId
+    );
+    const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("admin"), configPda.toBuffer()],
+      program.programId
+    )[0];
+    
+    await (program.methods as any)
+      .fundDeployer(new anchor.BN(10 * LAMPORTS_PER_SOL))
+      .accounts({
+        deployer: deployerPda,
+        funder: funder.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .signers([admin])
+      .signers([funder])
+      .rpc();
+    
+    await (program.methods as any)
+      .initialize()
+      .accounts({
+        config: configPda,
+        serialHashRegistry: serialHashRegistryPda,
+        admin: adminPda,
+        deployer: deployerPda,
+        systemProgram: SystemProgram.programId,
+      })
       .rpc();
   }
 
@@ -94,7 +118,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -108,7 +132,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("AUDITOR_HW")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -122,7 +146,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("TECNICO_SW")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -136,7 +160,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("ESCUELA")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -169,7 +193,7 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole("INVALID_ROLE")
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -187,7 +211,7 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole("FABRICANTE")
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -211,7 +235,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -224,7 +248,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .revokeRole("FABRICANTE")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToRevoke: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -257,7 +281,7 @@ describe("Role Enforcement Boundary Tests", () => {
           .revokeRole("INVALID_ROLE")
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToRevoke: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -283,7 +307,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -368,7 +392,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("AUDITOR_HW")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -466,7 +490,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("TECNICO_SW")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -563,7 +587,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("ESCUELA")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -669,7 +693,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -680,7 +704,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("AUDITOR_HW")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -691,7 +715,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("TECNICO_SW")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -702,7 +726,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("ESCUELA")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -1033,7 +1057,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -1044,7 +1068,7 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("AUDITOR_HW")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -1058,7 +1082,7 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole("")
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -1076,7 +1100,7 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole("FABRICANTE; DROP TABLE config;--")
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -1095,7 +1119,7 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole(longRole)
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })

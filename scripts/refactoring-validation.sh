@@ -206,11 +206,18 @@ for f in grant.rs revoke.rs holder_add.rs holder_remove.rs request.rs transfer_a
     fi
 done
 
-# Check workaround script exists
-if [ -f "$PROJECT_ROOT/sc-solana/runbooks/01-deployment/initialize-config-cli.sh" ]; then
-    pass "initialize-config-cli.sh workaround exists"
+# Check PDA-first deployer exists (replaces initialize-config-cli.sh workaround)
+if [ -f "$PROJECT_ROOT/sc-solana/programs/sc-solana/src/instructions/deployer.rs" ]; then
+    pass "PDA-first deployer.rs exists (replaces CLI workaround)"
 else
-    warn "initialize-config-cli.sh workaround missing"
+    fail "deployer.rs missing - PDA-first migration incomplete"
+fi
+
+# Ensure obsolete CLI workaround is removed
+if [ ! -f "$PROJECT_ROOT/sc-solana/runbooks/01-deployment/initialize-config-cli.sh" ]; then
+    pass "initialize-config-cli.sh removed (no longer needed with PDA-first)"
+else
+    warn "initialize-config-cli.sh still exists (should be removed)"
 fi
 
 # ============================================

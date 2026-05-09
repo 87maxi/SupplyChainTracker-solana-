@@ -37,7 +37,7 @@ The admin account is now derived as a PDA with seeds `[b"admin", config.key()]` 
 - [`SupplyChainConfig`](programs/sc-solana/src/state/config.rs): Added `admin_pda_bump` field
 - [`initialize.rs`](programs/sc-solana/src/instructions/initialize.rs): Admin derived as PDA
 - All role management instructions: Admin PDA verification
-- Solana CLI workaround script for Surfpool limitation: [`initialize-config-cli.sh`](../runbooks/01-deployment/initialize-config-cli.sh)
+- PDA-first architecture: Deployer PDA funds all account creation (no external signer needed)
 
 For details, see [`CHANGELOG.md`](../CHANGELOG.md), [`plans/refactoring-plan.md`](../plans/refactoring-plan.md), and [`reports/refactoring-remaining-tasks.md`](../reports/refactoring-remaining-tasks.md).
 

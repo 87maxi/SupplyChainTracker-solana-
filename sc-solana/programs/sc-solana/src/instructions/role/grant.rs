@@ -18,7 +18,7 @@ use crate::events::RoleGranted;
 pub struct GrantRole<'info> {
     #[account(mut, has_one = admin)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut)]
+    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
     pub admin: Signer<'info>,
     pub account_to_grant: Signer<'info>,
     pub system_program: Program<'info, System>,

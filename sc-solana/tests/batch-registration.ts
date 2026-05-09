@@ -26,10 +26,13 @@ import {
 import {
   getConfigPda,
   getSerialHashRegistryPda,
+  getDeployerPda,
+  getAdminPda,
   createHash,
   createBatchId,
   createModelSpecs,
   fundKeypair,
+  fundAndInitialize,
   assertNetbookState,
   NetbookState,
 } from "./test-helpers";
@@ -57,19 +60,32 @@ describe("Batch Registration Integration Tests", () => {
   const MAX_BATCH_SIZE = 10;
 
   before(async () => {
-    // Use first two accounts from provider wallet for admin and fabricante
-    const [adminKey, fabricanteKey] = (provider.wallet as any).keypair.secret;
-    admin = Keypair.fromSecretKey(new Uint8Array(adminKey));
-    fabricante = Keypair.fromSecretKey(new Uint8Array(fabricanteKey));
+    // Create fresh keypairs for test accounts
+    admin = Keypair.generate();
+    fabricante = Keypair.generate();
+
+    // Fund accounts
+    await fundKeypair(provider, admin, 2);
+    await fundKeypair(provider, fabricante, 2);
+
+    // PDA-first initialization: fund deployer, initialize config, grant roles
+    await fundAndInitialize(program, provider, admin);
 
     configPda = (await getConfigPda(program))[0];
     serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
 
-    // Fund fabricante if needed
-    const fabricanteBalance = await provider.connection.getBalance(fabricante.publicKey);
-    if (fabricanteBalance < 0.5 * LAMPORTS_PER_SOL) {
-      await fundKeypair(provider, fabricante, 2);
-    }
+    // Grant FABRICANTE role to fabricante
+    const adminPda = getAdminPda(configPda, program.programId);
+    await (program.methods as any)
+      .grantRole("FABRICANTE")
+      .accountsStrict({
+        config: configPda,
+        admin: adminPda,
+        accountToGrant: fabricante.publicKey,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([fabricante])
+      .rpc();
   });
 
   describe("Successful Batch Registration", () => {

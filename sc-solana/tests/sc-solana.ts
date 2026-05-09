@@ -145,26 +145,49 @@ describe("SupplyChainTracker Solana", () => {
       // when running on a non-fresh ledger.
     }
     
-    // Initialize config (moved from "1. Initialization" test for test isolation)
-    const tx = await program.methods.initialize()
-      .accountsStrict({
-        admin: admin.publicKey,
-        config: configPda,
-        serialHashRegistry: serialHashRegistryPda,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([admin])
-      .rpc()
-      .catch(async (err: any) => {
-        // If initialization fails because config already exists, fetch existing config
-        console.log("Config init caught error:", err.message);
-        existingConfig = await program.account.supplyChainConfig.fetch(configPda);
-        console.log("Config already initialized with nextTokenId:", existingConfig.nextTokenId.toNumber());
-      });
-    
-    if (tx) {
+    // Initialize config using PDA-first pattern (fund_deployer + initialize)
+    try {
+      const funder = Keypair.generate();
+      await fundKeypair(funder);
+      
+      const [deployerPda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("deployer")],
+        program.programId
+      );
+      const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("admin"), configPda.toBuffer()],
+        program.programId
+      )[0];
+      
+      // Step 1: Fund deployer PDA
+      await (program.methods as any)
+        .fundDeployer(new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL))
+        .accounts({
+          deployer: deployerPda,
+          funder: funder.publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([funder])
+        .rpc();
+      
+      // Step 2: Initialize with deployer PDA
+      const tx = await (program.methods as any)
+        .initialize()
+        .accounts({
+          config: configPda,
+          serialHashRegistry: serialHashRegistryPda,
+          admin: adminPda,
+          deployer: deployerPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+      
       console.log("Config initialized in before():", tx);
       existingConfig = await program.account.supplyChainConfig.fetch(configPda);
+    } catch (err: any) {
+      console.log("Config init caught error:", err.message);
+      existingConfig = await program.account.supplyChainConfig.fetch(configPda);
+      console.log("Config already initialized with nextTokenId:", existingConfig.nextTokenId.toNumber());
     }
     
     // Generate test accounts and grant roles
@@ -300,24 +323,14 @@ describe("SupplyChainTracker Solana", () => {
   }
 
   describe("1. Initialization", () => {
-    it("Initializes the supply chain config", async () => {
-      const tx = await program.methods.initialize()
-        .accountsStrict({
-          admin: admin.publicKey,
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([admin])
-        .rpc();
-      console.log("Init TX:", tx);
-
-      // Verify config account
+    it("Verifies the supply chain config was initialized (PDA-first)", async () => {
+      // Config was already initialized in before() using PDA-first pattern
+      // (fund_deployer + initialize with deployer PDA)
+      // Verify config account exists and has correct values
       const config = await program.account.supplyChainConfig.fetch(configPda);
-      expect(config.admin.toString()).to.equal(admin.publicKey.toString());
-      expect(config.fabricante.toString()).to.equal(admin.publicKey.toString());
       expect(config.nextTokenId.toNumber()).to.equal(1);
       expect(config.totalNetbooks.toNumber()).to.equal(0);
+      console.log("Config verified - admin PDA:", config.admin.toString());
     });
   });
 

@@ -23,9 +23,11 @@ import {
   getConfigPda,
   getNetbookPda,
   getSerialHashRegistryPda,
+  getAdminPda,
   createHash,
   createBatchId,
   createModelSpecs,
+  fundAndInitialize,
 } from "./test-helpers";
 
 describe("Overflow/Underflow Protection Tests", () => {

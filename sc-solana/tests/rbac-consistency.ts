@@ -28,7 +28,9 @@ import {
   getConfigPda,
   getRoleRequestPda,
   getSerialHashRegistryPda,
+  getAdminPda,
   fundKeypair,
+  fundAndInitialize,
   RequestStatus,
 } from "./test-helpers";
 

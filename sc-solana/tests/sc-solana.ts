@@ -15,6 +15,7 @@ import { Program } from "@coral-xyz/anchor";
 import { ScSolana } from "../target/types/sc_solana";
 import { expect } from "chai";
 import { Keypair, SystemProgram } from "@solana/web3.js";
+import { fundAndInitialize, getAdminPda } from "./test-helpers";
 
 // State enum values matching Rust
 const NetbookState = {
@@ -146,16 +147,10 @@ describe("SupplyChainTracker Solana", () => {
       // when running on a non-fresh ledger.
     }
     
-    // Initialize config using PDA-first pattern (fund_deployer + initialize)
-    try {
-      const funder = Keypair.generate();
-      await fundKeypair(funder);
-      
-      const [deployerPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      // Initialize using shared initialization (Issue #178)
-      await fundAndInitialize(program, provider, admin);
-      adminPda = getAdminPda(configPda, program.programId);
-      existingConfig = await program.account.supplyChainConfig.fetch(configPda);
+    // Initialize using shared initialization (Issue #178)
+    await fundAndInitialize(program, provider, admin);
+    adminPda = getAdminPda(configPda, program.programId);
+    existingConfig = await program.account.supplyChainConfig.fetch(configPda);
     
     // Generate test accounts and grant roles
     fabricante = Keypair.generate();

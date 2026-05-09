@@ -32,6 +32,8 @@ import {
   getSerialHashRegistryPda,
   createHash,
   NetbookState,
+  fundAndInitialize,
+  getAdminPda,
 } from "./test-helpers";
 
 describe("State Machine Transition Validation Tests", () => {

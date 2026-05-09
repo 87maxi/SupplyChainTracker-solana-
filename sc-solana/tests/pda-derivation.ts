@@ -26,8 +26,10 @@ import {
   getRoleRequestPda,
   getSerialHashRegistryPda,
   getRoleHolderPda,
+  getAdminPda,
   createHash,
   NetbookState,
+  fundAndInitialize,
 } from "./test-helpers";
 
 describe("PDA Derivation Security Tests", () => {

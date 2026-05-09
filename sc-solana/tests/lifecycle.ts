@@ -33,6 +33,8 @@ import {
   getConfigPda,
   getNetbookPda,
   getRoleRequestPda,
+  getAdminPda,
+  fundAndInitialize,
   waitForConfirmation,
   TestAccounts,
   NetbookRegistrationData,

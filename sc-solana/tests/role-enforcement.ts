@@ -26,6 +26,7 @@ import {
   getAdminPda,
   createHash,
   NetbookState,
+  fundAndInitialize,
 } from "./test-helpers";
 
 describe("Role Enforcement Boundary Tests", () => {

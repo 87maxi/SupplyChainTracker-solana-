@@ -33,6 +33,8 @@ import {
   getNetbookPda,
   getSerialHashRegistryPda,
   fundKeypair,
+  fundAndInitialize,
+  getAdminPda,
   waitForConfirmation,
   HardwareAuditData,
   SoftwareValidationData,

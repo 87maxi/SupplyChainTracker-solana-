@@ -26,6 +26,7 @@ import {
   getAdminPda,
   getRoleHolderByUserPda,
   fundKeypair,
+  fundAndInitialize,
   RequestStatus,
 } from "./test-helpers";
 

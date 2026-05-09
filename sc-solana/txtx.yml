@@ -24,9 +24,8 @@ runbooks:
     description: Grant initial roles to administrators
     location: runbooks/01-deployment/grant-roles.tx
 
-  - name: upgrade-program
-    description: Upgrade deployed program
-    location: runbooks/01-deployment/upgrade-program.tx
+  # NOTE: upgrade-program removed - program is deployed as non-upgradeable
+  # (upgradeable = false in Anchor.toml, authority = null in deploy-program.tx)
 
   # ============================================================================
   # Operations Runbooks - Netbook Lifecycle (Phase 2)

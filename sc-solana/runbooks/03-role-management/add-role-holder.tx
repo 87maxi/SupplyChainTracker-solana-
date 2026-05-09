@@ -1,7 +1,7 @@
 // Addon configuration for Solana/SVM
 addon "svm" {
   network_id = "localnet"
-  rpc_api_url = "http://localhost:8999"
+  rpc_api_url = "http://localhost:8899"
 }
 
 // Add a new role holder (multi-holder support)
@@ -108,14 +108,16 @@ action "add_holder" "svm::process_instructions" {
         writable = true
         signer = true
       },
-      {
-        public_key = signer.new_holder.public_key
-        writable = false
-        signer = true
-      },
+      // role_holder PDA (init, payer = admin) - seeds: [b"role_holder", account_to_add]
       {
         public_key = variable.role_holder_pda.pda
         writable = true
+        signer = false
+      },
+      // account_to_add (CHECK) - the account being added to the role
+      {
+        public_key = signer.new_holder.public_key
+        writable = false
         signer = false
       },
       {

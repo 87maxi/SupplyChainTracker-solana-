@@ -34,7 +34,7 @@ All runbooks use environment variables from `config/config.env` instead of hardc
 
 ### Prerequisites
 
-1. **Surfpool Simnet running**: `surfpool start` (on localhost:8899)
+1. **Surfpool/Solana validator running** on localhost:8899
 2. **Program compiled**: Run `anchor build` in the `sc-solana` directory
 3. **Wallet keypair**: Ensure `~/.config/solana/id.json` exists
 4. **Role keypairs**: Generated in `config/keypairs/` directory
@@ -73,7 +73,7 @@ runbooks/
 │   ├── deploy-program.tx              # Deploy the program
 │   ├── initialize-config.tx           # Initialize configuration
 │   ├── grant-roles.tx                 # Grant initial roles
-│   └── upgrade-program.tx             # Upgrade program
+│   # upgrade-program removed (program is non-upgradeable)
 ├── operations/                         # Phase 2: Operations
 │   ├── register-netbook.tx            # Register single netbook
 │   ├── register-netbooks-batch.tx     # Register batch of netbooks

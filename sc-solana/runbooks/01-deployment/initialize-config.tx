@@ -11,7 +11,7 @@
 // Addon configuration for Solana/SVM
 addon "svm" {
   network_id = "localnet"
-  rpc_api_url = "http://localhost:8999"
+  rpc_api_url = "http://localhost:8899"
 }
 
 // Signers - initializer pays for the initialization

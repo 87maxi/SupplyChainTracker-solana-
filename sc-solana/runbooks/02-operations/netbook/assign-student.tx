@@ -63,7 +63,7 @@ variable "config_pda" {
 
 variable "netbook_pda" {
   description = "Netbook account PDA"
-  value = svm::find_pda(variable.program_id, ["netbook", "netbook", svm::u64(variable.token_id)])
+  value = svm::find_pda(variable.program_id, ["netbook", svm::u64(variable.token_id)])
 }
 
 // Assign action

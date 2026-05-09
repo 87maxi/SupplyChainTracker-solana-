@@ -46,7 +46,7 @@ variable "model_specs" {
 // The netbook PDA depends on config.next_token_id which increments per registration.
 // For runbook testing, we need to track the current token_id and derive the PDA accordingly.
 // NOTE: In practice, the Surfpool/txtx tool may not support dynamic token_id tracking.
-// For now, we use a simplified approach with ["netbook", "netbook", token_id_bytes].
+// PDA seed matches Anchor program: [b"netbook", token_id.to_le_bytes()]
 variable "config_pda" {
   description = "Config account PDA"
   value = svm::find_pda(variable.program_id, ["config"])
@@ -75,7 +75,7 @@ variable "token_id" {
 
 variable "netbook_pda" {
   description = "Netbook account PDA (seed: 'netbook', 'netbook', token_id LE bytes)"
-  value = svm::find_pda(variable.program_id, ["netbook", "netbook", svm::u64(variable.token_id)])
+  value = svm::find_pda(variable.program_id, ["netbook", svm::u64(variable.token_id)])
 }
 
 // Register action

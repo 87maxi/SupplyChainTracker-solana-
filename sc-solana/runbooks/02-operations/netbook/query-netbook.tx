@@ -34,7 +34,7 @@ variable "serial_number" {
 // PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
 variable "netbook_pda" {
   description = "Netbook account PDA"
-  value = svm::find_pda(variable.program_id, ["netbook", "netbook", svm::u64(variable.token_id)])
+  value = svm::find_pda(variable.program_id, ["netbook", svm::u64(variable.token_id)])
 }
 
 action "query" "svm::process_instructions" {

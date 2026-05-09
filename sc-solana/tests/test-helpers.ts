@@ -185,6 +185,21 @@ export function getRoleHolderPda(
   return pda;
 }
 
+/**
+ * Get RoleHolder PDA derived from user public key
+ * Used for approve_role_request instruction
+ */
+export function getRoleHolderByUserPda(
+  user: PublicKey,
+  programId: PublicKey
+): PublicKey {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("role_holder"), user.toBuffer()],
+    programId
+  );
+  return pda;
+}
+
 // ============================================================================
 // Hash Utility Functions
 // ============================================================================

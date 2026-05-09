@@ -24,6 +24,7 @@ import {
   getConfigPda,
   getRoleRequestPda,
   getAdminPda,
+  getRoleHolderByUserPda,
   fundKeypair,
   RequestStatus,
 } from "./test-helpers";
@@ -368,14 +369,18 @@ describe("Role Management Integration Tests", () => {
     it("approves TECNICO_SW role request", async () => {
       const roleRequestPda = getRoleRequestPda(tecnico.publicKey, program.programId);
       
-      const tx = await program.methods
+      const roleHolderPda = getRoleHolderByUserPda(tecnico.publicKey, program.programId);
+      const tx = await (program.methods as any)
         .approveRoleRequest()
         .accountsStrict({
           config: configPda,
           admin: adminPda,
+          payer: admin.publicKey,
           roleRequest: roleRequestPda,
+          roleHolder: roleHolderPda,
+          systemProgram: SystemProgram.programId,
         })
-        .signers([])
+        .signers([admin])
         .rpc();
 
       // Verify role request was approved
@@ -390,14 +395,18 @@ describe("Role Management Integration Tests", () => {
     it("approves ESCUELA role request", async () => {
       const roleRequestPda = getRoleRequestPda(escuela.publicKey, program.programId);
       
-      const tx = await program.methods
+      const roleHolderPda2 = getRoleHolderByUserPda(escuela.publicKey, program.programId);
+      const tx = await (program.methods as any)
         .approveRoleRequest()
         .accountsStrict({
           config: configPda,
           admin: adminPda,
+          payer: admin.publicKey,
           roleRequest: roleRequestPda,
+          roleHolder: roleHolderPda2,
+          systemProgram: SystemProgram.programId,
         })
-        .signers([])
+        .signers([admin])
         .rpc();
 
       // Verify role request was approved
@@ -413,14 +422,18 @@ describe("Role Management Integration Tests", () => {
       const roleRequestPda = getRoleRequestPda(tecnico.publicKey, program.programId);
       
       try {
-        await program.methods
+        const techRoleHolder = getRoleHolderByUserPda(tecnico.publicKey, program.programId);
+        await (program.methods as any)
           .approveRoleRequest()
           .accountsStrict({
             config: configPda,
             admin: adminPda,
+            payer: admin.publicKey,
             roleRequest: roleRequestPda,
+            roleHolder: techRoleHolder,
+            systemProgram: SystemProgram.programId,
           })
-          .signers([])
+          .signers([admin])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -436,14 +449,18 @@ describe("Role Management Integration Tests", () => {
       const roleRequestPda = getRoleRequestPda(nonExistentUser.publicKey, program.programId);
       
       try {
-        await program.methods
+        const nonExistentRoleHolder = getRoleHolderByUserPda(nonExistentUser.publicKey, program.programId);
+        await (program.methods as any)
           .approveRoleRequest()
           .accountsStrict({
             config: configPda,
             admin: adminPda,
+            payer: admin.publicKey,
             roleRequest: roleRequestPda,
+            roleHolder: nonExistentRoleHolder,
+            systemProgram: SystemProgram.programId,
           })
-          .signers([])
+          .signers([admin])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -471,12 +488,16 @@ describe("Role Management Integration Tests", () => {
         .rpc();
 
       try {
-        await program.methods
+        const nonAdminRoleHolder = getRoleHolderByUserPda(nonAdmin.publicKey, program.programId);
+        await (program.methods as any)
           .approveRoleRequest()
           .accountsStrict({
             config: configPda,
             admin: nonAdmin.publicKey,
+            payer: nonAdmin.publicKey,
             roleRequest: roleRequestPda,
+            roleHolder: nonAdminRoleHolder,
+            systemProgram: SystemProgram.programId,
           })
           .signers([nonAdmin])
           .rpc();
@@ -646,12 +667,16 @@ describe("Role Management Integration Tests", () => {
         .rpc();
 
       try {
-        await program.methods
+        const unauthRoleHolder = getRoleHolderByUserPda(unauthorized.publicKey, program.programId);
+        await (program.methods as any)
           .approveRoleRequest()
           .accountsStrict({
             config: configPda,
             admin: unauthorized.publicKey,
+            payer: unauthorized.publicKey,
             roleRequest: roleRequestPda,
+            roleHolder: unauthRoleHolder,
+            systemProgram: SystemProgram.programId,
           })
           .signers([unauthorized])
           .rpc();
@@ -730,7 +755,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: user2.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, user2])
+        .signers([user2])
         .rpc();
 
       await program.methods
@@ -741,7 +766,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: user3.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, user3])
+        .signers([user3])
         .rpc();
 
       // Verify all roles are granted to correct users
@@ -774,14 +799,18 @@ describe("Role Management Integration Tests", () => {
       roleRequest.status.should.equal(RequestStatus.Pending);
 
       // Step 2: Admin approves
-      await program.methods
+      const lifecycleRoleHolder = getRoleHolderByUserPda(lifecycleUser.publicKey, program.programId);
+      await (program.methods as any)
         .approveRoleRequest()
         .accountsStrict({
           config: configPda,
           admin: adminPda,
+          payer: admin.publicKey,
           roleRequest: roleRequestPda,
+          roleHolder: lifecycleRoleHolder,
+          systemProgram: SystemProgram.programId,
         })
-        .signers([])
+        .signers([admin])
         .rpc();
 
       // Verify approved status and config update
@@ -890,14 +919,18 @@ describe("Role Management Integration Tests", () => {
       const roleRequestPda = getRoleRequestPda(nonExistent.publicKey, program.programId);
       
       try {
-        await program.methods
+        const nonExRoleHolder = getRoleHolderByUserPda(nonExistent.publicKey, program.programId);
+        await (program.methods as any)
           .approveRoleRequest()
           .accountsStrict({
             config: configPda,
             admin: adminPda,
+            payer: admin.publicKey,
             roleRequest: roleRequestPda,
+            roleHolder: nonExRoleHolder,
+            systemProgram: SystemProgram.programId,
           })
-          .signers([])
+          .signers([admin])
           .rpc();
 
         throw new Error("Expected transaction to fail");

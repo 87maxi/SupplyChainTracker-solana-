@@ -14,7 +14,7 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN");
+declare_id!("7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb");
 
 // ==================== Constants ====================
 

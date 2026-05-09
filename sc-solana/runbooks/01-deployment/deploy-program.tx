@@ -25,7 +25,7 @@ variable "program" {
 action "deploy" "svm::deploy_program" {
   description = "Deploy SupplyChainTracker program to localnet"
   program = variable.program
-  authority = null  // Non-upgradeable program (upgradeable = false in Anchor.toml)
+  authority = signer.deployer
   payer = signer.deployer
   auto_extend = true
 }

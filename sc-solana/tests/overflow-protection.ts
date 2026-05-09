@@ -39,6 +39,7 @@ describe("Overflow/Underflow Protection Tests", () => {
   const school = Keypair.generate();
 
   let configPda: PublicKey;
+  let adminPda: PublicKey;
   let serialHashRegistryPda: PublicKey;
 
   // ========================================================================
@@ -65,7 +66,7 @@ describe("Overflow/Underflow Protection Tests", () => {
       [Buffer.from("deployer")],
       program.programId
     );
-    const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+    adminPda = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("admin"), configPda.toBuffer()],
       program.programId
     )[0];
@@ -103,7 +104,7 @@ describe("Overflow/Underflow Protection Tests", () => {
       .grantRole(role)
       .accountsStrict({
         config: configPda,
-        admin: admin.publicKey,
+        admin: adminPda,
         accountToGrant: account,
         systemProgram: SystemProgram.programId,
       })

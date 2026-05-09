@@ -55,6 +55,7 @@ describe("SupplyChainTracker Solana", () => {
   let configPda: anchor.web3.PublicKey;
   let configBump: number;
   let serialHashRegistryPda: anchor.web3.PublicKey;
+  let adminPda: anchor.web3.PublicKey;
 
   before(() => {
     if (anchor.workspace.scSolana) {
@@ -154,7 +155,7 @@ describe("SupplyChainTracker Solana", () => {
         [Buffer.from("deployer")],
         program.programId
       );
-      const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+      adminPda = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from("admin"), configPda.toBuffer()],
         program.programId
       )[0];
@@ -220,7 +221,7 @@ describe("SupplyChainTracker Solana", () => {
       await program.methods.grantRole(FABRICANTE_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -236,7 +237,7 @@ describe("SupplyChainTracker Solana", () => {
       await program.methods.grantRole(AUDITOR_HW_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -252,7 +253,7 @@ describe("SupplyChainTracker Solana", () => {
       await program.methods.grantRole(TECNICO_SW_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -268,7 +269,7 @@ describe("SupplyChainTracker Solana", () => {
       await program.methods.grantRole(ESCUELA_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -304,7 +305,7 @@ describe("SupplyChainTracker Solana", () => {
         await program.methods.grantRole(role)
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: account.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -341,7 +342,7 @@ describe("SupplyChainTracker Solana", () => {
         .grantRole(AUDITOR_HW_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -359,7 +360,7 @@ describe("SupplyChainTracker Solana", () => {
         .grantRole(FABRICANTE_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -398,7 +399,7 @@ describe("SupplyChainTracker Solana", () => {
         .approveRoleRequest()
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([])
@@ -433,7 +434,7 @@ describe("SupplyChainTracker Solana", () => {
         .rejectRoleRequest()
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([])
@@ -473,7 +474,7 @@ describe("SupplyChainTracker Solana", () => {
           .grantRole(AUDITOR_HW_ROLE)
           .accountsStrict({
             config: configPda,
-            admin: admin.publicKey,
+            admin: adminPda,
             accountToGrant: auditor.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -811,7 +812,7 @@ describe("SupplyChainTracker Solana", () => {
         .grantRole(ESCUELA_ROLE)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })

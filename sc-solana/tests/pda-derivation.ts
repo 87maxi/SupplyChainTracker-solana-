@@ -43,6 +43,7 @@ describe("PDA Derivation Security Tests", () => {
 
   let configPda: PublicKey;
   let configBump: number;
+  let adminPda: PublicKey;
 
   // ========================================================================
   // Setup
@@ -73,7 +74,7 @@ describe("PDA Derivation Security Tests", () => {
       [Buffer.from("deployer")],
       program.programId
     );
-    const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+    adminPda = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("admin"), configPda.toBuffer()],
       program.programId
     )[0];
@@ -616,7 +617,7 @@ describe("PDA Derivation Security Tests", () => {
         .grantRole("FABRICANTE")
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })

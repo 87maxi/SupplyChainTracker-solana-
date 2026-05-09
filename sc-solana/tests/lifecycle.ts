@@ -96,7 +96,7 @@ async function fundKeypair(
 async function grantRole(
   program: Program<ScSolana>,
   configPda: PublicKey,
-  admin: Keypair,
+  adminPda: PublicKey,
   accountToGrant: Keypair,
   role: string
 ): Promise<string> {
@@ -104,7 +104,7 @@ async function grantRole(
     .grantRole(role)
     .accountsStrict({
       config: configPda,
-      admin: admin.publicKey,
+      admin: adminPda,
       accountToGrant: accountToGrant.publicKey,
       systemProgram: SystemProgram.programId,
     })
@@ -240,6 +240,7 @@ describe("Lifecycle Integration Tests", () => {
   let configPda: PublicKey;
   let configBump: number;
   let serialHashRegistryPda: PublicKey;
+  let adminPda: PublicKey;
 
   /**
    * Setup: Fund accounts and initialize program
@@ -266,7 +267,7 @@ describe("Lifecycle Integration Tests", () => {
       [Buffer.from("deployer")],
       program.programId
     );
-    const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+    adminPda = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("admin"), configPda.toBuffer()],
       program.programId
     )[0];

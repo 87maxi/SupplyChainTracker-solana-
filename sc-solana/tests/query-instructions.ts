@@ -37,6 +37,7 @@ describe("Query Instruction Integration Tests", () => {
   let escuela: Keypair;
   let randomUser: Keypair;
   let configPda: PublicKey;
+  let adminPda: PublicKey;
   let serialHashRegistryPda: PublicKey;
 
   // Registered netbooks for querying
@@ -71,7 +72,7 @@ describe("Query Instruction Integration Tests", () => {
       [Buffer.from("deployer")],
       program.programId
     );
-    const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+    adminPda = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("admin"), configPda.toBuffer()],
       program.programId
     )[0];
@@ -108,7 +109,7 @@ describe("Query Instruction Integration Tests", () => {
         .grantRole(role)
         .accountsStrict({
           config: configPda,
-          admin: admin.publicKey,
+          admin: adminPda,
           accountToGrant: account.publicKey,
           systemProgram: SystemProgram.programId,
         })

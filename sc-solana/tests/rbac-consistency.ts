@@ -129,7 +129,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           accountToGrant: user1.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, user1])
+        .signers([user1])
         .rpc();
 
       expect(sig).to.not.be.null;
@@ -167,7 +167,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
             accountToGrant: user2.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin]) // Missing user2 signature
+          .signers([]) // Missing user2 signature
           .rpc();
         expect.fail("Expected grant role to fail without recipient signature");
       } catch (error: any) {
@@ -213,7 +213,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: admin.publicKey,
           roleRequest: roleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       expect(sig).to.not.be.null;
@@ -276,7 +276,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: admin.publicKey,
           roleRequest: newRoleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       expect(sig).to.not.be.null;
@@ -299,7 +299,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
             admin: admin.publicKey,
             roleRequest: roleRequestPda,
           })
-          .signers([admin])
+          .signers([])
           .rpc();
         expect.fail("Expected double approval to fail");
       } catch (error: any) {
@@ -321,7 +321,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
             admin: admin.publicKey,
             roleRequest: newRoleRequestPda,
           })
-          .signers([admin])
+          .signers([])
           .rpc();
         expect.fail("Expected approval of rejected request to fail");
       } catch (error: any) {
@@ -388,7 +388,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           accountToRevoke: user1.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, user1])
+        .signers([user1])
         .rpc();
 
       expect(sig).to.not.be.null;
@@ -410,7 +410,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           accountToGrant: user1.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, user1])
+        .signers([user1])
         .rpc();
 
       // Try to revoke as non-admin
@@ -441,7 +441,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
             accountToRevoke: user1.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, user1])
+          .signers([user1])
           .rpc();
         expect.fail("Expected revoke of unheld role to fail");
       } catch (error: any) {
@@ -459,7 +459,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
             accountToRevoke: user1.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin]) // Missing user1 signature
+          .signers([]) // Missing user1 signature
           .rpc();
         expect.fail("Expected revoke to fail without recipient signature");
       } catch (error: any) {
@@ -490,7 +490,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           accountToAdd: holderUser.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       expect(sig).to.not.be.null;
@@ -546,7 +546,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           accountToAdd: holderUser.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       // Now remove the holder
@@ -558,7 +558,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           roleHolder: roleHolderPda,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       expect(sig).to.not.be.null;
@@ -583,7 +583,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           accountToAdd: holderUser.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       // Try to remove as non-admin
@@ -623,7 +623,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
             accountToGrant: unauthorizedUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin]) // Missing recipient signature
+          .signers([]) // Missing recipient signature
           .rpc();
         expect.fail("Expected grant without recipient signature to fail");
       } catch (error: any) {
@@ -660,7 +660,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
             accountToGrant: user1.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, user1])
+          .signers([user1])
           .rpc();
         expect.fail("Expected duplicate grant to fail");
       } catch (error: any) {

@@ -135,7 +135,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
 
       // Verify role was granted
@@ -152,7 +152,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, auditor])
+        .signers([auditor])
         .rpc();
 
       // Verify role was granted
@@ -169,7 +169,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: tecnico.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, tecnico])
+        .signers([tecnico])
         .rpc();
 
       // Verify role was granted
@@ -186,7 +186,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: escuela.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, escuela])
+        .signers([escuela])
         .rpc();
 
       // Verify role was granted
@@ -204,7 +204,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, fabricante])
+          .signers([fabricante])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -223,7 +223,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, randomUser])
+          .signers([randomUser])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -263,7 +263,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin]) // Missing randomUser signature
+          .signers([]) // Missing randomUser signature
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -375,7 +375,7 @@ describe("Role Management Integration Tests", () => {
           admin: adminPda,
           roleRequest: roleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       // Verify role request was approved
@@ -397,7 +397,7 @@ describe("Role Management Integration Tests", () => {
           admin: adminPda,
           roleRequest: roleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       // Verify role request was approved
@@ -420,7 +420,7 @@ describe("Role Management Integration Tests", () => {
             admin: adminPda,
             roleRequest: roleRequestPda,
           })
-          .signers([admin])
+          .signers([])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -443,7 +443,7 @@ describe("Role Management Integration Tests", () => {
             admin: adminPda,
             roleRequest: roleRequestPda,
           })
-          .signers([admin])
+          .signers([])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -515,7 +515,7 @@ describe("Role Management Integration Tests", () => {
           admin: adminPda,
           roleRequest: roleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       // Verify role request was rejected
@@ -546,7 +546,7 @@ describe("Role Management Integration Tests", () => {
           admin: adminPda,
           roleRequest: roleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       // Try to reject again
@@ -558,7 +558,7 @@ describe("Role Management Integration Tests", () => {
             admin: adminPda,
             roleRequest: roleRequestPda,
           })
-          .signers([admin])
+          .signers([])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -685,7 +685,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: multiRoleUser.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, multiRoleUser])
+        .signers([multiRoleUser])
         .rpc();
 
       await program.methods
@@ -696,7 +696,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: multiRoleUser.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, multiRoleUser])
+        .signers([multiRoleUser])
         .rpc();
 
       // Verify both roles are granted
@@ -719,7 +719,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: user1.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, user1])
+        .signers([user1])
         .rpc();
 
       await program.methods
@@ -781,7 +781,7 @@ describe("Role Management Integration Tests", () => {
           admin: adminPda,
           roleRequest: roleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       // Verify approved status and config update
@@ -820,7 +820,7 @@ describe("Role Management Integration Tests", () => {
           admin: adminPda,
           roleRequest: roleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
 
       // Verify rejected status
@@ -840,7 +840,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, randomUser])
+          .signers([randomUser])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -863,7 +863,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, fabricante])
+          .signers([fabricante])
           .rpc();
       }
 
@@ -876,7 +876,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, fabricante])
+          .signers([fabricante])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -897,7 +897,7 @@ describe("Role Management Integration Tests", () => {
             admin: adminPda,
             roleRequest: roleRequestPda,
           })
-          .signers([admin])
+          .signers([])
           .rpc();
 
         throw new Error("Expected transaction to fail");
@@ -1022,7 +1022,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, randomUser])
+          .signers([randomUser])
           .rpc();
 
         throw new Error("Expected transaction to fail");

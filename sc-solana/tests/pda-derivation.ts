@@ -620,7 +620,7 @@ describe("PDA Derivation Security Tests", () => {
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
     });
 

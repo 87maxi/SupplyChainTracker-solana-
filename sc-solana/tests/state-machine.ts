@@ -113,7 +113,7 @@ describe("State Machine Transition Validation Tests", () => {
         accountToGrant: account,
         systemProgram: SystemProgram.programId,
       })
-      .signers([admin])
+      .signers([])
       .rpc();
   }
 

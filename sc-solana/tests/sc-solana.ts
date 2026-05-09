@@ -224,7 +224,7 @@ describe("SupplyChainTracker Solana", () => {
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
       console.log("Granted FABRICANTE role to", fabricante.publicKey.toString());
     } catch (err: any) {
@@ -240,7 +240,7 @@ describe("SupplyChainTracker Solana", () => {
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, auditor])
+        .signers([auditor])
         .rpc();
       console.log("Granted AUDITOR_HW role to", auditor.publicKey.toString());
     } catch (err: any) {
@@ -256,7 +256,7 @@ describe("SupplyChainTracker Solana", () => {
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, technician])
+        .signers([technician])
         .rpc();
       console.log("Granted TECNICO_SW role to", technician.publicKey.toString());
     } catch (err: any) {
@@ -272,7 +272,7 @@ describe("SupplyChainTracker Solana", () => {
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, school])
+        .signers([school])
         .rpc();
       console.log("Granted ESCUELA role to", school.publicKey.toString());
     } catch (err: any) {
@@ -308,7 +308,7 @@ describe("SupplyChainTracker Solana", () => {
             accountToGrant: account.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, account])
+          .signers([account])
           .rpc();
         console.log(`Granted role ${role} to ${account.publicKey.toString()}`);
       }
@@ -345,7 +345,7 @@ describe("SupplyChainTracker Solana", () => {
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, auditor])
+        .signers([auditor])
         .rpc();
       console.log("Grant role TX:", tx);
 
@@ -363,7 +363,7 @@ describe("SupplyChainTracker Solana", () => {
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
       console.log("Grant fabricante role TX:", tx);
 
@@ -401,7 +401,7 @@ describe("SupplyChainTracker Solana", () => {
           admin: admin.publicKey,
           roleRequest: roleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
       console.log("Approve role TX:", tx);
 
@@ -436,7 +436,7 @@ describe("SupplyChainTracker Solana", () => {
           admin: admin.publicKey,
           roleRequest: roleRequestPda,
         })
-        .signers([admin])
+        .signers([])
         .rpc();
       console.log("Reject role TX:", tx);
 
@@ -477,7 +477,7 @@ describe("SupplyChainTracker Solana", () => {
             accountToGrant: auditor.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, auditor])
+          .signers([auditor])
           .rpc();
         expect.fail("Should have thrown error");
       } catch (err: any) {
@@ -815,7 +815,7 @@ describe("SupplyChainTracker Solana", () => {
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, school])
+        .signers([school])
         .rpc();
 
       // Sync with on-chain state to get correct token ID

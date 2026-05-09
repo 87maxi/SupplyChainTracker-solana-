@@ -122,7 +122,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
       expect(sig).to.not.be.null;
     });
@@ -136,7 +136,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, auditor])
+        .signers([auditor])
         .rpc();
       expect(sig).to.not.be.null;
     });
@@ -150,7 +150,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, technician])
+        .signers([technician])
         .rpc();
       expect(sig).to.not.be.null;
     });
@@ -164,7 +164,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, school])
+        .signers([school])
         .rpc();
       expect(sig).to.not.be.null;
     });
@@ -197,7 +197,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, randomUser])
+          .signers([randomUser])
           .rpc();
         expect.fail("Expected grant role to fail for invalid role");
       } catch (error: any) {
@@ -215,7 +215,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, fabricante])
+          .signers([fabricante])
           .rpc();
         expect.fail("Expected duplicate grant to fail");
       } catch (error: any) {
@@ -239,7 +239,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
     });
 
@@ -252,7 +252,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToRevoke: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
       expect(sig).to.not.be.null;
     });
@@ -285,7 +285,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToRevoke: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, fabricante])
+          .signers([fabricante])
           .rpc();
         expect.fail("Expected revoke role to fail for invalid role");
       } catch (error: any) {
@@ -311,7 +311,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
     });
 
@@ -396,7 +396,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, auditor])
+        .signers([auditor])
         .rpc();
 
       // Register a netbook first
@@ -494,7 +494,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, technician])
+        .signers([technician])
         .rpc();
 
       // Register and audit a netbook first
@@ -591,7 +591,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, school])
+        .signers([school])
         .rpc();
 
       // Register, audit, and validate a netbook first
@@ -697,7 +697,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
 
       await program.methods
@@ -708,7 +708,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, auditor])
+        .signers([auditor])
         .rpc();
 
       await program.methods
@@ -719,7 +719,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, technician])
+        .signers([technician])
         .rpc();
 
       await program.methods
@@ -730,7 +730,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, school])
+        .signers([school])
         .rpc();
 
       // Register a netbook for cross-role tests (needs to be in Fabricada state for audit tests)
@@ -1061,7 +1061,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, fabricante])
+        .signers([fabricante])
         .rpc();
 
       await program.methods
@@ -1072,7 +1072,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
-        .signers([admin, auditor])
+        .signers([auditor])
         .rpc();
     });
 
@@ -1086,7 +1086,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, randomUser])
+          .signers([randomUser])
           .rpc();
         expect.fail("Expected grant role to fail with empty role");
       } catch (error: any) {
@@ -1104,7 +1104,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, randomUser])
+          .signers([randomUser])
           .rpc();
         expect.fail("Expected grant role to fail with special characters");
       } catch (error: any) {
@@ -1123,7 +1123,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
-          .signers([admin, randomUser])
+          .signers([randomUser])
           .rpc();
         expect.fail("Expected grant role to fail with very long role");
       } catch (error: any) {

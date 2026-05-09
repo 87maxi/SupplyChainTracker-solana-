@@ -80,7 +80,7 @@ async function grantRole(
       accountToGrant: accountToGrant.publicKey,
       systemProgram: SystemProgram.programId,
     })
-    .signers([admin, accountToGrant])
+    .signers([accountToGrant])
     .rpc();
   return signature;
 }

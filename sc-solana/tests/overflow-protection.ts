@@ -107,7 +107,7 @@ describe("Overflow/Underflow Protection Tests", () => {
         accountToGrant: account,
         systemProgram: SystemProgram.programId,
       })
-      .signers([admin])
+      .signers([])
       .rpc();
   }
 

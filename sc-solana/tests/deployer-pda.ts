@@ -77,6 +77,15 @@ describe("Deployer PDA Architecture", () => {
       15 * LAMPORTS_PER_SOL
     );
     await provider.connection.confirmTransaction(airdropTx, "confirmed");
+
+    // Check if config already exists (from parallel test initialization)
+    const existingConfig = await provider.connection.getAccountInfo(configPda);
+    if (existingConfig) {
+      console.log("⚠️  Config already exists (from parallel tests) - deployer-pda tests will be skipped");
+      (global as any).deployerPdaSkipped = true;
+    } else {
+      (global as any).deployerPdaSkipped = false;
+    }
   });
 
   describe("fund_deployer", () => {

@@ -356,6 +356,18 @@ export async function fundAndInitialize(
   funder: Keypair,
   amount: number = 20 * anchor.web3.LAMPORTS_PER_SOL
 ): Promise<string> {
+  // Always ensure funder has enough SOL (outside lock, so every caller gets funded)
+  const funderBalance = await provider.connection.getBalance(funder.publicKey);
+  const targetBalance = amount + 10 * anchor.web3.LAMPORTS_PER_SOL;
+  if (funderBalance < targetBalance) {
+    const airdropAmount = targetBalance - funderBalance;
+    const airdropTx = await provider.connection.requestAirdrop(
+      funder.publicKey,
+      airdropAmount
+    );
+    await provider.connection.confirmTransaction(airdropTx, "confirmed");
+  }
+
   // Already initialized, skip
   if (_initialized) {
     return "";

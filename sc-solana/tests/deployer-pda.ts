@@ -71,10 +71,10 @@ describe("Deployer PDA Architecture", () => {
     // Create funder account
     funder = Keypair.generate();
 
-    // Airdrop SOL to funder
+    // Airdrop SOL to funder (need enough for 10 SOL transfer + rent)
     const airdropTx = await provider.connection.requestAirdrop(
       funder.publicKey,
-      2 * LAMPORTS_PER_SOL
+      15 * LAMPORTS_PER_SOL
     );
     await provider.connection.confirmTransaction(airdropTx, "confirmed");
   });

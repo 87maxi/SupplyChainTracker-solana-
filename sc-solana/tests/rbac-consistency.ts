@@ -85,36 +85,8 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
 
     // Initialize config using PDA-first pattern
     const funder = Keypair.generate();
-    await fundKeypair(provider, funder, 10);
-    const [deployerPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("deployer")],
-      program.programId
-    );
-    adminPda = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("admin"), configPda.toBuffer()],
-      program.programId
-    )[0];
-    
-    await (program.methods as any)
-      .fundDeployer(new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL))
-      .accounts({
-        deployer: deployerPda,
-        funder: funder.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([funder])
-      .rpc();
-    
-    await (program.methods as any)
-      .initialize()
-      .accounts({
-        config: configPda,
-        serialHashRegistry: serialHashRegistryPda,
-        admin: adminPda,
-        deployer: deployerPda,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
+    await fundAndInitialize(program, provider, admin);
+    adminPda = getAdminPda(configPda, program.programId);
   });
 
   // =========================================================================

@@ -152,44 +152,10 @@ describe("SupplyChainTracker Solana", () => {
       await fundKeypair(funder);
       
       const [deployerPda] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("deployer")],
-        program.programId
-      );
-      adminPda = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("admin"), configPda.toBuffer()],
-        program.programId
-      )[0];
-      
-      // Step 1: Fund deployer PDA
-      await (program.methods as any)
-        .fundDeployer(new anchor.BN(10 * anchor.web3.LAMPORTS_PER_SOL))
-        .accounts({
-          deployer: deployerPda,
-          funder: funder.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([funder])
-        .rpc();
-      
-      // Step 2: Initialize with deployer PDA
-      const tx = await (program.methods as any)
-        .initialize()
-        .accounts({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          admin: adminPda,
-          deployer: deployerPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-      
-      console.log("Config initialized in before():", tx);
+      // Initialize using shared initialization (Issue #178)
+      await fundAndInitialize(program, provider, admin);
+      adminPda = getAdminPda(configPda, program.programId);
       existingConfig = await program.account.supplyChainConfig.fetch(configPda);
-    } catch (err: any) {
-      console.log("Config init caught error:", err.message);
-      existingConfig = await program.account.supplyChainConfig.fetch(configPda);
-      console.log("Config already initialized with nextTokenId:", existingConfig.nextTokenId.toNumber());
-    }
     
     // Generate test accounts and grant roles
     fabricante = Keypair.generate();

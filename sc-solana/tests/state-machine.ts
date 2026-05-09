@@ -65,38 +65,9 @@ describe("State Machine Transition Validation Tests", () => {
     [configPda] = getConfigPda(program);
     serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
 
-    // Initialize config using PDA-first pattern
-    const funder = Keypair.generate();
-    await provider.connection.requestAirdrop(funder.publicKey, 10 * LAMPORTS_PER_SOL);
-    const [deployerPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("deployer")],
-      program.programId
-    );
-    adminPda = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("admin"), configPda.toBuffer()],
-      program.programId
-    )[0];
-    
-    await (program.methods as any)
-      .fundDeployer(new anchor.BN(10 * LAMPORTS_PER_SOL))
-      .accounts({
-        deployer: deployerPda,
-        funder: funder.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([funder])
-      .rpc();
-    
-    await (program.methods as any)
-      .initialize()
-      .accounts({
-        config: configPda,
-        serialHashRegistry: serialHashRegistryPda,
-        admin: adminPda,
-        deployer: deployerPda,
-        systemProgram: SystemProgram.programId,
-      })
-      .rpc();
+    // Initialize config using shared initialization (Issue #178)
+    await fundAndInitialize(program, provider, admin);
+    adminPda = getAdminPda(configPda, program.programId);
 
     // Grant roles
     await grantRole("FABRICANTE", fabricante.publicKey);

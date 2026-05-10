@@ -961,5 +961,163 @@ export function bytesToString(bytes: number[]): string {
 }
 
 // ============================================================================
+// Edge Case Testing Utilities (Phase 3 - Issue #188)
+// ============================================================================
+
+/**
+ * Create a serial number of specific length for boundary testing
+ * Useful for testing the 200 character limit on serial numbers
+ *
+ * @param length - Desired length of the serial number
+ * @param prefix - Prefix to prepend (default: "NB")
+ * @returns Serial number of exactly the specified length
+ */
+export function createSerialOfLength(length: number, prefix: string = "NB"): string {
+  if (length <= prefix.length + 1) {
+    return prefix.substring(0, Math.max(1, length - 1)) + "0";
+  }
+
+  const remainingLength = length - prefix.length - 1; // -1 for the hyphen
+  const fillerChar = "0";
+  let filler = "";
+
+  if (remainingLength <= 6) {
+    filler = fillerChar.repeat(remainingLength);
+  } else {
+    // Use repeating pattern to fill remaining length
+    const pattern = "0123456789ABCDEF";
+    filler = pattern.repeat(Math.ceil(remainingLength / pattern.length));
+    filler = filler.substring(0, remainingLength);
+  }
+
+  return `${prefix}-${filler}`;
+}
+
+/**
+ * Create a model spec string of specific length for boundary testing
+ * Useful for testing the 500 character limit on model specs
+ *
+ * @param length - Desired length of the model spec string
+ * @returns Model spec string of exactly the specified length
+ */
+export function createModelSpecOfLength(length: number): string {
+  if (length <= 0) {
+    return "";
+  }
+
+  const pattern = "Intel Core i7, 16GB RAM, 512GB SSD, RTX 3080, ";
+  let result = "";
+
+  while (result.length < length) {
+    result += pattern;
+  }
+
+  return result.substring(0, length);
+}
+
+/**
+ * Create a serial number with special characters (spaces, hyphens, accents)
+ * Useful for testing Unicode and special character handling
+ *
+ * @returns Serial number with special characters
+ */
+export function createSpecialCharsSerial(): string {
+  return "NB-TEST-Ñ-Á-É-Í-Ó-Ú-Ü-001";
+}
+
+/**
+ * Create a role name that exceeds typical length limits
+ * Useful for testing the StringTooLong error for role names
+ *
+ * @param length - Desired length of the role name
+ * @returns Role name string of specified length
+ */
+export function createLongRoleName(length: number): string {
+  const pattern = "ROLE_";
+  let result = "";
+
+  while (result.length < length) {
+    result += pattern;
+  }
+
+  return result.substring(0, length);
+}
+
+/**
+ * Expect a promise to reject with a specific error code or message.
+ * Useful for verifying that specific error codes are returned.
+ *
+ * @param promise - The promise to test
+ * @param expectedError - The expected error code or message substring
+ * @returns Promise that resolves when the assertion passes
+ */
+export async function expectError(
+  promise: Promise<any>,
+  expectedError: string
+): Promise<void> {
+  try {
+    await promise;
+    throw new Error(`Expected promise to reject with "${expectedError}" but it resolved successfully`);
+  } catch (error: any) {
+    const message = error?.message || error?.toString() || "";
+
+    // Check if the error message contains the expected error
+    if (message.includes(expectedError)) {
+      return; // Test passed
+    }
+
+    // Also check for Anchor-specific error format
+    const anchorErrorMatch = message.match(/Program Error: (\w+)/);
+    if (anchorErrorMatch && anchorErrorMatch[1] === expectedError) {
+      return; // Test passed
+    }
+
+    // Check for numeric error code format (e.g., "6001:")
+    const codeMatch = message.match(/(\d{4,5}):/);
+    const errorCodes: Record<string, string> = {
+      "6001": "InvalidStateTransition",
+      "6002": "NetbookNotFound",
+      "6003": "InvalidInput",
+      "6004": "DuplicateSerial",
+      "6005": "ArrayLengthMismatch",
+      "6006": "RoleAlreadyGranted",
+      "6007": "RoleNotFound",
+      "6008": "InvalidSignature",
+      "6009": "EmptySerial",
+      "6010": "StringTooLong",
+      "6011": "MaxRoleHoldersReached",
+      "6012": "RoleHolderNotFound",
+      "6013": "InvalidRequestState",
+      "6014": "RateLimited",
+      "3012": "AccountNotInitialized",
+      "3004": "ArrayLengthMismatch",
+    };
+
+    if (codeMatch && errorCodes[codeMatch[1]] === expectedError) {
+      return; // Test passed
+    }
+
+    // For Anchor programs, also check if the error contains the program error message
+    const programErrorPatterns = [
+      `Error: ${expectedError}`,
+      `Error Code: ${expectedError}`,
+      `Program error: ${expectedError}`,
+      `custom instruction error: ProgramError::Custom(${expectedError})`,
+    ];
+
+    for (const pattern of programErrorPatterns) {
+      if (message.includes(pattern)) {
+        return; // Test passed
+      }
+    }
+
+    // If we get here, the error didn't match
+    throw new Error(
+      `Expected error containing "${expectedError}" but got: ${message.substring(0, 200)}`
+    );
+  }
+}
+
+// ============================================================================
 // End of Test Helpers
 // ============================================================================

@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  SOLANA_VERSION: 2.1.19
+  ANCHOR_VERSION: 0.32.1
+
+jobs:
+  test-anchor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: sc-solana/yarn.lock
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Cache Solana CLI
+        id: cache-solana
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/solana/install
+          key: solana-${{ env.SOLANA_VERSION }}
+
+      - name: Install Solana CLI
+        if: steps.cache-solana.outputs.cache-hit != 'true'
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Verify Solana CLI
+        run: solana -V
+
+      - name: Install Anchor CLI
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked
+          avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
+
+      - name: Verify Anchor CLI
+        run: anchor -V
+
+      - name: Build Program
+        run: cd sc-solana && cargo build --manifest-path Cargo.toml
+
+      - name: Run Anchor Tests
+        run: cd sc-solana && anchor test --local
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: web/yarn.lock
+
+      - name: Install Dependencies
+        run: cd web && yarn install --frozen-lockfile
+
+      - name: Run Jest Tests
+        run: cd web && yarn test
+
+      - name: Build Frontend
+        run: cd web && yarn build
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: web/yarn.lock
+
+      - name: Rust Format Check
+        run: cd sc-solana && cargo fmt --check
+
+      - name: Rust Clippy
+        run: cd sc-solana && cargo clippy -- -D warnings
+
+      - name: Install Frontend Dependencies
+        run: cd web && yarn install --frozen-lockfile
+
+      - name: TypeScript Lint
+        run: cd web && yarn lint
+
+      - name: TypeScript Prettier Check
+        run: cd web && npx prettier --check "src/**/*.{ts,tsx}"
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+          cache-dependency-path: web/yarn.lock
+
+      - name: Rust Check
+        run: cd sc-solana && cargo check
+
+      - name: Install Frontend Dependencies
+        run: cd web && yarn install --frozen-lockfile
+
+      - name: TypeScript Type Check
+        run: cd web && npx tsc --noEmit

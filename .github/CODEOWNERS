@@ -1,0 +1,14 @@
+# Anchor program
+sc-solana/programs/ @87maxi
+
+# Tests
+sc-solana/tests/ @87maxi
+
+# Frontend
+web/src/ @87maxi
+
+# CI/CD
+.github/ @87maxi
+
+# Configuration
+config/ @87maxi

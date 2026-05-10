@@ -739,16 +739,18 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
+      const [adminPda] = findAdminPda(configPda);
 
       const programAny = this.program as any;
       const tx = await programAny.methods
         .grantRole(role)
         .accounts({
           config: configPda,
-          admin: this.walletPubkey,
+          admin: adminPda,  // Admin PDA as account reference (not signer)
           accountToGrant,
           systemProgram: PublicKey.default,
         })
+        .signers([this.walletPubkey as any])  // Only sign with user wallet
         .rpc();
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE, CACHE_TAGS.CONFIG);
@@ -796,6 +798,7 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
+      const [adminPda] = findAdminPda(configPda);
       const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
 
       const programAny = this.program as any;
@@ -803,9 +806,10 @@ export class UnifiedSupplyChainService {
         .approveRoleRequest()
         .accounts({
           config: configPda,
-          admin: this.walletPubkey,
+          admin: adminPda,  // Admin PDA as account reference (not signer)
           roleRequest: roleRequestPda,
         })
+        .signers([this.walletPubkey as any])  // Only sign with user wallet
         .rpc();
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE_REQUESTS, CACHE_TAGS.ROLE);
@@ -824,6 +828,7 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
+      const [adminPda] = findAdminPda(configPda);
       const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
 
       const programAny = this.program as any;
@@ -831,9 +836,10 @@ export class UnifiedSupplyChainService {
         .rejectRoleRequest()
         .accounts({
           config: configPda,
-          admin: this.walletPubkey,
+          admin: adminPda,  // Admin PDA as account reference (not signer)
           roleRequest: roleRequestPda,
         })
+        .signers([this.walletPubkey as any])  // Only sign with user wallet
         .rpc();
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE_REQUESTS);
@@ -852,16 +858,18 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
+      const [adminPda] = findAdminPda(configPda);
 
       const programAny = this.program as any;
       const tx = await programAny.methods
         .revokeRole(role)
         .accounts({
           config: configPda,
-          admin: this.walletPubkey,
+          admin: adminPda,  // Admin PDA as account reference (not signer)
           accountToRevoke,
           systemProgram: PublicKey.default,
         })
+        .signers([this.walletPubkey as any])  // Only sign with user wallet
         .rpc();
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE, CACHE_TAGS.CONFIG);
@@ -880,15 +888,17 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
+      const [adminPda] = findAdminPda(configPda);
 
       const programAny = this.program as any;
       const tx = await programAny.methods
         .addRoleHolder(role, holder)
         .accounts({
           config: configPda,
-          admin: this.walletPubkey,
+          admin: adminPda,  // Admin PDA as account reference (not signer)
           systemProgram: PublicKey.default,
         })
+        .signers([this.walletPubkey as any])  // Only sign with user wallet
         .rpc();
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE);
@@ -907,15 +917,17 @@ export class UnifiedSupplyChainService {
 
     try {
       const [configPda] = findConfigPda();
+      const [adminPda] = findAdminPda(configPda);
 
       const programAny = this.program as any;
       const tx = await programAny.methods
         .removeRoleHolder(role, holder)
         .accounts({
           config: configPda,
-          admin: this.walletPubkey,
+          admin: adminPda,  // Admin PDA as account reference (not signer)
           systemProgram: PublicKey.default,
         })
+        .signers([this.walletPubkey as any])  // Only sign with user wallet
         .rpc();
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE);

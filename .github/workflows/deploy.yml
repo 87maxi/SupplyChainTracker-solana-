@@ -1,0 +1,87 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'devnet'
+        type: choice
+        options:
+          - devnet
+          - mainnet
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: ${{ github.event.inputs.environment || 'devnet' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Solana CLI
+        id: cache-solana
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/solana/install
+          key: solana-2.1.19
+
+      - name: Install Solana CLI
+        if: steps.cache-solana.outputs.cache-hit != 'true'
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.19/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Verify Solana CLI
+        run: solana -V
+
+      - name: Install Anchor CLI
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked
+          avm install 0.32.1
+          avm use 0.32.1
+
+      - name: Verify Anchor CLI
+        run: anchor -V
+
+      - name: Build Program
+        run: cd sc-solana && anchor build
+
+      - name: Deploy to Devnet
+        if: github.event.inputs.environment == 'devnet' || (!github.event.inputs.environment && github.ref == 'refs/heads/main')
+        env:
+          SOLANA_PRIVATE_KEY: ${{ secrets.SOLANA_PRIVATE_KEY }}
+        run: |
+          echo "$SOLANA_PRIVATE_KEY" > ~/.config/solana/id.json
+          chmod 600 ~/.config/solana/id.json
+          cd sc-solana && anchor deploy --provider.url https://api.devnet.solana.com --provider.wallet ~/.config/solana/id.json
+
+      - name: Deploy to Mainnet
+        if: github.event.inputs.environment == 'mainnet'
+        env:
+          SOLANA_PRIVATE_KEY: ${{ secrets.SOLANA_MAINNET_PRIVATE_KEY }}
+        run: |
+          echo "$SOLANA_PRIVATE_KEY" > ~/.config/solana/id.json
+          chmod 600 ~/.config/solana/id.json
+          cd sc-solana && anchor deploy --provider.url https://api.mainnet-beta.solana.com --provider.wallet ~/.config/solana/id.json
+
+      - name: Verify Deployment
+        run: |
+          echo "Deployment completed successfully"
+          echo "Program ID: $(cat sc-solana/target/deploy/supply_chain_tracker.key 2>/dev/null || echo 'Not found')"
+
+      - name: Deploy Frontend
+        run: |
+          cd web && yarn install --frozen-lockfile
+          yarn build

@@ -165,10 +165,10 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && npm install --prefer-offline
+        run: cd web && rm -rf node_modules && npm ci
 
       - name: Verify autoprefixer installed
-        run: cd web && npx autoprefixer --version
+        run: cd web && ls node_modules/autoprefixer
 
       - name: Build Next.js Frontend
         run: cd web && npm run build

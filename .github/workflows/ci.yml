@@ -168,26 +168,26 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Remove node_modules completely
+      - name: Clean all possible node_modules
         working-directory: ./web
-        run: rm -rf node_modules
+        run: |
+          rm -rf node_modules
+          rm -rf ../node_modules
+          rm -rf ../../node_modules
+          ls -la
 
-      - name: Remove existing package-lock.json
+      - name: Install Frontend Dependencies with verbose output
         working-directory: ./web
-        run: rm -f package-lock.json
+        run: npm install --no-audit --no-fund --verbose 2>&1 | tail -100
 
-      - name: Generate fresh package-lock.json
+      - name: Check if autoprefixer exists in package-lock.json
         working-directory: ./web
-        run: npm install --package-lock-only --no-audit --no-fund
-
-      - name: Install Frontend Dependencies
-        working-directory: ./web
-        run: npm ci --no-audit
+        run: grep -c autoprefixer package-lock.json || echo "autoprefixer NOT in package-lock.json"
 
       - name: Verify autoprefixer installed
         working-directory: ./web
         run: |
-          test -d node_modules/autoprefixer && echo "autoprefixer found" || (echo "autoprefixer NOT found" && ls node_modules/ | head -20 && exit 1)
+          ls node_modules/ | grep autoprefixer || (echo "autoprefixer NOT found in node_modules" && ls node_modules/ | head -30 && exit 1)
 
       - name: Build Next.js Frontend
         working-directory: ./web

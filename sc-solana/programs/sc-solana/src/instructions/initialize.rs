@@ -18,7 +18,7 @@ use crate::instructions::deployer::{DeployerState, DEPLOYER_SEED};
 pub struct Initialize<'info> {
     #[account(
         init,
-        payer = deployer,
+        payer = funder,
         space = SupplyChainConfig::INIT_SPACE,
         seeds = [b"config"],
         bump
@@ -26,41 +26,49 @@ pub struct Initialize<'info> {
     pub config: Account<'info, SupplyChainConfig>,
     #[account(
         init,
-        payer = deployer,
+        payer = funder,
         space = SerialHashRegistry::INIT_SPACE,
         seeds = [b"serial_hashes", config.key().as_ref()],
         bump
     )]
     pub serial_hash_registry: Account<'info, SerialHashRegistry>,
-    /// CHECK: Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
+    /// CHECK: This PDA will be set as admin once config is initialized
     #[account(
         seeds = [b"admin", config.key().as_ref()],
         bump
     )]
-    pub admin: Signer<'info>,
-    /// Deployer PDA - funded payer for account creation
+    pub admin: UncheckedAccount<'info>,
+    /// Deployer PDA - provides funds for rent exemption
     #[account(
         mut,
-        signer,
         seeds = [DEPLOYER_SEED],
         bump
     )]
     pub deployer: Account<'info, DeployerState>,
+    /// External wallet that funds the account creation
+    #[account(mut)]
+    pub funder: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 /// Initialize the supply chain configuration with PDA-based admin and deployer
 pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-    let config = &mut ctx.accounts.config;
+    // Derive admin PDA key and bump seed BEFORE mutating config
+    let config_key = ctx.accounts.config.key();
+    let (admin_pda_key, admin_pda_bump) = Pubkey::find_program_address(
+        &[b"admin", config_key.as_ref()],
+        ctx.program_id,
+    );
 
-    // Set admin to the PDA key (not the initializer)
-    config.admin = ctx.accounts.admin.key();
-    config.fabricante = ctx.accounts.admin.key();
+    let config = &mut ctx.accounts.config;
+    config.admin = admin_pda_key;
+    config.admin_pda_bump = admin_pda_bump;
+    config.fabricante = ctx.accounts.funder.key();
     config.auditor_hw = Pubkey::default();
     config.tecnico_sw = Pubkey::default();
     config.escuela = Pubkey::default();
     config.admin_bump = ctx.bumps.config;
-    config.admin_pda_bump = ctx.bumps.admin;
     config.next_token_id = 1;
     config.total_netbooks = 0;
     config.role_requests_count = 0;

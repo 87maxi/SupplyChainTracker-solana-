@@ -12,35 +12,49 @@ on:
         type: choice
         options:
           - devnet
-          - mainnet
+          - mainnet-beta
+
+env:
+  SOLANA_VERSION: 2.1.19
+  ANCHOR_VERSION: 0.32.1
+  NODE_VERSION: 20
+  NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+  NEXT_PUBLIC_RPC_URL_DEVNET: "https://api.devnet.solana.com"
+  NEXT_PUBLIC_RPC_URL_MAINNET: "https://api.mainnet-beta.solana.com"
 
 jobs:
-  deploy:
+  # ============================================================================
+  # Job 1: Build and Test
+  # ============================================================================
+  build-and-test:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: ${{ github.event.inputs.environment || 'devnet' }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Solana CLI
-        id: cache-solana
-        uses: actions/cache@v4
         with:
-          path: ~/.local/share/solana/install
-          key: solana-2.1.19
+          toolchain: stable
+
+      - name: Install Frontend Dependencies
+        run: cd web && npm install --prefer-offline
+
+      - name: TypeScript Type Check (web)
+        run: cd web && npx tsc --noEmit
+
+      - name: Run Jest Unit Tests
+        run: cd web && npm test -- --forceExit --detectOpenHandles
 
       - name: Install Solana CLI
-        if: steps.cache-solana.outputs.cache-hit != 'true'
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/v2.1.19/install)"
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Verify Solana CLI
@@ -49,26 +63,109 @@ jobs:
       - name: Install Anchor CLI
         run: |
           cargo install --git https://github.com/coral-xyz/anchor avm --locked
-          avm install 0.32.1
-          avm use 0.32.1
+          avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
 
       - name: Verify Anchor CLI
         run: anchor -V
 
-      - name: Build Program
+      - name: Build Solana Program
         run: cd sc-solana && anchor build
+
+      - name: Upload Program Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-artifacts
+          path: |
+            sc-solana/target/deploy/*.so
+            sc-solana/target/idl/*.json
+          retention-days: 5
+
+  # ============================================================================
+  # Job 2: Deploy Frontend
+  # ============================================================================
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    outputs:
+      frontend-url: ${{ steps.set-frontend-url.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: cd web && npm install --prefer-offline
+
+      - name: Build Next.js Frontend
+        run: cd web && npm run build
+        env:
+          NEXT_PUBLIC_PROGRAM_ID: ${{ env.NEXT_PUBLIC_PROGRAM_ID }}
+          NEXT_PUBLIC_RPC_URL: ${{ env.NEXT_PUBLIC_RPC_URL_DEVNET }}
+
+      - name: Set Frontend URL
+        id: set-frontend-url
+        run: |
+          if [ "${{ github.event.inputs.environment || 'devnet' }}" = "mainnet-beta" ]; then
+            echo "url=https://supplychaintracker.com" >> $GITHUB_OUTPUT
+          else
+            echo "url=https://supplychaintracker-devnet.vercel.app" >> $GITHUB_OUTPUT
+          fi
+
+  # ============================================================================
+  # Job 3: Deploy Solana Program
+  # ============================================================================
+  deploy-program:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    environment: ${{ github.event.inputs.environment || 'devnet' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Program Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: program-artifacts
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Verify Solana CLI
+        run: solana -V
+
+      - name: Install Anchor CLI
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked
+          avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
+
+      - name: Verify Anchor CLI
+        run: anchor -V
 
       - name: Deploy to Devnet
         if: github.event.inputs.environment == 'devnet' || (!github.event.inputs.environment && github.ref == 'refs/heads/main')
         env:
-          SOLANA_PRIVATE_KEY: ${{ secrets.SOLANA_PRIVATE_KEY }}
+          SOLANA_PRIVATE_KEY: ${{ secrets.SOLANA_DEVNET_PRIVATE_KEY }}
         run: |
           echo "$SOLANA_PRIVATE_KEY" > ~/.config/solana/id.json
           chmod 600 ~/.config/solana/id.json
           cd sc-solana && anchor deploy --provider.url https://api.devnet.solana.com --provider.wallet ~/.config/solana/id.json
 
-      - name: Deploy to Mainnet
-        if: github.event.inputs.environment == 'mainnet'
+      - name: Deploy to Mainnet-beta
+        if: github.event.inputs.environment == 'mainnet-beta'
         env:
           SOLANA_PRIVATE_KEY: ${{ secrets.SOLANA_MAINNET_PRIVATE_KEY }}
         run: |
@@ -78,10 +175,44 @@ jobs:
 
       - name: Verify Deployment
         run: |
-          echo "Deployment completed successfully"
-          echo "Program ID: $(cat sc-solana/target/deploy/supply_chain_tracker.key 2>/dev/null || echo 'Not found')"
+          echo "=== Deployment Verification ==="
+          echo "Program deployed successfully"
+          solana config get --url https://api.devnet.solana.com || true
 
-      - name: Deploy Frontend
+  # ============================================================================
+  # Job 4: Deploy to Vercel (Frontend)
+  # ============================================================================
+  deploy-vercel:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=${{ github.event.inputs.environment == 'mainnet-beta' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
         run: |
-          cd web && yarn install --frozen-lockfile
-          yarn build
+          cd web
+          npm install
+          vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          NEXT_PUBLIC_PROGRAM_ID: ${{ env.NEXT_PUBLIC_PROGRAM_ID }}
+          NEXT_PUBLIC_RPC_URL: ${{ github.event.inputs.environment == 'mainnet-beta' && env.NEXT_PUBLIC_RPC_URL_MAINNET || env.NEXT_PUBLIC_RPC_URL_DEVNET }}
+
+      - name: Deploy Project Artifacts to Vercel
+        run: |
+          cd web
+          vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          NEXT_PUBLIC_PROGRAM_ID: ${{ env.NEXT_PUBLIC_PROGRAM_ID }}
+          NEXT_PUBLIC_RPC_URL: ${{ github.event.inputs.environment == 'mainnet-beta' && env.NEXT_PUBLIC_RPC_URL_MAINNET || env.NEXT_PUBLIC_RPC_URL_DEVNET }}

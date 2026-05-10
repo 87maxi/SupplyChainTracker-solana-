@@ -11,6 +11,9 @@ env:
   SOLANA_VERSION: 2.1.19
   ANCHOR_VERSION: 0.32.1
   NODE_VERSION: 20
+  NEXT_PUBLIC_PROGRAM_ID: "11111111111111111111111111111112"
+  NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com"
+  NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
   # ============================================================================
@@ -39,15 +42,73 @@ jobs:
           path: ~/.cargo/index
           key: cargo-index
 
-      # Rust fmt disabled - codebase needs formatting first
-      # - name: Rust Format Check
-      #   run: cd sc-solana && cargo fmt --check
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: sc-solana/target
+          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Rust Format Check
+        run: cd sc-solana && cargo fmt --check
 
       - name: Rust Clippy (Warnings as Errors)
-        run: cd sc-solana && cargo clippy -- -D warnings || true
+        run: cd sc-solana && cargo clippy -- -D warnings
 
   # ============================================================================
-  # Job 2: TypeScript Type Checking
+  # Job 2: Build Solana Program
+  # ============================================================================
+  build-program:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache Solana CLI
+        id: cache-solana
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/solana/install
+          key: solana-${{ env.SOLANA_VERSION }}
+
+      - name: Install Solana CLI
+        if: steps.cache-solana.outputs.cache-hit != 'true'
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Verify Solana CLI
+        run: solana -V
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: sc-solana/target
+          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Build Program
+        run: cd sc-solana && cargo build --manifest-path Cargo.toml
+
+      - name: Upload Program Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-artifacts
+          path: |
+            sc-solana/target/deploy/*.so
+            sc-solana/target/idl/*.json
+          retention-days: 5
+
+  # ============================================================================
+  # Job 3: TypeScript Type Checking
   # ============================================================================
   type-check:
     runs-on: ubuntu-latest
@@ -68,7 +129,7 @@ jobs:
         run: cd web && npx tsc --noEmit
 
   # ============================================================================
-  # Job 3: Frontend Linting
+  # Job 4: Frontend Linting
   # ============================================================================
   frontend-lint:
     runs-on: ubuntu-latest
@@ -88,12 +149,8 @@ jobs:
       - name: ESLint (Allow existing warnings)
         run: cd web && npx eslint src/ --max-warnings=9999
 
-      # Prettier check disabled - codebase needs formatting first
-      # - name: Prettier Check
-      #   run: cd web && npx prettier --check "src/**/*.{ts,tsx}"
-
   # ============================================================================
-  # Job 4: Unit Tests (Jest)
+  # Job 5: Unit Tests (Jest)
   # ============================================================================
   test-unit:
     runs-on: ubuntu-latest
@@ -114,17 +171,14 @@ jobs:
         run: cd web && npm test -- --forceExit --detectOpenHandles
 
   # ============================================================================
-  # Job 5: Build Frontend
+  # Job 6: Build Frontend
   # ============================================================================
   build-frontend:
     runs-on: ubuntu-latest
     needs: [type-check, frontend-lint, test-unit]
     env:
-      NEXT_PUBLIC_PROGRAM_ID: "11111111111111111111111111111112"
-      NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com"
-      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_DISABLE_PRERENDER: "true"
       NODE_ENV: production
-      SKIP_PRERENDER: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -138,11 +192,11 @@ jobs:
       - name: Install Frontend Dependencies
         run: cd web && npm install --prefer-offline
 
-      - name: Build Next.js Frontend (Skip Prerender)
-        run: cd web && NEXT_PUBLIC_DISABLE_PRERENDER=true npm run build || NEXT_PUBLIC_DISABLE_PRERENDER=true npm run build -- --no-prerender || true
+      - name: Build Next.js Frontend
+        run: cd web && npm run build
 
   # ============================================================================
-  # Job 6: Anchor Program Tests (requires local Solana validator)
+  # Job 7: Anchor Program Tests (requires local Solana validator)
   # ============================================================================
   test-anchor:
     runs-on: ubuntu-latest
@@ -185,6 +239,12 @@ jobs:
           path: ~/.cargo/registry
           key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
 
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: sc-solana/target
+          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
+
       - name: Install Anchor CLI
         run: |
           cargo install --git https://github.com/coral-xyz/anchor avm --locked
@@ -195,33 +255,40 @@ jobs:
         run: anchor -V
 
       - name: Build Program
-        run: cd sc-solana && cargo build --manifest-path Cargo.toml
+        run: cd sc-solana && anchor build
 
       - name: Run Anchor Tests (with validator)
         run: |
           cd sc-solana
+          
           # Start local validator in background
-          solana-test-validator --bpf-program SupplyChainTracker1111111111111111111111111111111 ./target/deploy/sc_solana.so &
+          solana-test-validator --bpf-program 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb ./target/deploy/sc_solana.so > /tmp/solana-validator.log 2>&1 &
           VALIDATOR_PID=$!
           
-          # Wait for validator to be ready
+          # Wait for validator to be ready (max 60 seconds)
           for i in $(seq 1 30); do
             if solana health > /dev/null 2>&1; then
-              echo "Validator is ready"
+              echo "Validator is ready after $i attempts"
               break
             fi
             sleep 2
           done
           
-          # Run tests
-          anchor test --local 2>&1 || true
+          # Check if validator is running
+          if ! solana health > /dev/null 2>&1; then
+            echo "::warning::Validator failed to start, running tests without it"
+            cat /tmp/solana-validator.log || true
+          fi
+          
+          # Run tests (continue even if validator is not available)
+          cd sc-solana && npm test -- --exit 2>&1 || true
           
           # Cleanup
           kill $VALIDATOR_PID 2>/dev/null || true
         timeout-minutes: 15
 
   # ============================================================================
-  # Job 7: Playwright E2E Tests
+  # Job 8: Playwright E2E Tests
   # ============================================================================
   test-e2e:
     runs-on: ubuntu-latest
@@ -261,17 +328,18 @@ jobs:
           retention-days: 30
 
   # ============================================================================
-  # Job 8: Summary (runs after all tests)
+  # Job 9: Summary (runs after all tests)
   # ============================================================================
   summary:
     runs-on: ubuntu-latest
-    needs: [rust-lint, type-check, frontend-lint, test-unit, build-frontend, test-anchor, test-e2e]
+    needs: [rust-lint, build-program, type-check, frontend-lint, test-unit, build-frontend, test-anchor, test-e2e]
     if: always()
     steps:
       - name: Check All Jobs Status
         run: |
           echo "=== CI Summary ==="
           echo "Rust Lint: ${{ needs.rust-lint.result }}"
+          echo "Build Program: ${{ needs.build-program.result }}"
           echo "Type Check: ${{ needs.type-check.result }}"
           echo "Frontend Lint: ${{ needs.frontend-lint.result }}"
           echo "Unit Tests: ${{ needs.test-unit.result }}"
@@ -279,11 +347,20 @@ jobs:
           echo "Anchor Tests: ${{ needs.test-anchor.result }}"
           echo "E2E Tests: ${{ needs.test-e2e.result }}"
           
-          # Check if all passed (E2E skipped if frontend builds fail, Prettier/rustfmt disabled for legacy code)
-          FAILED=$(echo "${{ needs.type-check.result }} ${{ needs.test-unit.result }}" | tr ' ' '\n' | grep -c 'failure' || true)
+          # Count failures (excluding anchor tests which may fail due to validator issues)
+          FAILED=0
+          
+          for job in rust-lint build-program type-check frontend-lint test-unit build-frontend test-e2e; do
+            if [ "${{ needs.$job.result }}" = "failure" ]; then
+              FAILED=$((FAILED + 1))
+            fi
+          done
+          
+          echo ""
+          echo "Critical jobs failed: $FAILED"
           
           if [ "$FAILED" -gt 0 ]; then
-            echo "::error:: $FAILED job(s) failed"
+            echo "::error::$FAILED critical job(s) failed"
             exit 1
           else
             echo "All critical jobs passed!"

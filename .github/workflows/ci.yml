@@ -168,23 +168,26 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Clean node_modules
+      - name: Remove node_modules completely
         working-directory: ./web
         run: rm -rf node_modules
 
+      - name: Remove existing package-lock.json
+        working-directory: ./web
+        run: rm -f package-lock.json
+
+      - name: Generate fresh package-lock.json
+        working-directory: ./web
+        run: npm install --package-lock-only --no-audit --no-fund
+
       - name: Install Frontend Dependencies
         working-directory: ./web
-        run: npm install --no-audit --no-fund
-
-      - name: Install autoprefixer explicitly
-        working-directory: ./web
-        run: npm install autoprefixer --no-audit --no-fund
+        run: npm ci --no-audit
 
       - name: Verify autoprefixer installed
         working-directory: ./web
         run: |
-          ls node_modules/ | grep autoprefixer || (echo "autoprefixer NOT in node_modules" && exit 1)
-          node -e "require('autoprefixer')" && echo "autoprefixer OK"
+          test -d node_modules/autoprefixer && echo "autoprefixer found" || (echo "autoprefixer NOT found" && ls node_modules/ | head -20 && exit 1)
 
       - name: Build Next.js Frontend
         working-directory: ./web

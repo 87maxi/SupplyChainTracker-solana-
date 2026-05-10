@@ -27,6 +27,8 @@ import {
   getRoleHolderByUserPda,
   fundKeypair,
   fundAndInitialize,
+  grantRoleWithAdminPda,
+  approveRoleRequestWithAdminPda,
   RequestStatus,
 } from "./test-helpers";
 
@@ -100,16 +102,10 @@ describe("Role Management Integration Tests", () => {
 
   describe("Grant Role Operations", () => {
     it("grants FABRICANTE role to account", async () => {
-      const tx = await program.methods
-        .grantRole(FABRICANTE_ROLE)
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          accountToGrant: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      await grantRoleWithAdminPda(
+        program, provider, configPda, adminPda, adminBump,
+        FABRICANTE_ROLE, fabricante.publicKey, fabricante
+      );
 
       // Verify role was granted
       const config = await program.account.supplyChainConfig.fetch(configPda);
@@ -117,16 +113,10 @@ describe("Role Management Integration Tests", () => {
     });
 
     it("grants AUDITOR_HW role to account", async () => {
-      const tx = await program.methods
-        .grantRole(AUDITOR_HW_ROLE)
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          accountToGrant: auditor.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([auditor])
-        .rpc();
+      await grantRoleWithAdminPda(
+        program, provider, configPda, adminPda, adminBump,
+        AUDITOR_HW_ROLE, auditor.publicKey, auditor
+      );
 
       // Verify role was granted
       const config = await program.account.supplyChainConfig.fetch(configPda);
@@ -134,16 +124,10 @@ describe("Role Management Integration Tests", () => {
     });
 
     it("grants TECNICO_SW role to account", async () => {
-      const tx = await program.methods
-        .grantRole(TECNICO_SW_ROLE)
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          accountToGrant: tecnico.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([tecnico])
-        .rpc();
+      await grantRoleWithAdminPda(
+        program, provider, configPda, adminPda, adminBump,
+        TECNICO_SW_ROLE, tecnico.publicKey, tecnico
+      );
 
       // Verify role was granted
       const config = await program.account.supplyChainConfig.fetch(configPda);
@@ -151,16 +135,10 @@ describe("Role Management Integration Tests", () => {
     });
 
     it("grants ESCUELA role to account", async () => {
-      const tx = await program.methods
-        .grantRole(ESCUELA_ROLE)
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          accountToGrant: escuela.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([escuela])
-        .rpc();
+      await grantRoleWithAdminPda(
+        program, provider, configPda, adminPda, adminBump,
+        ESCUELA_ROLE, escuela.publicKey, escuela
+      );
 
       // Verify role was granted
       const config = await program.account.supplyChainConfig.fetch(configPda);

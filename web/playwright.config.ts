@@ -81,10 +81,15 @@ export default defineConfig({
   
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "yarn dev",
+    command: "npm run dev",
     url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001",
     reuseExistingServer: !process.env.CI,
     timeout: 60000,
+    env: {
+      PORT: "3001",
+      NEXT_PUBLIC_PROGRAM_ID: "11111111111111111111111111111112",
+      NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com",
+    },
   },
   
   /* Timeout settings */

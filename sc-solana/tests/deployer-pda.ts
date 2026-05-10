@@ -15,6 +15,9 @@ import { ScSolana } from "../target/types/sc_solana";
 import { expect } from "chai";
 import { Keypair, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
+// Enable global skipPreflight patching for PDA signing
+import "./test-helpers";
+
 describe("Deployer PDA Architecture", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);

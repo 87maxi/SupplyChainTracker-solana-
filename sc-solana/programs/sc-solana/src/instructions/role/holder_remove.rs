@@ -5,6 +5,9 @@
 //!
 //! NOTE (Issue #143): Enhanced with saturating_sub to prevent underflow
 //! and additional validation to ensure only admin can manage role holders.
+//!
+//! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
+//! instead of Signer, since PDAs cannot sign transactions.
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, RoleHolder};
@@ -15,10 +18,14 @@ use crate::events::RoleHolderRemoved;
 /// Only the admin PDA can call this instruction
 #[derive(Accounts)]
 pub struct RemoveRoleHolder<'info> {
-    #[account(mut, has_one = admin)]
+    #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
-    pub admin: Signer<'info>,
+    /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump = config.admin_pda_bump
+    )]
+    pub admin: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [b"role_holder", role_holder.account.as_ref()],

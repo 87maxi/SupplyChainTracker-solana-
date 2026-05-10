@@ -2,6 +2,9 @@
 //!
 //! Admin is derived as PDA with seeds [b"admin", config.key()] for consistency
 //! with Solana/PDA patterns and Surfpool/txtx compatibility.
+//!
+//! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
+//! instead of Signer, since PDAs cannot sign transactions.
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, RoleHolder};
@@ -11,10 +14,14 @@ use crate::events::RoleHolderAdded;
 /// Add a role holder (multiple role holders per role)
 #[derive(Accounts)]
 pub struct AddRoleHolder<'info> {
-    #[account(mut, has_one = admin)]
+    #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
-    pub admin: Signer<'info>,
+    /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump = config.admin_pda_bump
+    )]
+    pub admin: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(

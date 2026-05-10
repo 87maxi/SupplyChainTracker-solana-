@@ -7,6 +7,9 @@
 //! - Only admin PDA can revoke roles
 //! - The account being revoked actually holds the role
 //! - Proper validation of role existence before revocation
+//!
+//! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
+//! instead of Signer, since PDAs cannot sign transactions.
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, RoleHolder};
@@ -15,10 +18,14 @@ use crate::events::RoleRevoked;
 
 #[derive(Accounts)]
 pub struct RevokeRole<'info> {
-    #[account(mut, has_one = admin)]
+    #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
-    pub admin: Signer<'info>,
+    /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump = config.admin_pda_bump
+    )]
+    pub admin: UncheckedAccount<'info>,
     /// CHECK: Account to revoke role from - must sign to consent
     pub account_to_revoke: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -76,12 +83,17 @@ pub fn revoke_role(ctx: Context<RevokeRole>, role: String) -> Result<()> {
 /// Use this after revoke_role to clean up RoleHolder accounts
 /// created by approve_role_request
 /// Admin is derived as PDA with seeds [b"admin", config.key()]
+/// NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 #[derive(Accounts)]
 pub struct CloseRoleHolder<'info> {
-    #[account(mut, has_one = admin)]
-    pub config: Account<'info, SupplyChainConfig>,
     #[account(mut)]
-    pub admin: Signer<'info>,
+    pub config: Account<'info, SupplyChainConfig>,
+    /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump = config.admin_pda_bump
+    )]
+    pub admin: UncheckedAccount<'info>,
     /// RoleHolder account to close - returns lamports to admin
     /// Seeds derived from the stored account field (same pattern as holder_remove)
     #[account(

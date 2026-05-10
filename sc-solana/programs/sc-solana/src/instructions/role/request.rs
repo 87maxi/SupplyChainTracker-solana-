@@ -4,6 +4,9 @@
 //! - request_role is the only method for users to request roles
 //! - approve_role_request and reject_role_request can only be called by admin PDA
 //! - Proper validation of role names and request state
+//!
+//! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
+//! instead of Signer, since PDAs cannot sign transactions.
 
 use anchor_lang::prelude::*;
 use crate::state::{SupplyChainConfig, RoleRequest, RoleHolder};
@@ -37,12 +40,21 @@ pub struct RequestRole<'info> {
 /// Approve a role request - creates RoleHolder account automatically
 /// Integrates Config fields with RoleHolder accounts (transitional pattern)
 /// Admin is derived as PDA with seeds [b"admin", config.key()]
+/// NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
+/// Approve a role request - creates RoleHolder account automatically
+/// Integrates Config fields with RoleHolder accounts (transitional pattern)
+/// Admin is derived as PDA with seeds [b"admin", config.key()]
+/// NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 #[derive(Accounts)]
 pub struct ApproveRoleRequest<'info> {
-    #[account(mut, has_one = admin)]
+    #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
-    pub admin: Signer<'info>,
+    /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump = config.admin_pda_bump
+    )]
+    pub admin: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(mut)]
@@ -61,12 +73,20 @@ pub struct ApproveRoleRequest<'info> {
 
 /// Reject a role request
 /// Admin is derived as PDA with seeds [b"admin", config.key()]
+/// NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
+/// Reject a role request
+/// Admin is derived as PDA with seeds [b"admin", config.key()]
+/// NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 #[derive(Accounts)]
 pub struct RejectRoleRequest<'info> {
-    #[account(mut, has_one = admin)]
+    #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
-    pub admin: Signer<'info>,
+    /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump = config.admin_pda_bump
+    )]
+    pub admin: UncheckedAccount<'info>,
     #[account(mut)]
     pub role_request: Account<'info, RoleRequest>,
 }

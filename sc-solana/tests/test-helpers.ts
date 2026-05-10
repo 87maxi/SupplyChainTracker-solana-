@@ -17,6 +17,8 @@ import {
   LAMPORTS_PER_SOL,
   TransactionInstruction,
   SystemProgram,
+  TransactionMessage,
+  ComputeBudgetProgram,
 } from "@solana/web3.js";
 
 // ============================================================================
@@ -123,7 +125,8 @@ export function getConfigPda(program: Program<ScSolana>): [PublicKey, number] {
 
 /**
  * Get netbook PDA
- * Seeds: [b"netbook", b"netbook", &token_id[0..7]]
+ * Seeds: [b"netbook", config.next_token_id.to_le_bytes()]
+ * Matches: seeds = [b"netbook", config.next_token_id.to_le_bytes().as_ref()]
  */
 export function getNetbookPda(
   tokenId: number,
@@ -132,7 +135,7 @@ export function getNetbookPda(
   const tokenIdBytes = Buffer.alloc(8);
   tokenIdBytes.writeBigUInt64LE(BigInt(tokenId), 0);
   const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("netbook"), Buffer.from("netbook"), tokenIdBytes.slice(0, 7)],
+    [Buffer.from("netbook"), tokenIdBytes],
     programId
   );
   return pda;
@@ -332,12 +335,13 @@ export function getAdminPda(
 }
 
 /**
- * Helper to execute a method that requires admin PDA signing.
- * Creates the instruction, builds a transaction, and signs with both
- * the admin PDA (using seeds) and any additional signers.
+ * Helper to execute a method that requires admin PDA verification.
+ * Creates the instruction, builds a transaction, and signs with the
+ * wallet signer (admin PDA is now UncheckedAccount, not Signer).
  *
- * For PDAs, the "signature" is a placeholder of 64 bytes. The Solana program
- * verifies the PDA using seeds, not cryptographic signatures.
+ * NOTE (Issue #186): Admin PDA is no longer a Signer, so we don't add
+ * a placeholder signature for it. The program verifies the PDA using
+ * seeds [b"admin", config.key()] with the bump stored in config.admin_pda_bump.
  *
  * This function uses VersionedTransaction with sendTransaction(options)
  * to bypass signature validation via skipPreflight.
@@ -347,7 +351,7 @@ export async function executeWithAdminPda(
   provider: AnchorProvider,
   configPda: PublicKey,
   adminPda: PublicKey,
-  adminBump: number,
+  _adminBump: number, // Unused - admin is now UncheckedAccount, not Signer
   methodBuilder: any,
   accounts: any,
   additionalSigners: Keypair[] = []
@@ -361,35 +365,29 @@ export async function executeWithAdminPda(
     .accounts(allAccounts)
     .instruction();
 
-  const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
-    commitment: "max",
-  });
+  const { blockhash } = await provider.connection.getLatestBlockhash("max");
 
   const walletSigner = (provider.wallet as any).payer as Keypair;
   const allSigners = [walletSigner, ...additionalSigners];
 
-  // Build legacy transaction
-  const tx = new Transaction({
-    blockhash,
-    lastValidBlockHeight,
-    feePayer: provider.wallet.publicKey,
-  }).add(instruction);
+  // Build message with ComputeBudget instruction for priority fee
+  const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 1000000 });
+  const message = new TransactionMessage({
+    payerKey: provider.wallet.publicKey,
+    recentBlockhash: blockhash,
+    instructions: [computeBudgetIx, instruction],
+  });
 
-  // Sign with all real signers
-  for (const signer of allSigners) {
-    tx.partialSign(signer);
-  }
+  // Create versioned transaction with all keys
+  const compiledMessage = message.compileToV0Message([]);
+  const tx = new VersionedTransaction(compiledMessage);
 
-  // Add placeholder signature for admin PDA
-  const pdaSignature = Buffer.alloc(64);
-  pdaSignature[0] = adminBump;
-  tx.addSignature(adminPda, pdaSignature);
+  // Sign with all real signers (Keypair objects)
+  // NOTE: admin PDA is NOT a signer anymore - it's UncheckedAccount
+  tx.sign(allSigners);
 
-  // Serialize and send as raw transaction
-  const serializedTx = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
-
-  // Send with skipPreflight to avoid signature validation
-  const signature = await (provider.connection as any).sendTransaction(serializedTx, {
+  // Send as raw transaction with skipPreflight
+  const signature = await provider.connection.sendTransaction(tx, {
     skipPreflight: true,
     maxRetries: 5,
   });
@@ -484,6 +482,7 @@ export async function fundAndInitialize(
   funder: Keypair,
   amount: number = 20 * anchor.web3.LAMPORTS_PER_SOL
 ): Promise<string> {
+  // Return the transaction signature as string
   // Always ensure funder has enough SOL (outside lock, so every caller gets funded)
   const funderBalance = await provider.connection.getBalance(funder.publicKey);
   const targetBalance = amount + 10 * anchor.web3.LAMPORTS_PER_SOL;
@@ -567,59 +566,21 @@ async function _performInitialization(
 
     await provider.connection.confirmTransaction(fundTx, "confirmed");
 
-    // Step 2: Initialize config using deployer PDA as payer
-    // Build transaction manually to handle admin PDA signing
-    const { blockhash: initBlockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
-      commitment: "confirmed",
-    });
-
-    const initInstruction = await (program.methods as any)
+    // Step 2: Initialize config using funder as payer
+    const initTx = await (program.methods as any)
       .initialize()
       .accounts({
         config: configPda,
         serialHashRegistry: serialHashRegistryPda,
         admin: adminPda,
         deployer: deployerPda,
+        funder: funder.publicKey,
         systemProgram: SystemProgram.programId,
       })
-      .instruction();
+      .signers([funder])
+      .rpc({ skipPreflight: true, maxRetries: 5 });
 
-    const walletSigner = (provider.wallet as any).payer as Keypair;
-    const initTx = new Transaction({
-      blockhash: initBlockhash,
-      lastValidBlockHeight,
-      feePayer: provider.wallet.publicKey,
-    }).add(initInstruction);
-
-    // Sign with wallet
-    initTx.partialSign(walletSigner);
-
-    // Add placeholder signature for admin PDA
-    const [_, adminBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from("admin"), configPda.toBuffer()],
-      program.programId
-    );
-    const adminSignature = Buffer.alloc(64);
-    adminSignature[0] = adminBump;
-    initTx.addSignature(adminPda, adminSignature);
-
-    // Add placeholder signature for deployer PDA (now requires signer)
-    const [_deployerPdaKey, deployerBump] = PublicKey.findProgramAddressSync(
-      [Buffer.from("deployer")],
-      program.programId
-    );
-    const deployerSignature = Buffer.alloc(64);
-    deployerSignature[0] = deployerBump;
-    initTx.addSignature(deployerPda, deployerSignature);
-
-    // Serialize and send with skipPreflight to bypass PDA signature validation
-    const serializedInitTx = initTx.serialize({ requireAllSignatures: false, verifySignatures: false });
-    const initSignature = await provider.connection.sendRawTransaction(serializedInitTx, {
-      skipPreflight: true,
-      maxRetries: 5,
-    });
-
-    await provider.connection.confirmTransaction({ signature: initSignature, blockhash: initBlockhash, lastValidBlockHeight }, "confirmed");
+    await provider.connection.confirmTransaction(initTx, "confirmed");
 
     _initialized = true;
     return initTx;

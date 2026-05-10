@@ -8,6 +8,9 @@
 //! request_role → approve_role_request
 //! This function is maintained for admin-initiated role assignments
 //! where direct granting is necessary (e.g., initial setup, emergencies).
+//!
+//! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
+//! instead of Signer, since PDAs cannot sign transactions.
 
 use anchor_lang::prelude::*;
 use crate::state::SupplyChainConfig;
@@ -16,10 +19,14 @@ use crate::events::RoleGranted;
 
 #[derive(Accounts)]
 pub struct GrantRole<'info> {
-    #[account(mut, has_one = admin)]
+    #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
-    #[account(mut, seeds = [b"admin", config.key().as_ref()], bump)]
-    pub admin: Signer<'info>,
+    /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
+    #[account(
+        seeds = [b"admin", config.key().as_ref()],
+        bump = config.admin_pda_bump
+    )]
+    pub admin: UncheckedAccount<'info>,
     pub account_to_grant: Signer<'info>,
     pub system_program: Program<'info, System>,
 }

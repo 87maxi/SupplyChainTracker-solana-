@@ -165,13 +165,12 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && rm -rf node_modules && npm ci
-
-      - name: Verify autoprefixer installed
-        run: ls web/node_modules/autoprefixer
+        working-directory: ./web
+        run: rm -rf node_modules && npm ci
 
       - name: Build Next.js Frontend
-        run: cd web && npm run build
+        working-directory: ./web
+        run: npm run build
 
   # ============================================================================
   # Job 7: Anchor Program Tests (requires local Solana validator)
@@ -291,13 +290,16 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && npm install --prefer-offline
+        working-directory: ./web
+        run: npm install --prefer-offline
 
       - name: Install Playwright Browsers
-        run: cd web && npx playwright install --with-deps chromium
+        working-directory: ./web
+        run: npx playwright install --with-deps chromium
 
       - name: Run Playwright E2E Tests (Headless Mode)
-        run: cd web && npx playwright test --reporter=html --project=chromium
+        working-directory: ./web
+        run: npx playwright test --reporter=html --project=chromium
         timeout-minutes: 15
 
       - name: Upload Playwright Report

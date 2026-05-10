@@ -9,10 +9,9 @@
 //! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 //! instead of Signer, since PDAs cannot sign transactions.
 
-use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, RoleHolder};
 use crate::events::RoleHolderRemoved;
-
+use crate::state::{RoleHolder, SupplyChainConfig};
+use anchor_lang::prelude::*;
 
 /// Remove a role holder (multiple role holders per role)
 /// Only the admin PDA can call this instruction
@@ -55,9 +54,15 @@ pub fn remove_role_holder(ctx: Context<RemoveRoleHolder>, role: String) -> Resul
 
     // Decrement role holder count using saturating_sub to prevent underflow
     match role_type {
-        crate::FABRICANTE_ROLE => config.fabricante_count = config.fabricante_count.saturating_sub(1),
-        crate::AUDITOR_HW_ROLE => config.auditor_hw_count = config.auditor_hw_count.saturating_sub(1),
-        crate::TECNICO_SW_ROLE => config.tecnico_sw_count = config.tecnico_sw_count.saturating_sub(1),
+        crate::FABRICANTE_ROLE => {
+            config.fabricante_count = config.fabricante_count.saturating_sub(1)
+        }
+        crate::AUDITOR_HW_ROLE => {
+            config.auditor_hw_count = config.auditor_hw_count.saturating_sub(1)
+        }
+        crate::TECNICO_SW_ROLE => {
+            config.tecnico_sw_count = config.tecnico_sw_count.saturating_sub(1)
+        }
         crate::ESCUELA_ROLE => config.escuela_count = config.escuela_count.saturating_sub(1),
         _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
     }

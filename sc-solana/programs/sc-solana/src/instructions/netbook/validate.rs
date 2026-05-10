@@ -1,9 +1,8 @@
 //! ValidateSoftware instruction context
 
-use anchor_lang::prelude::*;
-use crate::state::{Netbook, SupplyChainConfig};
 use crate::events::SoftwareValidated;
-
+use crate::state::{Netbook, SupplyChainConfig};
+use anchor_lang::prelude::*;
 
 /// Software validation instruction
 #[derive(Accounts)]

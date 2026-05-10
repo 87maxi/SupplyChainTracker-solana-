@@ -8,10 +8,9 @@
 //! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 //! instead of Signer, since PDAs cannot sign transactions.
 
+use crate::events::{RoleRequestUpdated, RoleRequested};
+use crate::state::{RoleHolder, RoleRequest, SupplyChainConfig};
 use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, RoleRequest, RoleHolder};
-use crate::events::{RoleRequested, RoleRequestUpdated};
-
 
 /// NOTE: PDA seed uses [b"role_request", user.key().as_ref()] which limits
 /// each user to ONE role request at a time. This is a design limitation of
@@ -115,8 +114,10 @@ pub fn request_role(ctx: Context<RequestRole>, role: String) -> Result<()> {
 
     // Validate role name - only allow valid roles
     match role.as_str() {
-        crate::FABRICANTE_ROLE | crate::AUDITOR_HW_ROLE |
-        crate::TECNICO_SW_ROLE | crate::ESCUELA_ROLE => {},
+        crate::FABRICANTE_ROLE
+        | crate::AUDITOR_HW_ROLE
+        | crate::TECNICO_SW_ROLE
+        | crate::ESCUELA_ROLE => {}
         _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
     }
 
@@ -171,8 +172,10 @@ pub fn approve_role_request(ctx: Context<ApproveRoleRequest>) -> Result<()> {
     // Validate role name before approval
     let role = role_request.role.clone();
     match role.as_str() {
-        crate::FABRICANTE_ROLE | crate::AUDITOR_HW_ROLE |
-        crate::TECNICO_SW_ROLE | crate::ESCUELA_ROLE => {},
+        crate::FABRICANTE_ROLE
+        | crate::AUDITOR_HW_ROLE
+        | crate::TECNICO_SW_ROLE
+        | crate::ESCUELA_ROLE => {}
         _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
     }
 
@@ -209,13 +212,13 @@ pub fn approve_role_request(ctx: Context<ApproveRoleRequest>) -> Result<()> {
 /// Reject a pending role request
 pub fn reject_role_request(ctx: Context<RejectRoleRequest>) -> Result<()> {
     let role_request = &mut ctx.accounts.role_request;
-    
+
     // Verify request is in Pending state
     require!(
         role_request.status == crate::RequestStatus::Pending as u8,
         crate::SupplyChainError::InvalidRequestState
     );
-    
+
     role_request.status = crate::RequestStatus::Rejected as u8;
 
     emit!(RoleRequestUpdated {

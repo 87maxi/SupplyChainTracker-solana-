@@ -1,17 +1,17 @@
 //! State modules re-exports
 
-pub mod netbook;
 pub mod config;
-pub mod serial_hash_registry;
+pub mod netbook;
 pub mod role_holder;
 pub mod role_request;
+pub mod serial_hash_registry;
 
 // Re-exports
-pub use netbook::Netbook;
 pub use config::SupplyChainConfig;
-pub use serial_hash_registry::SerialHashRegistry;
+pub use netbook::Netbook;
 pub use role_holder::RoleHolder;
 pub use role_request::RoleRequest;
+pub use serial_hash_registry::SerialHashRegistry;
 
 // Constants
 pub const MAX_SERIAL_HASHES: usize = 10;

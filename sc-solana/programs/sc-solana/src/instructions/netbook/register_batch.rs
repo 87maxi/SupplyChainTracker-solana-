@@ -1,9 +1,8 @@
 //! RegisterNetbooksBatch instruction context
 
-use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, SerialHashRegistry};
 use crate::events::NetbooksRegistered;
-
+use crate::state::{SerialHashRegistry, SupplyChainConfig};
+use anchor_lang::prelude::*;
 
 /// Batch register netbooks (creates individual PDAs via individual calls)
 #[derive(Accounts)]
@@ -98,7 +97,6 @@ pub fn register_netbooks_batch(
         }
         serial_registry.store_serial_hash(&serial_hash)?;
     }
-
 
     // Update config counters
     config.next_token_id += count;

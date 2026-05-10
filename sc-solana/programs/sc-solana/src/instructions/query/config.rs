@@ -1,9 +1,8 @@
 //! QueryConfig instruction context
 
-use anchor_lang::prelude::*;
-use crate::state::SupplyChainConfig;
 use crate::events::ConfigQuery;
-
+use crate::state::SupplyChainConfig;
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct QueryConfig<'info> {

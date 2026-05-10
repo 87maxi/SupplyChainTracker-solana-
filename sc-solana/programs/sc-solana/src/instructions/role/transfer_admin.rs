@@ -3,10 +3,10 @@
 //! Current admin is derived as PDA with seeds [b"admin", config.key()] for consistency.
 //! New admin remains a regular Signer (external account accepting the transfer).
 
-use anchor_lang::prelude::*;
-use crate::state::SupplyChainConfig;
 use crate::events::AdminTransferred;
+use crate::state::SupplyChainConfig;
 use crate::SupplyChainError;
+use anchor_lang::prelude::*;
 
 /// Transfer admin ownership to a new account
 /// Requires signatures from both current admin and new admin (acceptance)
@@ -35,10 +35,7 @@ pub fn transfer_admin(ctx: Context<TransferAdmin>) -> Result<()> {
     );
 
     // Prevent transferring to the same admin
-    require!(
-        current_admin != new_admin,
-        SupplyChainError::InvalidInput
-    );
+    require!(current_admin != new_admin, SupplyChainError::InvalidInput);
 
     let previous_admin = config.admin;
     config.admin = new_admin;

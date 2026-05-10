@@ -14,13 +14,13 @@ pub struct Netbook {
     pub hw_auditor: Pubkey,          // address equivalent
     pub hw_integrity_passed: bool,
     pub hw_report_hash: [u8; 32],
-    pub sw_technician: Pubkey,       // address equivalent
-    pub os_version: String,          // max 100 chars
+    pub sw_technician: Pubkey, // address equivalent
+    pub os_version: String,    // max 100 chars
     pub sw_validation_passed: bool,
     pub destination_school_hash: [u8; 32],
     pub student_id_hash: [u8; 32],
     pub distribution_timestamp: u64,
-    pub state: u8,                   // NetbookState enum as u8
+    pub state: u8, // NetbookState enum as u8
     pub exists: bool,
     pub token_id: u64,
 }
@@ -41,7 +41,7 @@ impl Netbook {
         + 8        // distribution_timestamp (u64)
         + 1        // state (u8)
         + 1        // exists (bool)
-        + 8;       // token_id (u64)
-    // Total: 8 (discriminator) + 12 (length prefixes) + 900 (string data) + 100 (Pubkeys) + 3 (bools) + 160 (hashes) + 24 (u64s) = 1147 bytes minimum
-    // Using 1200 for safety margin
+        + 8; // token_id (u64)
+             // Total: 8 (discriminator) + 12 (length prefixes) + 900 (string data) + 100 (Pubkeys) + 3 (bools) + 160 (hashes) + 24 (u64s) = 1147 bytes minimum
+             // Using 1200 for safety margin
 }

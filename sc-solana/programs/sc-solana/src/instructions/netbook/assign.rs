@@ -1,9 +1,8 @@
 //! AssignToStudent instruction context
 
-use anchor_lang::prelude::*;
-use crate::state::{Netbook, SupplyChainConfig};
 use crate::events::NetbookAssigned;
-
+use crate::state::{Netbook, SupplyChainConfig};
+use anchor_lang::prelude::*;
 
 /// Assign netbook to student instruction
 #[derive(Accounts)]

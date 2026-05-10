@@ -6,10 +6,9 @@
 //! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 //! instead of Signer, since PDAs cannot sign transactions.
 
-use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, RoleHolder};
 use crate::events::RoleHolderAdded;
-
+use crate::state::{RoleHolder, SupplyChainConfig};
+use anchor_lang::prelude::*;
 
 /// Add a role holder (multiple role holders per role)
 #[derive(Accounts)]
@@ -46,7 +45,10 @@ pub fn add_role_holder(ctx: Context<AddRoleHolder>, role: String) -> Result<()> 
     // Validate role type
     let role_type = role.as_str();
     match role_type {
-        crate::FABRICANTE_ROLE | crate::AUDITOR_HW_ROLE | crate::TECNICO_SW_ROLE | crate::ESCUELA_ROLE => {},
+        crate::FABRICANTE_ROLE
+        | crate::AUDITOR_HW_ROLE
+        | crate::TECNICO_SW_ROLE
+        | crate::ESCUELA_ROLE => {}
         _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
     }
 

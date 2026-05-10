@@ -1,9 +1,8 @@
 //! QueryRole instruction context
 
-use anchor_lang::prelude::*;
-use crate::state::SupplyChainConfig;
 use crate::events::RoleQuery;
-
+use crate::state::SupplyChainConfig;
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct QueryRole<'info> {

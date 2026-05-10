@@ -1,7 +1,7 @@
 //! SupplyChainConfig account structure
 
+use super::{AUDITOR_HW_ROLE, ESCUELA_ROLE, FABRICANTE_ROLE, TECNICO_SW_ROLE};
 use anchor_lang::prelude::*;
-use super::{FABRICANTE_ROLE, AUDITOR_HW_ROLE, TECNICO_SW_ROLE, ESCUELA_ROLE};
 
 /// Configuration account for the supply chain
 /// Updated for multiple role holders per role
@@ -15,8 +15,8 @@ pub struct SupplyChainConfig {
     pub auditor_hw: Pubkey,
     pub tecnico_sw: Pubkey,
     pub escuela: Pubkey,
-    pub admin_bump: u8,      // Bump seed for config PDA (seeds = [b"config"])
-    pub admin_pda_bump: u8,   // Bump seed for admin PDA (seeds = [b"admin", config.key()])
+    pub admin_bump: u8,     // Bump seed for config PDA (seeds = [b"config"])
+    pub admin_pda_bump: u8, // Bump seed for admin PDA (seeds = [b"admin", config.key()])
     pub next_token_id: u64,
     pub total_netbooks: u64,
     pub role_requests_count: u64,
@@ -42,8 +42,8 @@ impl SupplyChainConfig {
         + 8   // fabricante_count
         + 8   // auditor_hw_count
         + 8   // tecnico_sw_count
-        + 8;  // escuela_count
-    // Total: 8 + 281 = 289 bytes
+        + 8; // escuela_count
+             // Total: 8 + 281 = 289 bytes
 }
 
 impl SupplyChainConfig {

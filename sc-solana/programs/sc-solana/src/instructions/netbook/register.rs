@@ -1,9 +1,8 @@
 //! RegisterNetbook instruction context
 
-use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, SerialHashRegistry, Netbook, NetbookState};
 use crate::events::NetbookRegistered;
-
+use crate::state::{Netbook, NetbookState, SerialHashRegistry, SupplyChainConfig};
+use anchor_lang::prelude::*;
 
 /// Register a single netbook with PDA based on token_id
 /// Uses config.next_token_id as part of PDA seed to ensure unique PDAs per netbook

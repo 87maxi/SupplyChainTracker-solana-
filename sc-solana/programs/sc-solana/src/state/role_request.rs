@@ -8,7 +8,7 @@ use anchor_lang::prelude::*;
 pub struct RoleRequest {
     pub id: u64,
     pub user: Pubkey,
-    pub role: String,       // max 256 chars
+    pub role: String, // max 256 chars
     pub status: u8,
     pub timestamp: u64,
 }

@@ -1,9 +1,8 @@
 //! AuditHardware instruction context
 
-use anchor_lang::prelude::*;
-use crate::state::{Netbook, SupplyChainConfig};
 use crate::events::HardwareAudited;
-
+use crate::state::{Netbook, SupplyChainConfig};
+use anchor_lang::prelude::*;
 
 /// Hardware audit instruction
 #[derive(Accounts)]

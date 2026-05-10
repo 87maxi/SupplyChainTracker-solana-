@@ -1,9 +1,8 @@
 //! QueryNetbookState instruction context
 
-use anchor_lang::prelude::*;
-use crate::state::Netbook;
 use crate::events::NetbookStateQuery;
-
+use crate::state::Netbook;
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct QueryNetbookState<'info> {

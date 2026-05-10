@@ -12,10 +12,9 @@
 //! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 //! instead of Signer, since PDAs cannot sign transactions.
 
-use anchor_lang::prelude::*;
-use crate::state::SupplyChainConfig;
 use crate::events::RoleGranted;
-
+use crate::state::SupplyChainConfig;
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct GrantRole<'info> {

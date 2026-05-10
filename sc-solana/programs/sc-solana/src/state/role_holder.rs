@@ -8,7 +8,7 @@ use anchor_lang::prelude::*;
 pub struct RoleHolder {
     pub id: u64,
     pub account: Pubkey,
-    pub role: String,       // max 64 chars
+    pub role: String, // max 64 chars
     pub granted_by: Pubkey,
     pub timestamp: u64,
 }
@@ -19,6 +19,6 @@ impl RoleHolder {
         + 32  // account (Pubkey)
         + 4 + 64  // role (bounded string, max 64 chars)
         + 32  // granted_by (Pubkey)
-        + 8;  // timestamp (u64)
-    // Total: 8 + 152 = 160 bytes
+        + 8; // timestamp (u64)
+             // Total: 8 + 152 = 160 bytes
 }

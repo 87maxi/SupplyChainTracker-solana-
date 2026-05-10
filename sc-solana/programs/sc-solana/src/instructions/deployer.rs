@@ -9,10 +9,10 @@
 //! 2. Use deployer PDA as payer in `initialize` and other instructions
 //! 3. `close_deployer` - Recover remaining SOL from deployer PDA
 
-use anchor_lang::prelude::*;
-use anchor_lang::system_program;
 use crate::errors::SupplyChainError;
 use crate::state::SupplyChainConfig;
+use anchor_lang::prelude::*;
+use anchor_lang::system_program;
 
 /// Deployer PDA seeds
 pub const DEPLOYER_SEED: &[u8] = b"deployer";

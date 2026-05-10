@@ -1,8 +1,8 @@
 //! SerialHashRegistry account for duplicate detection
 
-use anchor_lang::prelude::*;
 use super::MAX_SERIAL_HASHES;
 use crate::errors::SupplyChainError;
+use anchor_lang::prelude::*;
 
 /// Serial hash registry account for duplicate detection
 /// Separate account to avoid stack overflow from large array in SupplyChainConfig
@@ -18,8 +18,8 @@ impl SerialHashRegistry {
     pub const INIT_SPACE: usize = 8
         + 1   // config_bump
         + 8   // serial_hash_count
-        + 32 * MAX_SERIAL_HASHES;  // registered_serial_hashes
-    // Total: 8 + 1 + 8 + 32000 = 32017 bytes
+        + 32 * MAX_SERIAL_HASHES; // registered_serial_hashes
+                                  // Total: 8 + 1 + 8 + 32000 = 32017 bytes
 }
 
 impl SerialHashRegistry {

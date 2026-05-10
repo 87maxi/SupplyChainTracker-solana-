@@ -10,9 +10,9 @@
 //! 2. Call `initialize` with deployer PDA as payer (all PDAs, IDL-derivable)
 //! 3. Surfpool runbook can now use `program_idl + instruction_name`
 
-use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, SerialHashRegistry, MAX_SERIAL_HASHES};
 use crate::instructions::deployer::{DeployerState, DEPLOYER_SEED};
+use crate::state::{SerialHashRegistry, SupplyChainConfig, MAX_SERIAL_HASHES};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -56,10 +56,8 @@ pub struct Initialize<'info> {
 pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
     // Derive admin PDA key and bump seed BEFORE mutating config
     let config_key = ctx.accounts.config.key();
-    let (admin_pda_key, admin_pda_bump) = Pubkey::find_program_address(
-        &[b"admin", config_key.as_ref()],
-        ctx.program_id,
-    );
+    let (admin_pda_key, admin_pda_bump) =
+        Pubkey::find_program_address(&[b"admin", config_key.as_ref()], ctx.program_id);
 
     let config = &mut ctx.accounts.config;
     config.admin = admin_pda_key;

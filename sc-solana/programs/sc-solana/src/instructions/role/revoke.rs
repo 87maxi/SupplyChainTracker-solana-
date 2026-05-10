@@ -11,10 +11,9 @@
 //! NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 //! instead of Signer, since PDAs cannot sign transactions.
 
-use anchor_lang::prelude::*;
-use crate::state::{SupplyChainConfig, RoleHolder};
 use crate::events::RoleRevoked;
-
+use crate::state::{RoleHolder, SupplyChainConfig};
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct RevokeRole<'info> {
@@ -54,8 +53,10 @@ pub fn revoke_role(ctx: Context<RevokeRole>, role: String) -> Result<()> {
     if !holds_role {
         // Check if role is valid but already empty (already revoked)
         match role.as_str() {
-            crate::FABRICANTE_ROLE | crate::AUDITOR_HW_ROLE |
-            crate::TECNICO_SW_ROLE | crate::ESCUELA_ROLE => {
+            crate::FABRICANTE_ROLE
+            | crate::AUDITOR_HW_ROLE
+            | crate::TECNICO_SW_ROLE
+            | crate::ESCUELA_ROLE => {
                 // Role is valid but not held by this account - return error
                 return Err(crate::SupplyChainError::RoleHolderNotFound.into());
             }
@@ -115,16 +116,19 @@ pub fn close_role_holder(ctx: Context<CloseRoleHolder>, role: String) -> Result<
 
     // Decrement role holder count
     match role.as_str() {
-        crate::FABRICANTE_ROLE => config.fabricante_count = config.fabricante_count.saturating_sub(1),
-        crate::AUDITOR_HW_ROLE => config.auditor_hw_count = config.auditor_hw_count.saturating_sub(1),
-        crate::TECNICO_SW_ROLE => config.tecnico_sw_count = config.tecnico_sw_count.saturating_sub(1),
+        crate::FABRICANTE_ROLE => {
+            config.fabricante_count = config.fabricante_count.saturating_sub(1)
+        }
+        crate::AUDITOR_HW_ROLE => {
+            config.auditor_hw_count = config.auditor_hw_count.saturating_sub(1)
+        }
+        crate::TECNICO_SW_ROLE => {
+            config.tecnico_sw_count = config.tecnico_sw_count.saturating_sub(1)
+        }
         crate::ESCUELA_ROLE => config.escuela_count = config.escuela_count.saturating_sub(1),
         _ => return Err(crate::SupplyChainError::RoleNotFound.into()),
     }
 
-    emit!(RoleRevoked {
-        role,
-        account,
-    });
+    emit!(RoleRevoked { role, account });
     Ok(())
 }

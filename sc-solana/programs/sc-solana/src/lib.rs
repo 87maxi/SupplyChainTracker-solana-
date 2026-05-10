@@ -23,10 +23,10 @@ pub const ROLE_REQUEST_COOLDOWN: u64 = 60;
 
 // ==================== Module Declarations ====================
 
-pub mod state;
+pub mod errors;
 pub mod events;
 pub mod instructions;
-pub mod errors;
+pub mod state;
 
 // ==================== Re-exports ====================
 // Note: Glob re-exports create ambiguity between modules (e.g., state::netbook vs instructions::netbook)
@@ -34,10 +34,10 @@ pub mod errors;
 // The ambiguity is between module paths (state::netbook vs instructions::netbook) which don't
 // conflict in practice since consumers use qualified paths. Removing this would require
 // restructuring the entire module hierarchy, breaking the Anchor codegen pattern.
-pub use state::*;
+pub use errors::*;
 pub use events::*;
 pub use instructions::*;
-pub use errors::*;
+pub use state::*;
 
 // ==================== Program Module ====================
 
@@ -107,7 +107,12 @@ pub mod sc_solana {
         batch_id: String,
         initial_model_specs: String,
     ) -> Result<()> {
-        instructions::netbook::register::register_netbook(ctx, serial_number, batch_id, initial_model_specs)
+        instructions::netbook::register::register_netbook(
+            ctx,
+            serial_number,
+            batch_id,
+            initial_model_specs,
+        )
     }
 
     pub fn register_netbooks_batch(
@@ -116,7 +121,12 @@ pub mod sc_solana {
         batch_ids: Vec<String>,
         model_specs: Vec<String>,
     ) -> Result<()> {
-        instructions::netbook::register_batch::register_netbooks_batch(ctx, serial_numbers, batch_ids, model_specs)
+        instructions::netbook::register_batch::register_netbooks_batch(
+            ctx,
+            serial_numbers,
+            batch_ids,
+            model_specs,
+        )
     }
 
     pub fn audit_hardware(
@@ -167,7 +177,28 @@ mod tests {
 
     #[test]
     fn test_netbook_space() {
-        assert_eq!(Netbook::INIT_SPACE, 8 + 4 + 200 + 4 + 100 + 4 + 500 + 32 + 1 + 32 + 32 + 4 + 100 + 1 + 32 + 32 + 8 + 1 + 1 + 8);
+        assert_eq!(
+            Netbook::INIT_SPACE,
+            8 + 4
+                + 200
+                + 4
+                + 100
+                + 4
+                + 500
+                + 32
+                + 1
+                + 32
+                + 32
+                + 4
+                + 100
+                + 1
+                + 32
+                + 32
+                + 8
+                + 1
+                + 1
+                + 8
+        );
     }
 
     #[test]
@@ -196,15 +227,16 @@ mod tests {
     #[test]
     fn test_config_space() {
         // Updated: Added admin_pda_bump (1 byte)
-        assert_eq!(SupplyChainConfig::INIT_SPACE, 8 + 32 + 32 + 32 + 32 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8);
+        assert_eq!(
+            SupplyChainConfig::INIT_SPACE,
+            8 + 32 + 32 + 32 + 32 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8
+        );
     }
 
     #[test]
     fn test_role_holder_space() {
         assert_eq!(RoleHolder::INIT_SPACE, 8 + 8 + 32 + 4 + 64 + 32 + 8);
     }
-
-
 
     #[test]
     fn test_role_holder_counts() {
@@ -228,7 +260,6 @@ mod tests {
         assert_eq!(config.get_role_holder_count("FABRICANTE"), 0);
         assert_eq!(config.get_role_holder_count("AUDITOR_HW"), 0);
     }
-
 
     #[test]
     fn test_max_role_holders() {

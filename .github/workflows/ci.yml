@@ -170,24 +170,32 @@ jobs:
 
       - name: Clean all possible node_modules
         working-directory: ./web
+        run: rm -rf node_modules
+
+      - name: Install Frontend Dependencies
+        working-directory: ./web
+        run: npm install --no-audit --no-fund
+
+      - name: List installed packages count
+        working-directory: ./web
+        run: ls node_modules/ | wc -l
+
+      - name: Check autoprefixer in node_modules
+        working-directory: ./web
+        run: test -d node_modules/autoprefixer && echo "FOUND" || (echo "NOT FOUND" && ls node_modules/ | sort | head -50)
+
+      - name: Install autoprefixer if missing
+        working-directory: ./web
         run: |
-          rm -rf node_modules
-          rm -rf ../node_modules
-          rm -rf ../../node_modules
-          ls -la
+          if [ ! -d node_modules/autoprefixer ]; then
+            echo "Installing autoprefixer explicitly..."
+            npm install autoprefixer@10.4.14 --no-audit --no-fund
+          fi
 
-      - name: Install Frontend Dependencies with verbose output
-        working-directory: ./web
-        run: npm install --no-audit --no-fund --verbose 2>&1 | tail -100
-
-      - name: Check if autoprefixer exists in package-lock.json
-        working-directory: ./web
-        run: grep -c autoprefixer package-lock.json || echo "autoprefixer NOT in package-lock.json"
-
-      - name: Verify autoprefixer installed
+      - name: Final verification of autoprefixer
         working-directory: ./web
         run: |
-          ls node_modules/ | grep autoprefixer || (echo "autoprefixer NOT found in node_modules" && ls node_modules/ | head -30 && exit 1)
+          test -d node_modules/autoprefixer && echo "autoprefixer verified" || (echo "autoprefixer STILL MISSING" && ls node_modules/ | grep -i autoprefixer || exit 1)
 
       - name: Build Next.js Frontend
         working-directory: ./web

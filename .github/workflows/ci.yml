@@ -168,34 +168,13 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Clean all possible node_modules
-        working-directory: ./web
-        run: rm -rf node_modules
-
       - name: Install Frontend Dependencies
         working-directory: ./web
         run: npm install --no-audit --no-fund
 
-      - name: List installed packages count
+      - name: Verify autoprefixer installed
         working-directory: ./web
-        run: ls node_modules/ | wc -l
-
-      - name: Check autoprefixer in node_modules
-        working-directory: ./web
-        run: test -d node_modules/autoprefixer && echo "FOUND" || (echo "NOT FOUND" && ls node_modules/ | sort | head -50)
-
-      - name: Install autoprefixer if missing
-        working-directory: ./web
-        run: |
-          if [ ! -d node_modules/autoprefixer ]; then
-            echo "Installing autoprefixer explicitly..."
-            npm install autoprefixer@10.4.14 --no-audit --no-fund
-          fi
-
-      - name: Final verification of autoprefixer
-        working-directory: ./web
-        run: |
-          test -d node_modules/autoprefixer && echo "autoprefixer verified" || (echo "autoprefixer STILL MISSING" && ls node_modules/ | grep -i autoprefixer || exit 1)
+        run: test -d node_modules/autoprefixer && echo "autoprefixer OK" || (echo "autoprefixer MISSING" && exit 1)
 
       - name: Build Next.js Frontend
         working-directory: ./web

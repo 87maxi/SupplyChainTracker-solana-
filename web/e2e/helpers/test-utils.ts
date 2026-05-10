@@ -107,8 +107,8 @@ export async function getElementText(page: Page, selector: string): Promise<stri
  * Mock wallet connection
  */
 export async function mockWalletConnection(page: Page): Promise<void> {
-  // Inject mock wallet into page context
-  await page.addInitScript(() => {
+  // Inject mock wallet into page context using evaluate (runs after navigation)
+  await page.evaluate(() => {
     (window as any).solana = {
       isConnected: true,
       publicKey: { toString: () => "MockPublicKey1111111111111111111111111111111" },
@@ -124,6 +124,9 @@ export async function mockWalletConnection(page: Page): Promise<void> {
       },
     };
   });
+  
+  // Wait a moment for React to pick up the wallet
+  await page.waitForTimeout(500);
 }
 
 /**

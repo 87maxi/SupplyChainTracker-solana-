@@ -7,8 +7,8 @@
 import { test, expect } from "@playwright/test";
 import {
   waitForPageLoad,
-  waitForElementVisible,
   assertUrlPath,
+  waitForElementVisible,
   takeScreenshot,
 } from "./helpers/test-utils";
 

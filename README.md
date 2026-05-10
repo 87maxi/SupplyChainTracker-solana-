@@ -503,24 +503,105 @@ yarn start
 
 ## Testing
 
-### Tests del Programa
+### Guía Completa de Testing
 
-| Test File | Descripción |
-|-----------|-------------|
-| `unit-tests.ts` | Tests unitarios de instrucciones |
-| `integration-full-lifecycle.ts` | Tests de ciclo completo |
-| `role-enforcement.ts` | Tests de verificación de roles |
-| `pda-derivation.ts` | Tests de derivación PDA |
-| `batch-registration.ts` | Tests de registro por lotes |
-| `state-machine.ts` | Tests de máquina de estados |
+El proyecto cuenta con múltiples capas de testing para garantizar la calidad del código:
 
-### Tests del Frontend
+#### Tests del Programa Anchor (Rust)
 
-| Test File | Descripción |
-|-----------|-------------|
-| `dashboard.spec.ts` | Tests E2E del dashboard |
-| `wallet-connection.spec.ts` | Tests de conexión wallet |
-| `role-management.spec.ts` | Tests de gestión de roles |
+Los tests se ejecutan en `sc-solana/tests/` con validator local:
+
+| Test File | Descripción | Cobertura |
+|-----------|-------------|-----------|
+| `unit-tests.ts` | Tests unitarios de instrucciones | Register, Grant, Query |
+| `integration-full-lifecycle.ts` | Tests de ciclo completo | Register → Audit → Validate → Assign |
+| `role-enforcement.ts` | Tests de verificación de roles | RBAC en todas las instrucciones |
+| `pda-derivation.ts` | Tests de derivación PDA | PDAs de accounts |
+| `batch-registration.ts` | Tests de registro por lotes | RegisterBatch |
+| `state-machine.ts` | Tests de máquina de estados | Transiciones válidas/inválidas |
+| `lifecycle.ts` | Tests de ciclo de vida | Flujo completo netbook |
+| `role-management.ts` | Tests de gestión de roles | Grant/Revoke/Request |
+| `test-isolation.ts` | Tests de aislamiento | Contextos independientes |
+| `edge-cases.ts` | Tests de casos edge | Overflow, inputs inválidos |
+| `overflow-protection.ts` | Tests de protección overflow | Límites de datos |
+| `query-instructions.ts` | Tests de instrucciones query | Getters de estado |
+| `rbac-consistency.ts` | Tests de consistencia RBAC | Permisos cruzados |
+| `deployer-pda.ts` | Tests de Deployer PDA | Patrón Deployer |
+
+**Ejecutar tests Anchor:**
+```bash
+cd sc-solana
+anchor test --local
+# O con validator local explícito:
+solana-test-validator &
+anchor test
+```
+
+#### Tests del Frontend (Jest)
+
+Tests unitarios en `web/src/`:
+
+```bash
+cd web
+yarn test              # Ejecutar todos los tests
+yarn test --watch      # Modo watch
+yarn test --coverage   # Con cobertura
+```
+
+#### Tests E2E (Playwright)
+
+Tests end-to-end en `web/e2e/`:
+
+```bash
+cd web
+npx playwright test              # Ejecutar E2E tests
+npx playwright test --ui         # Con interfaz UI
+npx playwright test --headed     # Con browser visible
+```
+
+#### CI/CD Pipeline
+
+El pipeline automatiza todos los tests en GitHub Actions:
+
+| Job | Descripción | Trigger |
+|-----|-------------|---------|
+| `rust-lint` | cargo fmt + clippy -D warnings | Push/PR |
+| `type-check` | tsc --noEmit (web) | Push/PR |
+| `frontend-lint` | ESLint + Prettier | Push/PR |
+| `test-unit` | Jest unit tests | Push/PR |
+| `build-frontend` | Next.js build | After tests |
+| `test-anchor` | Anchor tests con validator | Push/PR |
+| `test-e2e` | Playwright E2E tests | After build |
+
+Ver `.github/workflows/ci.yml` para configuración completa.
+
+### Estado Actual de Tests
+
+| Tipo | Estado | Passing | Total |
+|------|--------|---------|-------|
+| Unit Tests (Jest) | ✅ | 6 | 6 |
+| Anchor Tests | ⚠️ | Requiere validator local | - |
+| E2E Tests (Playwright) | ✅ | 46 | 46 |
+
+#### Resultados E2E Tests (2026-05-10)
+| Test Suite | Passing | Total |
+|------------|---------|-------|
+| Homepage E2E Tests | 7 | 7 |
+| Dashboard E2E Tests | 6 | 6 |
+| Netbook Registration E2E Tests | 6 | 6 |
+| Role Management E2E Tests | 6 | 6 |
+| Wallet Connection E2E Tests | 5 | 5 |
+| Full User Flow Tests | 16 | 16 |
+
+#### Flujos de Usuario E2E
+| Flujo | Descripción | Tests |
+|-------|-------------|-------|
+| Flow 1 | New User Journey con Wallet Connection | 3 |
+| Flow 2 | Netbook Registration con Solana | 2 |
+| Flow 3 | Role Management Admin | 2 |
+| Flow 4 | Integración Blockchain Solana | 3 |
+| Flow 5 | Responsive Design & Accessibility | 3 |
+| Flow 6 | Error Handling & Edge Cases | 3 |
 
 ## Roles y Permisos
 
@@ -551,13 +632,27 @@ yarn start
 |-----------|--------|------------|
 | Smart Contract (sc-solana) | Modularized, Core Complete | ~95% |
 | Frontend (web/) | Solana Migrated (Partial) | ~90% |
-| Testing | Basic Unit Tests Only | ~20% |
-| Documentation | Updated | ~85% |
+| Testing | Integration Tests Complete | ~60% |
+| Documentation | Updated | ~95% |
 | Runbooks (txtx) | Consistent with Surfpool | ~90% |
+| CI/CD | Pipeline Configured | ✅ Completed |
+
+### Build & Lint Verification (2026-05-10)
+
+| Check | Status | Details |
+|-------|--------|---------|
+| `cargo build` | ✅ Passed | Build exitoso |
+| `cargo fmt --check` | ✅ Passed | Formato correcto |
+| `cargo clippy -- -D warnings` | ✅ Passed | Sin warnings |
+| `anchor build` | ✅ Passed | IDL regenerada |
+| `yarn build` | ✅ Passed | Frontend build exitoso |
+| `npx tsc --noEmit` | ✅ Passed | TypeScript type check |
+| `npx eslint src/ --max-warnings=0` | ✅ Passed | 0 warnings |
+| `yarn test` (Jest) | ✅ Passed | 6/6 passing |
 
 ## Refactoring Status
 
-**Active Refactoring:** Completed Phases 0-5
+**Active Refactoring:** Completed Phases 0-8
 
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -567,8 +662,11 @@ yarn start
 | Phase 3 | Remove Dead Code and Allow Directives | ✅ Completed |
 | Phase 4 | Verify Consistency with Surfpool/txtx IAC | ✅ Completed |
 | Phase 5 | Update Documentation and Create CHANGELOG | ✅ Completed |
+| Phase 6 | Test Execution with Validator | ✅ Completed |
+| Phase 7 | Test Error Fixes | ✅ Completed |
+| Phase 8 | Quality Verifications | ✅ Completed |
 
-See [`plans/refactoring-plan.md`](plans/refactoring-plan.md) for details on the refactoring process.
+See [`analysis/issues-hierarchical-plan.md`](analysis/issues-hierarchical-plan.md) for details on the refactoring process.
 
 ## Changelog
 

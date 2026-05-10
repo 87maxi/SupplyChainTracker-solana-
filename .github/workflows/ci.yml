@@ -98,10 +98,12 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && npm install --prefer-offline
+        working-directory: ./web
+        run: npm install --prefer-offline --no-audit --no-fund
 
       - name: TypeScript Type Check (web)
-        run: cd web && npx tsc --noEmit
+        working-directory: ./web
+        run: npx tsc --noEmit
 
   # ============================================================================
   # Job 4: Frontend Linting
@@ -119,10 +121,12 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && npm install --prefer-offline
+        working-directory: ./web
+        run: npm install --prefer-offline --no-audit --no-fund
 
       - name: ESLint (Allow existing warnings)
-        run: cd web && npx eslint src/ --max-warnings=9999
+        working-directory: ./web
+        run: npx eslint src/ --max-warnings=9999
 
   # ============================================================================
   # Job 5: Unit Tests (Jest)
@@ -140,10 +144,12 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && npm install --prefer-offline
+        working-directory: ./web
+        run: npm install --prefer-offline --no-audit --no-fund
 
       - name: Run Jest Unit Tests
-        run: cd web && npm test -- --forceExit --detectOpenHandles
+        working-directory: ./web
+        run: npm test -- --forceExit --detectOpenHandles
 
   # ============================================================================
   # Job 6: Build Frontend
@@ -166,7 +172,11 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: ./web
-        run: rm -rf node_modules && npm ci
+        run: npm install --prefer-offline --no-audit --no-fund
+
+      - name: Verify autoprefixer installed
+        working-directory: ./web
+        run: test -d node_modules/autoprefixer && echo "autoprefixer found" || (echo "autoprefixer NOT found" && ls node_modules/ && exit 1)
 
       - name: Build Next.js Frontend
         working-directory: ./web

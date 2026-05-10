@@ -167,10 +167,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
-      - name: Install Frontend Dependencies
+      - name: Clean install Frontend Dependencies
         working-directory: ./web
-        run: npm install --no-audit --no-fund
+        run: rm -rf node_modules && npm ci --no-audit --no-fund
 
       - name: Verify autoprefixer installed
         working-directory: ./web

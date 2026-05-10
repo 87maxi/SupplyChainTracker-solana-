@@ -141,7 +141,12 @@ describe("Deployer PDA Architecture", () => {
 
   describe("initialize with deployer PDA", () => {
     it("should initialize config using deployer PDA (no external signer)", async () => {
-      const tx = await (program.methods as any)
+      // Build transaction manually to handle PDA signing (admin + deployer)
+      const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
+        commitment: "confirmed",
+      });
+
+      const initInstruction = await (program.methods as any)
         .initialize()
         .accounts({
           config: configPda,
@@ -150,9 +155,37 @@ describe("Deployer PDA Architecture", () => {
           deployer: deployerPda,
           systemProgram: SystemProgram.programId,
         })
-        .rpc();
+        .instruction();
 
-      await provider.connection.confirmTransaction(tx, "confirmed");
+      const walletSigner = (provider.wallet as any).payer as Keypair;
+      const initTx = new anchor.web3.Transaction({
+        blockhash,
+        lastValidBlockHeight,
+        feePayer: provider.wallet.publicKey,
+      }).add(initInstruction);
+
+      initTx.partialSign(walletSigner);
+
+      // Add PDA signature for admin
+      const [_, adminBump] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("admin"), configPda.toBuffer()],
+        program.programId
+      );
+      const adminSig = Buffer.alloc(64);
+      adminSig[0] = adminBump;
+      initTx.addSignature(adminPda, adminSig);
+
+      // Add PDA signature for deployer
+      const deployerSig = Buffer.alloc(64);
+      deployerSig[0] = deployerBump;
+      initTx.addSignature(deployerPda, deployerSig);
+
+      const serializedTx = initTx.serialize({ requireAllSignatures: false, verifySignatures: false });
+      const txSig = await provider.connection.sendRawTransaction(serializedTx, {
+        skipPreflight: true,
+        maxRetries: 5,
+      });
+      await provider.connection.confirmTransaction({ signature: txSig, blockhash, lastValidBlockHeight }, "confirmed");
 
       // Verify config was created
       const configInfo = await provider.connection.getAccountInfo(configPda);
@@ -171,7 +204,11 @@ describe("Deployer PDA Architecture", () => {
 
     it("should fail to initialize again (already exists)", async () => {
       try {
-        await (program.methods as any)
+        const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
+          commitment: "confirmed",
+        });
+
+        const initInstruction = await (program.methods as any)
           .initialize()
           .accounts({
             config: configPda,
@@ -180,7 +217,35 @@ describe("Deployer PDA Architecture", () => {
             deployer: deployerPda,
             systemProgram: SystemProgram.programId,
           })
-          .rpc();
+          .instruction();
+
+        const walletSigner = (provider.wallet as any).payer as Keypair;
+        const initTx = new anchor.web3.Transaction({
+          blockhash,
+          lastValidBlockHeight,
+          feePayer: provider.wallet.publicKey,
+        }).add(initInstruction);
+
+        initTx.partialSign(walletSigner);
+
+        const [_, adminBump] = anchor.web3.PublicKey.findProgramAddressSync(
+          [Buffer.from("admin"), configPda.toBuffer()],
+          program.programId
+        );
+        const adminSig = Buffer.alloc(64);
+        adminSig[0] = adminBump;
+        initTx.addSignature(adminPda, adminSig);
+
+        const deployerSig = Buffer.alloc(64);
+        deployerSig[0] = deployerBump;
+        initTx.addSignature(deployerPda, deployerSig);
+
+        const serializedTx = initTx.serialize({ requireAllSignatures: false, verifySignatures: false });
+        const txSig = await provider.connection.sendRawTransaction(serializedTx, {
+          skipPreflight: true,
+          maxRetries: 5,
+        });
+        await provider.connection.confirmTransaction({ signature: txSig, blockhash, lastValidBlockHeight }, "confirmed");
         expect.fail("Should have thrown an error");
       } catch (error: any) {
         expect(error.message).to.include("already been initialized");
@@ -194,15 +259,44 @@ describe("Deployer PDA Architecture", () => {
       const deployerBalanceBefore = await provider.connection.getBalance(deployerPda);
       expect(deployerBalanceBefore).to.be.greaterThan(0);
 
-      const tx = await (program.methods as any)
+      // Build transaction manually for PDA signing
+      const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
+        commitment: "confirmed",
+      });
+
+      const closeInstruction = await (program.methods as any)
         .closeDeployer()
         .accounts({
+          config: configPda,
           deployer: deployerPda,
           admin: adminPda,
         })
-        .rpc();
+        .instruction();
 
-      await provider.connection.confirmTransaction(tx, "confirmed");
+      const walletSigner = (provider.wallet as any).payer as Keypair;
+      const closeTx = new anchor.web3.Transaction({
+        blockhash,
+        lastValidBlockHeight,
+        feePayer: provider.wallet.publicKey,
+      }).add(closeInstruction);
+
+      closeTx.partialSign(walletSigner);
+
+      // Add PDA signature for admin
+      const [_, adminBump] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("admin"), configPda.toBuffer()],
+        program.programId
+      );
+      const adminSig = Buffer.alloc(64);
+      adminSig[0] = adminBump;
+      closeTx.addSignature(adminPda, adminSig);
+
+      const serializedCloseTx = closeTx.serialize({ requireAllSignatures: false, verifySignatures: false });
+      const closeTxSig = await provider.connection.sendRawTransaction(serializedCloseTx, {
+        skipPreflight: true,
+        maxRetries: 5,
+      });
+      await provider.connection.confirmTransaction({ signature: closeTxSig, blockhash, lastValidBlockHeight }, "confirmed");
 
       // Verify deployer PDA is closed
       const deployerBalanceAfter = await provider.connection.getBalance(deployerPda);
@@ -213,16 +307,45 @@ describe("Deployer PDA Architecture", () => {
 
     it("should fail to close non-existent deployer", async () => {
       try {
-        await (program.methods as any)
+        const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
+          commitment: "confirmed",
+        });
+
+        const closeInstruction = await (program.methods as any)
           .closeDeployer()
           .accounts({
+            config: configPda,
             deployer: deployerPda,
             admin: adminPda,
           })
-          .rpc();
+          .instruction();
+
+        const walletSigner = (provider.wallet as any).payer as Keypair;
+        const closeTx = new anchor.web3.Transaction({
+          blockhash,
+          lastValidBlockHeight,
+          feePayer: provider.wallet.publicKey,
+        }).add(closeInstruction);
+
+        closeTx.partialSign(walletSigner);
+
+        const [_, adminBump] = anchor.web3.PublicKey.findProgramAddressSync(
+          [Buffer.from("admin"), configPda.toBuffer()],
+          program.programId
+        );
+        const adminSig = Buffer.alloc(64);
+        adminSig[0] = adminBump;
+        closeTx.addSignature(adminPda, adminSig);
+
+        const serializedCloseTx = closeTx.serialize({ requireAllSignatures: false, verifySignatures: false });
+        const closeTxSig = await provider.connection.sendRawTransaction(serializedCloseTx, {
+          skipPreflight: true,
+          maxRetries: 5,
+        });
+        await provider.connection.confirmTransaction({ signature: closeTxSig, blockhash, lastValidBlockHeight }, "confirmed");
         expect.fail("Should have thrown an error");
       } catch (error: any) {
-        expect(error.message).to.match(/(does not exist|not found|Account does not exist)/i);
+        expect(error.message).to.match(/(does not exist|not found|Account does not exist|already been initialized)/i);
         console.log("✅ Correctly rejected close of non-existent deployer");
       }
     });

@@ -599,9 +599,18 @@ async function _performInitialization(
       [Buffer.from("admin"), configPda.toBuffer()],
       program.programId
     );
-    const pdaSignature = Buffer.alloc(64);
-    pdaSignature[0] = adminBump;
-    initTx.addSignature(adminPda, pdaSignature);
+    const adminSignature = Buffer.alloc(64);
+    adminSignature[0] = adminBump;
+    initTx.addSignature(adminPda, adminSignature);
+
+    // Add placeholder signature for deployer PDA (now requires signer)
+    const [_deployerPdaKey, deployerBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("deployer")],
+      program.programId
+    );
+    const deployerSignature = Buffer.alloc(64);
+    deployerSignature[0] = deployerBump;
+    initTx.addSignature(deployerPda, deployerSignature);
 
     // Serialize and send with skipPreflight to bypass PDA signature validation
     const serializedInitTx = initTx.serialize({ requireAllSignatures: false, verifySignatures: false });

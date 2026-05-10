@@ -41,6 +41,7 @@ pub struct Initialize<'info> {
     /// Deployer PDA - funded payer for account creation
     #[account(
         mut,
+        signer,
         seeds = [DEPLOYER_SEED],
         bump
     )]

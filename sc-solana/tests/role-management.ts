@@ -166,17 +166,10 @@ describe("Role Management Integration Tests", () => {
 
     it("returns error when granting invalid role name", async () => {
       try {
-        await program.methods
-          .grantRole("INVALID_ROLE")
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([randomUser])
-          .rpc();
-
+        await grantRoleWithAdminPda(
+          program, provider, configPda, adminPda, adminBump,
+          "INVALID_ROLE", randomUser.publicKey, randomUser
+        );
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         error.message.should.include("RoleNotFound");
@@ -206,17 +199,10 @@ describe("Role Management Integration Tests", () => {
 
     it("cannot grant role without account_to_grant signing", async () => {
       try {
-        await program.methods
-          .grantRole(TECNICO_SW_ROLE)
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([]) // Missing randomUser signature
-          .rpc();
-
+        await grantRoleWithAdminPda(
+          program, provider, configPda, adminPda, adminBump,
+          TECNICO_SW_ROLE, randomUser.publicKey, Keypair.generate()
+        );
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         error.message.should.satisfy((msg) =>

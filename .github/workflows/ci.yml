@@ -154,8 +154,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: yarn
-          cache-dependency-path: sc-solana/yarn.lock
+          cache: 'npm'
+          cache-dependency-path: sc-solana/package-lock.json
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -230,6 +230,8 @@ jobs:
     env:
       NEXT_PUBLIC_PROGRAM_ID: "11111111111111111111111111111112"
       NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com"
+      NEXT_PUBLIC_CLUSTER: "devnet"
+      NEXT_PUBLIC_NETWORK: "devnet"
     steps:
       - uses: actions/checkout@v4
 
@@ -246,8 +248,8 @@ jobs:
       - name: Install Playwright Browsers
         run: cd web && npx playwright install --with-deps chromium
 
-      - name: Run Playwright E2E Tests
-        run: cd web && npx playwright test --reporter=html
+      - name: Run Playwright E2E Tests (Headless Mode)
+        run: cd web && npx playwright test --reporter=html --project=chromium
         timeout-minutes: 15
 
       - name: Upload Playwright Report

@@ -168,21 +168,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: web/node_modules
-          key: node-modules-${{ github.sha }}
-          restore-keys: |
-            node-modules-
-
       - name: Install Frontend Dependencies
         working-directory: ./web
-        run: npm ci --ignore-scripts || npm install --prefer-offline
+        run: npm install --force --no-audit --no-fund
 
       - name: Verify autoprefixer installed
         working-directory: ./web
-        run: node -e "require('autoprefixer')" && echo "autoprefixer OK" || (echo "autoprefixer MISSING" && exit 1)
+        run: |
+          ls node_modules/ | grep autoprefixer || (echo "autoprefixer NOT in node_modules" && exit 1)
+          node -e "require('autoprefixer')" && echo "autoprefixer OK"
 
       - name: Build Next.js Frontend
         working-directory: ./web

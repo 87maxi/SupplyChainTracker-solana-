@@ -57,11 +57,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
-          cache-dependency-path: web/yarn.lock
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && yarn install --frozen-lockfile
+        run: cd web && npm install --prefer-offline
 
       - name: TypeScript Type Check (web)
         run: cd web && npx tsc --noEmit
@@ -78,11 +78,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
-          cache-dependency-path: web/yarn.lock
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && yarn install --frozen-lockfile
+        run: cd web && npm install --prefer-offline
 
       - name: ESLint (Zero Warnings)
         run: cd web && npx eslint src/ --max-warnings=0
@@ -102,14 +102,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
-          cache-dependency-path: web/yarn.lock
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && yarn install --frozen-lockfile
+        run: cd web && npm install --prefer-offline
 
       - name: Run Jest Unit Tests
-        run: cd web && yarn test --forceExit --detectOpenHandles
+        run: cd web && npm test -- --forceExit --detectOpenHandles
 
   # ============================================================================
   # Job 5: Build Frontend
@@ -124,14 +124,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
-          cache-dependency-path: web/yarn.lock
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && yarn install --frozen-lockfile
+        run: cd web && npm install --prefer-offline
 
       - name: Build Next.js Frontend
-        run: cd web && yarn build
+        run: cd web && npm run build
 
   # ============================================================================
   # Job 6: Anchor Program Tests (requires local Solana validator)
@@ -226,17 +226,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
-          cache-dependency-path: web/yarn.lock
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && yarn install --frozen-lockfile
+        run: cd web && npm install --prefer-offline
 
       - name: Install Playwright Browsers
         run: cd web && npx playwright install --with-deps chromium
 
       - name: Build Frontend for E2E
-        run: cd web && yarn build
+        run: cd web && npm run build
 
       - name: Run Playwright E2E Tests
         run: cd web && npx playwright test --reporter=html

@@ -910,13 +910,5 @@ export function bytesToString(bytes: number[]): string {
 }
 
 // ============================================================================
-// Global SkipPreflight Patching (for PDA signing)
+// End of Test Helpers
 // ============================================================================
-
-// Patch Transaction.serialize to always use requireAllSignatures: false
-// This allows PDA accounts (which use seed-based verification) to be used
-// without requiring valid cryptographic signatures.
-const _originalSerialize = Transaction.prototype.serialize;
-Transaction.prototype.serialize = function(options: any) {
-  return _originalSerialize.call(this, { requireAllSignatures: false, verifySignatures: false });
-};

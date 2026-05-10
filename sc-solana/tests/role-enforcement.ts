@@ -90,7 +90,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -104,7 +103,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("AUDITOR_HW")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -118,7 +116,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("TECNICO_SW")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -132,7 +129,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("ESCUELA")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -165,7 +161,6 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole("INVALID_ROLE")
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -183,7 +178,6 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole("FABRICANTE")
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -207,7 +201,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -220,7 +213,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .revokeRole("FABRICANTE")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToRevoke: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -253,7 +245,6 @@ describe("Role Enforcement Boundary Tests", () => {
           .revokeRole("INVALID_ROLE")
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToRevoke: fabricante.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -279,7 +270,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -364,7 +354,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("AUDITOR_HW")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -462,7 +451,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("TECNICO_SW")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -559,7 +547,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("ESCUELA")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -665,7 +652,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -676,7 +662,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("AUDITOR_HW")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -687,7 +672,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("TECNICO_SW")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -698,7 +682,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("ESCUELA")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -1029,7 +1012,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("FABRICANTE")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -1040,7 +1022,6 @@ describe("Role Enforcement Boundary Tests", () => {
         .grantRole("AUDITOR_HW")
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -1054,7 +1035,6 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole("")
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -1072,7 +1052,6 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole("FABRICANTE; DROP TABLE config;--")
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -1091,7 +1070,6 @@ describe("Role Enforcement Boundary Tests", () => {
           .grantRole(longRole)
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: randomUser.publicKey,
             systemProgram: SystemProgram.programId,
           })

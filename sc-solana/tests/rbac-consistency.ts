@@ -101,7 +101,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         .grantRole(FABRICANTE_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: user1.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -139,7 +138,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           .grantRole(AUDITOR_HW_ROLE)
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: user2.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -186,7 +184,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         .approveRoleRequest()
         .accounts({
           config: configPda,
-          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([])
@@ -249,7 +246,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         .rejectRoleRequest()
         .accounts({
           config: configPda,
-          admin: adminPda,
           roleRequest: newRoleRequestPda,
         })
         .signers([])
@@ -272,7 +268,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           .approveRoleRequest()
           .accounts({
             config: configPda,
-            admin: adminPda,
             roleRequest: roleRequestPda,
           })
           .signers([])
@@ -294,7 +289,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           .approveRoleRequest()
           .accounts({
             config: configPda,
-            admin: adminPda,
             roleRequest: newRoleRequestPda,
           })
           .signers([])
@@ -360,7 +354,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         .revokeRole(FABRICANTE_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToRevoke: user1.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -382,7 +375,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         .grantRole(FABRICANTE_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: user1.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -413,7 +405,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           .revokeRole(AUDITOR_HW_ROLE)
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToRevoke: user1.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -431,7 +422,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           .revokeRole(FABRICANTE_ROLE)
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToRevoke: user1.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -461,7 +451,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         .addRoleHolder(AUDITOR_HW_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           roleHolder: roleHolderPda,
           accountToAdd: holderUser.publicKey,
           systemProgram: SystemProgram.programId,
@@ -517,7 +506,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         .addRoleHolder(ESCUELA_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           roleHolder: roleHolderPda,
           accountToAdd: holderUser.publicKey,
           systemProgram: SystemProgram.programId,
@@ -530,7 +518,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         .removeRoleHolder(ESCUELA_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           roleHolder: roleHolderPda,
           systemProgram: SystemProgram.programId,
         })
@@ -554,7 +541,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         .addRoleHolder(ESCUELA_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           roleHolder: roleHolderPda,
           accountToAdd: holderUser.publicKey,
           systemProgram: SystemProgram.programId,
@@ -595,7 +581,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           .grantRole(AUDITOR_HW_ROLE)
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: unauthorizedUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -613,7 +598,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           .grantRole("SUPER_ADMIN")
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: unauthorizedUser.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -632,7 +616,6 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           .grantRole(FABRICANTE_ROLE)
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: user1.publicKey,
             systemProgram: SystemProgram.programId,
           })

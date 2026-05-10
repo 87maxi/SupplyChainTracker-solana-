@@ -183,7 +183,6 @@ describe("SupplyChainTracker Solana", () => {
       await program.methods.grantRole(FABRICANTE_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -199,7 +198,6 @@ describe("SupplyChainTracker Solana", () => {
       await program.methods.grantRole(AUDITOR_HW_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -215,7 +213,6 @@ describe("SupplyChainTracker Solana", () => {
       await program.methods.grantRole(TECNICO_SW_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: technician.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -231,7 +228,6 @@ describe("SupplyChainTracker Solana", () => {
       await program.methods.grantRole(ESCUELA_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -267,7 +263,6 @@ describe("SupplyChainTracker Solana", () => {
         await program.methods.grantRole(role)
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: account.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -304,7 +299,6 @@ describe("SupplyChainTracker Solana", () => {
         .grantRole(AUDITOR_HW_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: auditor.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -322,7 +316,6 @@ describe("SupplyChainTracker Solana", () => {
         .grantRole(FABRICANTE_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: fabricante.publicKey,
           systemProgram: SystemProgram.programId,
         })
@@ -361,7 +354,6 @@ describe("SupplyChainTracker Solana", () => {
         .approveRoleRequest()
         .accounts({
           config: configPda,
-          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([])
@@ -396,7 +388,6 @@ describe("SupplyChainTracker Solana", () => {
         .rejectRoleRequest()
         .accounts({
           config: configPda,
-          admin: adminPda,
           roleRequest: roleRequestPda,
         })
         .signers([])
@@ -436,7 +427,6 @@ describe("SupplyChainTracker Solana", () => {
           .grantRole(AUDITOR_HW_ROLE)
           .accounts({
             config: configPda,
-            admin: adminPda,
             accountToGrant: auditor.publicKey,
             systemProgram: SystemProgram.programId,
           })
@@ -774,7 +764,6 @@ describe("SupplyChainTracker Solana", () => {
         .grantRole(ESCUELA_ROLE)
         .accounts({
           config: configPda,
-          admin: adminPda,
           accountToGrant: school.publicKey,
           systemProgram: SystemProgram.programId,
         })

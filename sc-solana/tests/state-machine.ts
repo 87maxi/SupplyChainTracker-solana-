@@ -84,7 +84,6 @@ describe("State Machine Transition Validation Tests", () => {
       .grantRole(role)
       .accounts({
         config: configPda,
-        admin: adminPda,
         accountToGrant: account,
         systemProgram: SystemProgram.programId,
       })

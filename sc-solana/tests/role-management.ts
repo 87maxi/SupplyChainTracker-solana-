@@ -52,6 +52,7 @@ describe("Role Management Integration Tests", () => {
   let randomUser: Keypair;
   let configPda: PublicKey;
   let adminPda: PublicKey;
+  let adminBump: number;
 
   before(async () => {
     // Load program
@@ -83,7 +84,7 @@ describe("Role Management Integration Tests", () => {
     }
 
     configPda = (await getConfigPda(program))[0];
-    adminPda = getAdminPda(configPda, program.programId);
+    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
 
     // Initialize using shared initialization (Issue #178)
     await fundAndInitialize(program, provider, admin);

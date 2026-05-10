@@ -46,6 +46,7 @@ describe("PDA Derivation Security Tests", () => {
   let configPda: PublicKey;
   let configBump: number;
   let adminPda: PublicKey;
+  let adminBump: number;
 
   // ========================================================================
   // Setup
@@ -71,7 +72,7 @@ describe("PDA Derivation Security Tests", () => {
 
   async function initializeConfig() {
     await fundAndInitialize(program, provider, admin);
-    adminPda = getAdminPda(configPda, program.programId);
+    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
   }
 
   // ========================================================================

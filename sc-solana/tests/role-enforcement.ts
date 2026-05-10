@@ -43,6 +43,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
   let configPda: PublicKey;
   let adminPda: PublicKey;
+  let adminBump: number;
   let serialHashRegistryPda: PublicKey;
   let crossRoleNetbookPda: PublicKey;
 
@@ -63,7 +64,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
     // Get PDAs
     [configPda] = getConfigPda(program);
-    adminPda = getAdminPda(configPda, program.programId);
+    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
     serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
   });
 

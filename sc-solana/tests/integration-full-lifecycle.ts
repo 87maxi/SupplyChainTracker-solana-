@@ -211,6 +211,7 @@ describe("Integration Testing with Local Solana Network", () => {
   let configBump: number;
   let serialHashRegistryPda: PublicKey;
   let adminPda: PublicKey;
+  let adminBump: number;
 
   /**
    * Setup: Fund accounts and initialize program
@@ -235,7 +236,7 @@ describe("Integration Testing with Local Solana Network", () => {
     // Initialize program using PDA-first pattern
     const funder = Keypair.generate();
     await fundAndInitialize(program, provider, admin);
-    adminPda = getAdminPda(configPda, program.programId);
+    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
   });
 
   // ========================================================================

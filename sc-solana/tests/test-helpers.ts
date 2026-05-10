@@ -316,18 +316,18 @@ export function getDeployerPda(program: Program<ScSolana>): [PublicKey, number] 
 }
 
 /**
- * Get admin PDA
+ * Get admin PDA and bump
  * Seeds: [b"admin", config_key]
  */
 export function getAdminPda(
   configPda: PublicKey,
   programId: PublicKey
-): PublicKey {
-  const [pda] = PublicKey.findProgramAddressSync(
+): [PublicKey, number] {
+  const [pda, bump] = PublicKey.findProgramAddressSync(
     [Buffer.from("admin"), configPda.toBuffer()],
     programId
   );
-  return pda;
+  return [pda, bump];
 }
 
 // ============================================================================
@@ -394,7 +394,7 @@ async function _performInitialization(
 ): Promise<string> {
   const [configPda] = getConfigPda(program);
   const serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
-  const adminPda = getAdminPda(configPda, program.programId);
+  const [adminPda] = getAdminPda(configPda, program.programId);
   const [deployerPda] = getDeployerPda(program);
 
   try {

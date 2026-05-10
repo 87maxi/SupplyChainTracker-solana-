@@ -48,6 +48,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
   let admin: Keypair;
   let configPda: PublicKey;
   let adminPda: PublicKey;
+  let adminBump: number;
   let serialHashRegistryPda: PublicKey;
 
   // Test accounts
@@ -88,7 +89,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
     // Initialize config using PDA-first pattern
     const funder = Keypair.generate();
     await fundAndInitialize(program, provider, admin);
-    adminPda = getAdminPda(configPda, program.programId);
+    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
   });
 
   // =========================================================================

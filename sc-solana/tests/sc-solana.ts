@@ -57,6 +57,7 @@ describe("SupplyChainTracker Solana", () => {
   let configBump: number;
   let serialHashRegistryPda: anchor.web3.PublicKey;
   let adminPda: anchor.web3.PublicKey;
+  let adminBump: number;
 
   before(() => {
     if (anchor.workspace.scSolana) {
@@ -149,7 +150,7 @@ describe("SupplyChainTracker Solana", () => {
     
     // Initialize using shared initialization (Issue #178)
     await fundAndInitialize(program, provider, admin);
-    adminPda = getAdminPda(configPda, program.programId);
+    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
     existingConfig = await program.account.supplyChainConfig.fetch(configPda);
     
     // Generate test accounts and grant roles

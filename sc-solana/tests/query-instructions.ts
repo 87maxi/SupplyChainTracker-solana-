@@ -40,6 +40,7 @@ describe("Query Instruction Integration Tests", () => {
   let randomUser: Keypair;
   let configPda: PublicKey;
   let adminPda: PublicKey;
+  let adminBump: number;
   let serialHashRegistryPda: PublicKey;
 
   // Registered netbooks for querying
@@ -69,7 +70,7 @@ describe("Query Instruction Integration Tests", () => {
 
     // Initialize using shared initialization (Issue #178)
     await fundAndInitialize(program, provider, admin);
-    adminPda = getAdminPda(configPda, program.programId);
+    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
 
     // Grant roles
     for (const [role, account] of [

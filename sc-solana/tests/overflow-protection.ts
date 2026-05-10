@@ -42,6 +42,7 @@ describe("Overflow/Underflow Protection Tests", () => {
 
   let configPda: PublicKey;
   let adminPda: PublicKey;
+  let adminBump: number;
   let serialHashRegistryPda: PublicKey;
 
   // ========================================================================
@@ -63,7 +64,7 @@ describe("Overflow/Underflow Protection Tests", () => {
 
     // Initialize config using shared initialization (Issue #178)
     await fundAndInitialize(program, provider, admin);
-    adminPda = getAdminPda(configPda, program.programId);
+    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
 
     // Grant roles
     await grantRole("FABRICANTE", fabricante.publicKey);

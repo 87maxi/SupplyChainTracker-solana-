@@ -75,7 +75,7 @@ describe("Batch Registration Integration Tests", () => {
     serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
 
     // Grant FABRICANTE role to fabricante
-    const adminPda = getAdminPda(configPda, program.programId);
+    const [adminPda] = getAdminPda(configPda, program.programId);
     await (program.methods as any)
       .grantRole("FABRICANTE")
       .accountsStrict({

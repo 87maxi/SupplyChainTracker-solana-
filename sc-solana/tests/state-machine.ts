@@ -82,7 +82,7 @@ describe("State Machine Transition Validation Tests", () => {
   async function grantRole(role: string, account: PublicKey) {
     await program.methods
       .grantRole(role)
-      .accountsStrict({
+      .accounts({
         config: configPda,
         admin: adminPda,
         accountToGrant: account,
@@ -103,7 +103,7 @@ describe("State Machine Transition Validation Tests", () => {
 
     await program.methods
       .registerNetbook(serialNumber, batchId, modelSpecs)
-      .accountsStrict({
+      .accounts({
         manufacturer: fabricante.publicKey,
         netbook: netbookPda,
         config: configPda,
@@ -140,7 +140,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Transition 1: Fabricada → HwAprobado via hardware audit
       await program.methods
         .auditHardware("FULL-LIFECYCLE-001", true, createHash(100))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -154,7 +154,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Transition 2: HwAprobado → SwValidado via software validation
       await program.methods
         .validateSoftware("FULL-LIFECYCLE-001", "Ubuntu 22.04 LTS", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -168,7 +168,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Transition 3: SwValidado → Distribuida via student assignment
       await program.methods
         .assignToStudent("FULL-LIFECYCLE-001", createHash(200), createHash(300))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           school: school.publicKey,
@@ -190,7 +190,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Register → HwAprobado
       await program.methods
         .auditHardware("PARTIAL-001", true, createHash(101))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -204,7 +204,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Failed software validation - should NOT transition state
       await program.methods
         .validateSoftware("PARTIAL-001", "Ubuntu 22.04 LTS", false)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -227,7 +227,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Failed hardware audit - should NOT transition state
       await program.methods
         .auditHardware("PARTIAL-HW-001", false, createHash(102))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -242,7 +242,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Successful hardware audit should now work
       await program.methods
         .auditHardware("PARTIAL-HW-001", true, createHash(103))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -275,7 +275,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .validateSoftware("SKIP-STATE-001", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             technician: technician.publicKey,
@@ -304,7 +304,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Perform hardware audit to get to HwAprobado
       await program.methods
         .auditHardware("SKIP-STATE-002", true, createHash(104))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -320,7 +320,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .assignToStudent("SKIP-STATE-002", createHash(201), createHash(301))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             school: school.publicKey,
@@ -354,7 +354,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .assignToStudent("SKIP-STATE-003", createHash(202), createHash(302))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             school: school.publicKey,
@@ -389,7 +389,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Get to HwAprobado
       await program.methods
         .auditHardware("REVERSE-001", true, createHash(105))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -404,7 +404,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .auditHardware("REVERSE-001", false, createHash(106))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             auditor: auditor.publicKey,
@@ -432,7 +432,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Get to SwValidado
       await program.methods
         .auditHardware("REVERSE-002", true, createHash(107))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -442,7 +442,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .validateSoftware("REVERSE-002", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -457,7 +457,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .validateSoftware("REVERSE-002", "Ubuntu 22.04", false)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             technician: technician.publicKey,
@@ -485,7 +485,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Complete full lifecycle
       await program.methods
         .auditHardware("REVERSE-003", true, createHash(108))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -495,7 +495,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .validateSoftware("REVERSE-003", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -505,7 +505,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .assignToStudent("REVERSE-003", createHash(203), createHash(303))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           school: school.publicKey,
@@ -520,7 +520,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .auditHardware("REVERSE-003", true, createHash(109))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             auditor: auditor.publicKey,
@@ -537,7 +537,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .validateSoftware("REVERSE-003", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             technician: technician.publicKey,
@@ -554,7 +554,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .assignToStudent("REVERSE-003", createHash(204), createHash(304))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             school: school.publicKey,
@@ -588,7 +588,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Failed hardware audit
       await program.methods
         .auditHardware("PRESERVE-001", false, createHash(110))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -611,7 +611,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Successful hardware audit
       await program.methods
         .auditHardware("PRESERVE-002", true, createHash(111))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -622,7 +622,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Failed software validation
       await program.methods
         .validateSoftware("PRESERVE-002", "Ubuntu 22.04", false)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -645,7 +645,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Complete hardware audit
       await program.methods
         .auditHardware("PRESERVE-003", true, createHash(112))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -661,7 +661,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .validateSoftware("WRONG-SERIAL", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             technician: technician.publicKey,
@@ -695,7 +695,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Start hardware audit
       const auditPromise = program.methods
         .auditHardware("CONCURRENT-001", true, createHash(113))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -723,7 +723,7 @@ describe("State Machine Transition Validation Tests", () => {
       // First hardware audit - should succeed
       await program.methods
         .auditHardware("DUPLICATE-001", true, createHash(114))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -738,7 +738,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .auditHardware("DUPLICATE-001", true, createHash(115))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             auditor: auditor.publicKey,
@@ -792,7 +792,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Advance netbook1 to HwAprobado
       await program.methods
         .auditHardware("MULTI-001", true, createHash(116))
-        .accountsStrict({
+        .accounts({
           netbook: netbook1Pda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -808,7 +808,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Advance netbook2 to HwAprobado
       await program.methods
         .auditHardware("MULTI-002", true, createHash(117))
-        .accountsStrict({
+        .accounts({
           netbook: netbook2Pda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -825,7 +825,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .validateSoftware("MULTI-003", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: netbook3Pda,
             config: configPda,
             technician: technician.publicKey,
@@ -853,7 +853,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .auditHardware("FULL-001", true, createHash(118))
-        .accountsStrict({
+        .accounts({
           netbook: fullLifecyclePda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -863,7 +863,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .validateSoftware("FULL-001", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: fullLifecyclePda,
           config: configPda,
           technician: technician.publicKey,
@@ -873,7 +873,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .assignToStudent("FULL-001", createHash(205), createHash(305))
-        .accountsStrict({
+        .accounts({
           netbook: fullLifecyclePda,
           config: configPda,
           school: school.publicKey,
@@ -894,7 +894,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .auditHardware("PARTIAL-002", true, createHash(119))
-        .accountsStrict({
+        .accounts({
           netbook: partialLifecyclePda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -904,7 +904,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .validateSoftware("PARTIAL-002", "Ubuntu 22.04", false)
-        .accountsStrict({
+        .accounts({
           netbook: partialLifecyclePda,
           config: configPda,
           technician: technician.publicKey,
@@ -925,7 +925,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .auditHardware("FAILED-HW-001", false, createHash(120))
-        .accountsStrict({
+        .accounts({
           netbook: failedHwPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -954,7 +954,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Execute full lifecycle rapidly
       await program.methods
         .auditHardware("RAPID-001", true, createHash(121))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -964,7 +964,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .validateSoftware("RAPID-001", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -974,7 +974,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .assignToStudent("RAPID-001", createHash(206), createHash(306))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           school: school.publicKey,
@@ -1003,7 +1003,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Perform hardware audit
       await program.methods
         .auditHardware("TYPE-CHECK-001", true, createHash(122))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -1053,7 +1053,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .auditHardware("ERROR-CODE-001", true, createHash(123))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             auditor: auditor.publicKey,
@@ -1068,7 +1068,7 @@ describe("State Machine Transition Validation Tests", () => {
       // Now audit successfully
       await program.methods
         .auditHardware("ERROR-CODE-001", true, createHash(124))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -1080,7 +1080,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .auditHardware("ERROR-CODE-001", true, createHash(125))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             auditor: auditor.publicKey,
@@ -1104,7 +1104,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .validateSoftware("ERROR-CODE-002", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             technician: technician.publicKey,
@@ -1128,7 +1128,7 @@ describe("State Machine Transition Validation Tests", () => {
       try {
         await program.methods
           .assignToStudent("ERROR-CODE-003", createHash(207), createHash(307))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             school: school.publicKey,
@@ -1157,7 +1157,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .auditHardware(serialNumber, true, createHash(126))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -1167,7 +1167,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .validateSoftware(serialNumber, "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -1177,7 +1177,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .assignToStudent(serialNumber, createHash(208), createHash(308))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           school: school.publicKey,
@@ -1199,7 +1199,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .auditHardware("INTEGRITY-002", true, createHash(127))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -1209,7 +1209,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .validateSoftware("INTEGRITY-002", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -1219,7 +1219,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .assignToStudent("INTEGRITY-002", createHash(209), createHash(309))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           school: school.publicKey,
@@ -1243,7 +1243,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .auditHardware("DATA-INT-001", true, createHash(128))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -1264,7 +1264,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .auditHardware("DATA-INT-002", true, createHash(129))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -1277,7 +1277,7 @@ describe("State Machine Transition Validation Tests", () => {
 
       await program.methods
         .validateSoftware("DATA-INT-002", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -1317,7 +1317,7 @@ describe("State Machine Transition Validation Tests", () => {
       const nb2Pda = await registerNetbook("FINAL-002", "FINAL-BATCH-001", "Final Model 2");
       await program.methods
         .auditHardware("FINAL-002", true, createHash(130))
-        .accountsStrict({
+        .accounts({
           netbook: nb2Pda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -1330,7 +1330,7 @@ describe("State Machine Transition Validation Tests", () => {
       const nb3Pda = await registerNetbook("FINAL-003", "FINAL-BATCH-001", "Final Model 3");
       await program.methods
         .auditHardware("FINAL-003", true, createHash(131))
-        .accountsStrict({
+        .accounts({
           netbook: nb3Pda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -1339,7 +1339,7 @@ describe("State Machine Transition Validation Tests", () => {
         .rpc();
       await program.methods
         .validateSoftware("FINAL-003", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: nb3Pda,
           config: configPda,
           technician: technician.publicKey,
@@ -1352,7 +1352,7 @@ describe("State Machine Transition Validation Tests", () => {
       const nb4Pda = await registerNetbook("FINAL-004", "FINAL-BATCH-001", "Final Model 4");
       await program.methods
         .auditHardware("FINAL-004", true, createHash(132))
-        .accountsStrict({
+        .accounts({
           netbook: nb4Pda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -1361,7 +1361,7 @@ describe("State Machine Transition Validation Tests", () => {
         .rpc();
       await program.methods
         .validateSoftware("FINAL-004", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: nb4Pda,
           config: configPda,
           technician: technician.publicKey,
@@ -1370,7 +1370,7 @@ describe("State Machine Transition Validation Tests", () => {
         .rpc();
       await program.methods
         .assignToStudent("FINAL-004", createHash(210), createHash(310))
-        .accountsStrict({
+        .accounts({
           netbook: nb4Pda,
           config: configPda,
           school: school.publicKey,
@@ -1383,7 +1383,7 @@ describe("State Machine Transition Validation Tests", () => {
       const nb5Pda = await registerNetbook("FINAL-005", "FINAL-BATCH-001", "Final Model 5");
       await program.methods
         .auditHardware("FINAL-005", false, createHash(133))
-        .accountsStrict({
+        .accounts({
           netbook: nb5Pda,
           config: configPda,
           auditor: auditor.publicKey,

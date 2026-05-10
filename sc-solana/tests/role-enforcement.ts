@@ -88,7 +88,7 @@ describe("Role Enforcement Boundary Tests", () => {
     it("allows admin to grant FABRICANTE role", async () => {
       const sig = await program.methods
         .grantRole("FABRICANTE")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: fabricante.publicKey,
@@ -102,7 +102,7 @@ describe("Role Enforcement Boundary Tests", () => {
     it("allows admin to grant AUDITOR_HW role", async () => {
       const sig = await program.methods
         .grantRole("AUDITOR_HW")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: auditor.publicKey,
@@ -116,7 +116,7 @@ describe("Role Enforcement Boundary Tests", () => {
     it("allows admin to grant TECNICO_SW role", async () => {
       const sig = await program.methods
         .grantRole("TECNICO_SW")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: technician.publicKey,
@@ -130,7 +130,7 @@ describe("Role Enforcement Boundary Tests", () => {
     it("allows admin to grant ESCUELA role", async () => {
       const sig = await program.methods
         .grantRole("ESCUELA")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: school.publicKey,
@@ -145,7 +145,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .grantRole("FABRICANTE")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: randomUser.publicKey,
             accountToGrant: anotherRandom.publicKey,
@@ -163,7 +163,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .grantRole("INVALID_ROLE")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: randomUser.publicKey,
@@ -181,7 +181,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .grantRole("FABRICANTE")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: fabricante.publicKey,
@@ -205,7 +205,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Grant role first
       await program.methods
         .grantRole("FABRICANTE")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: fabricante.publicKey,
@@ -218,7 +218,7 @@ describe("Role Enforcement Boundary Tests", () => {
     it("allows admin to revoke FABRICANTE role", async () => {
       const sig = await program.methods
         .revokeRole("FABRICANTE")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToRevoke: fabricante.publicKey,
@@ -233,7 +233,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .revokeRole("FABRICANTE")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: randomUser.publicKey,
             accountToRevoke: anotherRandom.publicKey,
@@ -251,7 +251,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .revokeRole("INVALID_ROLE")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToRevoke: fabricante.publicKey,
@@ -277,7 +277,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Grant FABRICANTE role
       await program.methods
         .grantRole("FABRICANTE")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: fabricante.publicKey,
@@ -294,7 +294,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       const sig = await program.methods
         .registerNetbook("ROLE-TEST-001", "ROLE-BATCH-001", "Test Model")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -314,7 +314,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .registerNetbook("ROLE-TEST-002", "ROLE-BATCH-002", "Test Model")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
             manufacturer: randomUser.publicKey,
@@ -337,7 +337,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .registerNetbook("ROLE-TEST-003", "ROLE-BATCH-003", "Test Model")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
             manufacturer: auditor.publicKey,
@@ -362,7 +362,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Grant AUDITOR_HW role
       await program.methods
         .grantRole("AUDITOR_HW")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: auditor.publicKey,
@@ -378,7 +378,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       await program.methods
         .registerNetbook("AUDIT-ROLE-001", "AUDIT-BATCH-001", "Audit Test Model")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -396,7 +396,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       const sig = await program.methods
         .auditHardware("AUDIT-ROLE-001", true, createHash(42))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -414,7 +414,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .auditHardware("AUDIT-ROLE-001", true, createHash(43))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             auditor: randomUser.publicKey,
@@ -435,7 +435,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .auditHardware("AUDIT-ROLE-001", true, createHash(44))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             auditor: technician.publicKey,
@@ -460,7 +460,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Grant TECNICO_SW role
       await program.methods
         .grantRole("TECNICO_SW")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: technician.publicKey,
@@ -476,7 +476,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       await program.methods
         .registerNetbook("VALIDATE-ROLE-001", "VALIDATE-BATCH-001", "Validate Test Model")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -489,7 +489,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Audit hardware first
       await program.methods
         .auditHardware("VALIDATE-ROLE-001", true, createHash(50))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -501,7 +501,7 @@ describe("Role Enforcement Boundary Tests", () => {
     it("allows technician with TECNICO_SW role to validate software", async () => {
       const sig = await program.methods
         .validateSoftware("VALIDATE-ROLE-001", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -515,7 +515,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .validateSoftware("VALIDATE-ROLE-001", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             technician: randomUser.publicKey,
@@ -532,7 +532,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .validateSoftware("VALIDATE-ROLE-001", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             technician: auditor.publicKey,
@@ -557,7 +557,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Grant ESCUELA role
       await program.methods
         .grantRole("ESCUELA")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: school.publicKey,
@@ -573,7 +573,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       await program.methods
         .registerNetbook("ASSIGN-ROLE-001", "ASSIGN-BATCH-001", "Assign Test Model")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -586,7 +586,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Audit hardware
       await program.methods
         .auditHardware("ASSIGN-ROLE-001", true, createHash(60))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -597,7 +597,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Validate software
       await program.methods
         .validateSoftware("ASSIGN-ROLE-001", "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -609,7 +609,7 @@ describe("Role Enforcement Boundary Tests", () => {
     it("allows school with ESCUELA role to assign netbook to student", async () => {
       const sig = await program.methods
         .assignToStudent("ASSIGN-ROLE-001", createHash(100), createHash(200))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           school: school.publicKey,
@@ -623,7 +623,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .assignToStudent("ASSIGN-ROLE-001", createHash(101), createHash(201))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             school: randomUser.publicKey,
@@ -640,7 +640,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .assignToStudent("ASSIGN-ROLE-001", createHash(102), createHash(202))
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             school: fabricante.publicKey,
@@ -663,7 +663,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Grant all roles
       await program.methods
         .grantRole("FABRICANTE")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: fabricante.publicKey,
@@ -674,7 +674,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       await program.methods
         .grantRole("AUDITOR_HW")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: auditor.publicKey,
@@ -685,7 +685,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       await program.methods
         .grantRole("TECNICO_SW")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: technician.publicKey,
@@ -696,7 +696,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       await program.methods
         .grantRole("ESCUELA")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: school.publicKey,
@@ -717,7 +717,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       await program.methods
         .registerNetbook(serialNumber, batchId, modelSpecs)
-        .accountsStrict({
+        .accounts({
           manufacturer: fabricante.publicKey,
           netbook: crossRoleNetbookPda,
           config: configPda,
@@ -732,7 +732,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .auditHardware("TEST-SERIAL", true, createHash(70))
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: configPda,
             auditor: fabricante.publicKey,
@@ -749,7 +749,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .validateSoftware("TEST-SERIAL", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: configPda,
             technician: fabricante.publicKey,
@@ -766,7 +766,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .assignToStudent("TEST-SERIAL", createHash(80), createHash(90))
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: configPda,
             school: fabricante.publicKey,
@@ -783,7 +783,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .validateSoftware("TEST-SERIAL", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: configPda,
             technician: auditor.publicKey,
@@ -800,7 +800,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .assignToStudent("TEST-SERIAL", createHash(81), createHash(91))
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: configPda,
             school: auditor.publicKey,
@@ -817,7 +817,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .auditHardware("TEST-SERIAL", true, createHash(71))
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: configPda,
             auditor: technician.publicKey,
@@ -834,7 +834,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .assignToStudent("TEST-SERIAL", createHash(82), createHash(92))
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: configPda,
             school: technician.publicKey,
@@ -851,7 +851,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .auditHardware("TEST-SERIAL", true, createHash(72))
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: configPda,
             auditor: school.publicKey,
@@ -868,7 +868,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .validateSoftware("TEST-SERIAL", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: configPda,
             technician: school.publicKey,
@@ -904,7 +904,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Initialize with admin as fabricante only
       await program.methods
         .initialize()
-        .accountsStrict({
+        .accounts({
           config: newConfigPda,
           serialHashRegistry: newSerialHashPda,
           admin: newAdmin.publicKey,
@@ -918,7 +918,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .auditHardware("TEST-SERIAL", true, createHash(73))
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: newConfigPda,
             auditor: auditor.publicKey,
@@ -935,7 +935,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .validateSoftware("TEST-SERIAL", "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: newConfigPda,
             technician: technician.publicKey,
@@ -952,7 +952,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .assignToStudent("TEST-SERIAL", createHash(83), createHash(93))
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(1, program.programId),
             config: newConfigPda,
             school: school.publicKey,
@@ -978,7 +978,7 @@ describe("Role Enforcement Boundary Tests", () => {
     it("allows anyone to query config without any role", async () => {
       const sig = await program.methods
         .queryConfig()
-        .accountsStrict({
+        .accounts({
           config: configPda,
         })
         .signers([])
@@ -990,7 +990,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         const sig = await program.methods
           .queryNetbookState("non-existent-serial")
-          .accountsStrict({
+          .accounts({
             netbook: getNetbookPda(99999, program.programId),
           })
           .signers([])
@@ -1006,7 +1006,7 @@ describe("Role Enforcement Boundary Tests", () => {
     it("allows anyone to query role without any role", async () => {
       const sig = await program.methods
         .queryRole("FABRICANTE")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           accountToCheck: randomUser.publicKey,
         })
@@ -1027,7 +1027,7 @@ describe("Role Enforcement Boundary Tests", () => {
       // Grant roles
       await program.methods
         .grantRole("FABRICANTE")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: fabricante.publicKey,
@@ -1038,7 +1038,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       await program.methods
         .grantRole("AUDITOR_HW")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: auditor.publicKey,
@@ -1052,7 +1052,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .grantRole("")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: randomUser.publicKey,
@@ -1070,7 +1070,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .grantRole("FABRICANTE; DROP TABLE config;--")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: randomUser.publicKey,
@@ -1089,7 +1089,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .grantRole(longRole)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: randomUser.publicKey,
@@ -1112,7 +1112,7 @@ describe("Role Enforcement Boundary Tests", () => {
       try {
         await program.methods
           .grantRole("FABRICANTE")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: wrongAdmin.publicKey,
             accountToGrant: randomUser.publicKey,

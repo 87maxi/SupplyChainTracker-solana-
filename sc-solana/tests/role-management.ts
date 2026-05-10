@@ -102,7 +102,7 @@ describe("Role Management Integration Tests", () => {
     it("grants FABRICANTE role to account", async () => {
       const tx = await program.methods
         .grantRole(FABRICANTE_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: fabricante.publicKey,
@@ -119,7 +119,7 @@ describe("Role Management Integration Tests", () => {
     it("grants AUDITOR_HW role to account", async () => {
       const tx = await program.methods
         .grantRole(AUDITOR_HW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: auditor.publicKey,
@@ -136,7 +136,7 @@ describe("Role Management Integration Tests", () => {
     it("grants TECNICO_SW role to account", async () => {
       const tx = await program.methods
         .grantRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: tecnico.publicKey,
@@ -153,7 +153,7 @@ describe("Role Management Integration Tests", () => {
     it("grants ESCUELA role to account", async () => {
       const tx = await program.methods
         .grantRole(ESCUELA_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: escuela.publicKey,
@@ -171,7 +171,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .grantRole(FABRICANTE_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: fabricante.publicKey,
@@ -190,7 +190,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .grantRole("INVALID_ROLE")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: randomUser.publicKey,
@@ -209,7 +209,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .grantRole(AUDITOR_HW_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: auditor.publicKey,
             accountToGrant: randomUser.publicKey,
@@ -230,7 +230,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .grantRole(TECNICO_SW_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: randomUser.publicKey,
@@ -254,7 +254,7 @@ describe("Role Management Integration Tests", () => {
       
       const tx = await program.methods
         .requestRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: tecnico.publicKey,
@@ -275,7 +275,7 @@ describe("Role Management Integration Tests", () => {
       
       const tx = await program.methods
         .requestRole(ESCUELA_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: escuela.publicKey,
@@ -299,7 +299,7 @@ describe("Role Management Integration Tests", () => {
         // But if we try to request again, it should fail
         await program.methods
           .requestRole(FABRICANTE_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             roleRequest: roleRequestPda,
             user: randomUser.publicKey,
@@ -312,7 +312,7 @@ describe("Role Management Integration Tests", () => {
         const roleRequestPda2 = getRoleRequestPda(randomUser.publicKey, program.programId);
         await program.methods
           .requestRole(FABRICANTE_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             roleRequest: roleRequestPda2,
             user: randomUser.publicKey,
@@ -344,7 +344,7 @@ describe("Role Management Integration Tests", () => {
       const roleHolderPda = getRoleHolderByUserPda(tecnico.publicKey, program.programId);
       const tx = await (program.methods as any)
         .approveRoleRequest()
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           payer: admin.publicKey,
@@ -370,7 +370,7 @@ describe("Role Management Integration Tests", () => {
       const roleHolderPda2 = getRoleHolderByUserPda(escuela.publicKey, program.programId);
       const tx = await (program.methods as any)
         .approveRoleRequest()
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           payer: admin.publicKey,
@@ -397,7 +397,7 @@ describe("Role Management Integration Tests", () => {
         const techRoleHolder = getRoleHolderByUserPda(tecnico.publicKey, program.programId);
         await (program.methods as any)
           .approveRoleRequest()
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             payer: admin.publicKey,
@@ -424,7 +424,7 @@ describe("Role Management Integration Tests", () => {
         const nonExistentRoleHolder = getRoleHolderByUserPda(nonExistentUser.publicKey, program.programId);
         await (program.methods as any)
           .approveRoleRequest()
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             payer: admin.publicKey,
@@ -450,7 +450,7 @@ describe("Role Management Integration Tests", () => {
       // First create a request
       await program.methods
         .requestRole(FABRICANTE_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: nonAdmin.publicKey,
@@ -463,7 +463,7 @@ describe("Role Management Integration Tests", () => {
         const nonAdminRoleHolder = getRoleHolderByUserPda(nonAdmin.publicKey, program.programId);
         await (program.methods as any)
           .approveRoleRequest()
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: nonAdmin.publicKey,
             payer: nonAdmin.publicKey,
@@ -491,7 +491,7 @@ describe("Role Management Integration Tests", () => {
       // First create a role request
       await program.methods
         .requestRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: rejectUser.publicKey,
@@ -503,7 +503,7 @@ describe("Role Management Integration Tests", () => {
       // Now reject it
       const tx = await program.methods
         .rejectRoleRequest()
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           roleRequest: roleRequestPda,
@@ -523,7 +523,7 @@ describe("Role Management Integration Tests", () => {
       // Create and reject
       await program.methods
         .requestRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: rejectUser.publicKey,
@@ -534,7 +534,7 @@ describe("Role Management Integration Tests", () => {
 
       await program.methods
         .rejectRoleRequest()
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           roleRequest: roleRequestPda,
@@ -546,7 +546,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .rejectRoleRequest()
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             roleRequest: roleRequestPda,
@@ -569,7 +569,7 @@ describe("Role Management Integration Tests", () => {
       // Create a request
       await program.methods
         .requestRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: rejectUser.publicKey,
@@ -581,7 +581,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .rejectRoleRequest()
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: rejectUser.publicKey,
             roleRequest: roleRequestPda,
@@ -605,7 +605,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .grantRole(FABRICANTE_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: unauthorized.publicKey,
             accountToGrant: randomUser.publicKey,
@@ -629,7 +629,7 @@ describe("Role Management Integration Tests", () => {
       // Create a request
       await program.methods
         .requestRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: unauthorized.publicKey,
@@ -642,7 +642,7 @@ describe("Role Management Integration Tests", () => {
         const unauthRoleHolder = getRoleHolderByUserPda(unauthorized.publicKey, program.programId);
         await (program.methods as any)
           .approveRoleRequest()
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: unauthorized.publicKey,
             payer: unauthorized.publicKey,
@@ -676,7 +676,7 @@ describe("Role Management Integration Tests", () => {
       // Grant multiple roles to the same user
       await program.methods
         .grantRole(AUDITOR_HW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: multiRoleUser.publicKey,
@@ -687,7 +687,7 @@ describe("Role Management Integration Tests", () => {
 
       await program.methods
         .grantRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: multiRoleUser.publicKey,
@@ -710,7 +710,7 @@ describe("Role Management Integration Tests", () => {
       // Grant different roles
       await program.methods
         .grantRole(AUDITOR_HW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: user1.publicKey,
@@ -721,7 +721,7 @@ describe("Role Management Integration Tests", () => {
 
       await program.methods
         .grantRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: user2.publicKey,
@@ -732,7 +732,7 @@ describe("Role Management Integration Tests", () => {
 
       await program.methods
         .grantRole(ESCUELA_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: user3.publicKey,
@@ -757,7 +757,7 @@ describe("Role Management Integration Tests", () => {
       // Step 1: Request role
       await program.methods
         .requestRole(ESCUELA_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: lifecycleUser.publicKey,
@@ -774,7 +774,7 @@ describe("Role Management Integration Tests", () => {
       const lifecycleRoleHolder = getRoleHolderByUserPda(lifecycleUser.publicKey, program.programId);
       await (program.methods as any)
         .approveRoleRequest()
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           payer: admin.publicKey,
@@ -800,7 +800,7 @@ describe("Role Management Integration Tests", () => {
       // Step 1: Request role
       await program.methods
         .requestRole(FABRICANTE_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: lifecycleUser.publicKey,
@@ -816,7 +816,7 @@ describe("Role Management Integration Tests", () => {
       // Step 2: Admin rejects
       await program.methods
         .rejectRoleRequest()
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           roleRequest: roleRequestPda,
@@ -835,7 +835,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .grantRole("NOT_A_VALID_ROLE")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: randomUser.publicKey,
@@ -858,7 +858,7 @@ describe("Role Management Integration Tests", () => {
         // Grant first
         await program.methods
           .grantRole(FABRICANTE_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: fabricante.publicKey,
@@ -871,7 +871,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .grantRole(FABRICANTE_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: fabricante.publicKey,
@@ -894,7 +894,7 @@ describe("Role Management Integration Tests", () => {
         const nonExRoleHolder = getRoleHolderByUserPda(nonExistent.publicKey, program.programId);
         await (program.methods as any)
           .approveRoleRequest()
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             payer: admin.publicKey,
@@ -945,7 +945,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .requestRole(FABRICANTE_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             roleRequest: roleRequestPda,
             user: fabricante.publicKey,
@@ -975,7 +975,7 @@ describe("Role Management Integration Tests", () => {
       await Promise.all([
         program.methods
           .requestRole(TECNICO_SW_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             roleRequest: requestPda1,
             user: user1.publicKey,
@@ -986,7 +986,7 @@ describe("Role Management Integration Tests", () => {
         
         program.methods
           .requestRole(ESCUELA_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             roleRequest: requestPda2,
             user: user2.publicKey,
@@ -997,7 +997,7 @@ describe("Role Management Integration Tests", () => {
         
         program.methods
           .requestRole(AUDITOR_HW_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             roleRequest: requestPda3,
             user: user3.publicKey,
@@ -1021,7 +1021,7 @@ describe("Role Management Integration Tests", () => {
       try {
         await program.methods
           .grantRole("")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: randomUser.publicKey,

@@ -181,7 +181,7 @@ describe("SupplyChainTracker Solana", () => {
     // Always grant FABRICANTE role to fabricante keypair (overwrites admin holder from initialize)
     try {
       await program.methods.grantRole(FABRICANTE_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: fabricante.publicKey,
@@ -197,7 +197,7 @@ describe("SupplyChainTracker Solana", () => {
     // Grant AUDITOR_HW role to auditor keypair
     try {
       await program.methods.grantRole(AUDITOR_HW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: auditor.publicKey,
@@ -213,7 +213,7 @@ describe("SupplyChainTracker Solana", () => {
     // Grant TECNICO_SW role to technician keypair
     try {
       await program.methods.grantRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: technician.publicKey,
@@ -229,7 +229,7 @@ describe("SupplyChainTracker Solana", () => {
     // Grant ESCUELA role to school keypair
     try {
       await program.methods.grantRole(ESCUELA_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: school.publicKey,
@@ -265,7 +265,7 @@ describe("SupplyChainTracker Solana", () => {
       // If config has default (zero) holder, try to grant
       if (!existingHolder || existingHolder.equals(defaultPubkey)) {
         await program.methods.grantRole(role)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: account.publicKey,
@@ -302,7 +302,7 @@ describe("SupplyChainTracker Solana", () => {
       // accountToGrant must sign (it's a Signer<'info>)
       const tx = await program.methods
         .grantRole(AUDITOR_HW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: auditor.publicKey,
@@ -320,7 +320,7 @@ describe("SupplyChainTracker Solana", () => {
     it("Can grant fabricante role", async () => {
       const tx = await program.methods
         .grantRole(FABRICANTE_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: fabricante.publicKey,
@@ -338,7 +338,7 @@ describe("SupplyChainTracker Solana", () => {
       const roleRequestPda = getRoleRequestPda(technician.publicKey);
       const tx = await program.methods
         .requestRole(TECNICO_SW_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: technician.publicKey,
@@ -359,7 +359,7 @@ describe("SupplyChainTracker Solana", () => {
       const roleRequestPda = getRoleRequestPda(technician.publicKey);
       const tx = await program.methods
         .approveRoleRequest()
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           roleRequest: roleRequestPda,
@@ -383,7 +383,7 @@ describe("SupplyChainTracker Solana", () => {
       // First create a new role request
       await program.methods
         .requestRole(ESCUELA_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           roleRequest: roleRequestPda,
           user: school.publicKey,
@@ -394,7 +394,7 @@ describe("SupplyChainTracker Solana", () => {
 
       const tx = await program.methods
         .rejectRoleRequest()
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           roleRequest: roleRequestPda,
@@ -412,7 +412,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .grantRole(AUDITOR_HW_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: auditor.publicKey,
             accountToGrant: auditor.publicKey,
@@ -434,7 +434,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .grantRole(AUDITOR_HW_ROLE)
-          .accountsStrict({
+          .accounts({
             config: configPda,
             admin: adminPda,
             accountToGrant: auditor.publicKey,
@@ -458,7 +458,7 @@ describe("SupplyChainTracker Solana", () => {
       
       const tx = await program.methods
         .registerNetbook("SN-2024-001", "BATCH-2024-Q1", "Intel i3, 8GB RAM, 256GB SSD")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           manufacturer: fabricante.publicKey,
           netbook: netbookPda,
@@ -491,7 +491,7 @@ describe("SupplyChainTracker Solana", () => {
 
         await program.methods
           .registerNetbook(`SN-2024-${String(i + 2).padStart(3, "0")}`, "BATCH-2024-Q1", "Intel i5, 16GB RAM, 512GB SSD")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
@@ -515,7 +515,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .registerNetbook("", "BATCH", "Specs")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
@@ -547,7 +547,7 @@ describe("SupplyChainTracker Solana", () => {
 
       const tx = await program.methods
         .auditHardware(serial, true, reportHash)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -572,7 +572,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .auditHardware(serial, true, reportHash)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             auditor: auditor.publicKey,
@@ -594,7 +594,7 @@ describe("SupplyChainTracker Solana", () => {
       
       await program.methods
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -609,7 +609,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .auditHardware(serial, true, reportHash)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             auditor: technician.publicKey,
@@ -631,7 +631,7 @@ describe("SupplyChainTracker Solana", () => {
       
       await program.methods
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -646,7 +646,7 @@ describe("SupplyChainTracker Solana", () => {
       // Audit with failed result
       const tx = await program.methods
         .auditHardware(serial, false, reportHash)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -670,7 +670,7 @@ describe("SupplyChainTracker Solana", () => {
 
       const tx = await program.methods
         .validateSoftware(serial, osVersion, true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -695,7 +695,7 @@ describe("SupplyChainTracker Solana", () => {
       
       await program.methods
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -708,7 +708,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .validateSoftware(serial, "Ubuntu 24.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             technician: technician.publicKey,
@@ -729,7 +729,7 @@ describe("SupplyChainTracker Solana", () => {
       
       await program.methods
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -742,7 +742,7 @@ describe("SupplyChainTracker Solana", () => {
       // First audit to get to HwAprobado state
       await program.methods
         .auditHardware(serial, true, createHash(0))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -753,7 +753,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .validateSoftware(serial, "Ubuntu 22.04", true)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             technician: auditor.publicKey, // auditor is not tecnico
@@ -772,7 +772,7 @@ describe("SupplyChainTracker Solana", () => {
       // Grant ESCUELA role to school account
       await program.methods
         .grantRole(ESCUELA_ROLE)
-        .accountsStrict({
+        .accounts({
           config: configPda,
           admin: adminPda,
           accountToGrant: school.publicKey,
@@ -791,7 +791,7 @@ describe("SupplyChainTracker Solana", () => {
       // Register
       await program.methods
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -804,7 +804,7 @@ describe("SupplyChainTracker Solana", () => {
       // Audit
       await program.methods
         .auditHardware(serial, true, createHash(0))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -815,7 +815,7 @@ describe("SupplyChainTracker Solana", () => {
       // Validate software
       await program.methods
         .validateSoftware(serial, "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -826,7 +826,7 @@ describe("SupplyChainTracker Solana", () => {
       // Assign to student
       const tx = await program.methods
         .assignToStudent(serial, schoolHash, studentHash)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           school: school.publicKey,
@@ -854,7 +854,7 @@ describe("SupplyChainTracker Solana", () => {
       // Register a new netbook (still in Fabricada state)
       await program.methods
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -873,7 +873,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .assignToStudent(serial, schoolHash, studentHash)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             school: school.publicKey,
@@ -898,7 +898,7 @@ describe("SupplyChainTracker Solana", () => {
       // Register and go through full flow
       await program.methods
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -910,7 +910,7 @@ describe("SupplyChainTracker Solana", () => {
 
       await program.methods
         .auditHardware(serial, true, createHash(0))
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -920,7 +920,7 @@ describe("SupplyChainTracker Solana", () => {
 
       await program.methods
         .validateSoftware(serial, "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -931,7 +931,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .assignToStudent(serial, schoolHash, studentHash)
-          .accountsStrict({
+          .accounts({
             netbook: netbookPda,
             config: configPda,
             school: fabricante.publicKey, // fabricante is not school
@@ -958,7 +958,7 @@ describe("SupplyChainTracker Solana", () => {
       // Step 1: Register (Fabricada)
       await program.methods
         .registerNetbook(serial, "BATCH-TEST", "Test Specs")
-        .accountsStrict({
+        .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
           manufacturer: fabricante.publicKey,
@@ -974,7 +974,7 @@ describe("SupplyChainTracker Solana", () => {
       // Step 2: Hardware Audit (HwAprobado)
       await program.methods
         .auditHardware(serial, true, reportHash)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           auditor: auditor.publicKey,
@@ -988,7 +988,7 @@ describe("SupplyChainTracker Solana", () => {
       // Step 3: Software Validation (SwValidado)
       await program.methods
         .validateSoftware(serial, "Ubuntu 22.04", true)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           technician: technician.publicKey,
@@ -1002,7 +1002,7 @@ describe("SupplyChainTracker Solana", () => {
       // Step 4: Assign to Student (Distribuida)
       await program.methods
         .assignToStudent(serial, schoolHash, studentHash)
-        .accountsStrict({
+        .accounts({
           netbook: netbookPda,
           config: configPda,
           school: school.publicKey,
@@ -1048,7 +1048,7 @@ describe("SupplyChainTracker Solana", () => {
             ["BATCH-1"], // Only 1 element, should be 2
             ["Specs-1", "Specs-2"]
           )
-          .accountsStrict({
+          .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
@@ -1067,7 +1067,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .registerNetbooksBatch([], [], [])
-          .accountsStrict({
+          .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
@@ -1090,7 +1090,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .registerNetbook("", "BATCH", "Specs")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,
@@ -1121,7 +1121,7 @@ describe("SupplyChainTracker Solana", () => {
       try {
         await program.methods
           .registerNetbook(longSerial, "BATCH", "Specs")
-          .accountsStrict({
+          .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
             manufacturer: fabricante.publicKey,

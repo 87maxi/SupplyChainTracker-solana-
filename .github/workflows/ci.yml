@@ -170,11 +170,23 @@ jobs:
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
+      - name: Debug - Check package-lock.json exists
+        working-directory: ./web
+        run: ls -la package-lock.json && grep -c autoprefixer package-lock.json
+
       - name: Clean install Frontend Dependencies
         working-directory: ./web
-        run: rm -rf node_modules && npm ci --no-audit --no-fund
+        run: rm -rf node_modules && npm ci --no-audit --no-fund 2>&1 | tee npm-ci-output.txt && tail -5 npm-ci-output.txt
 
       - name: Verify autoprefixer installed
+        working-directory: ./web
+        run: ls -la node_modules/autoprefixer 2>&1 || echo "node_modules/autoprefixer not found"
+      
+      - name: List first 20 node_modules entries
+        working-directory: ./web
+        run: ls node_modules/ | head -20
+      
+      - name: Check autoprefixer specifically
         working-directory: ./web
         run: test -d node_modules/autoprefixer && echo "autoprefixer OK" || (echo "autoprefixer MISSING" && exit 1)
 

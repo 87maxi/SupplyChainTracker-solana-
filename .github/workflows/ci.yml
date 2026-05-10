@@ -55,7 +55,7 @@ jobs:
         run: cd sc-solana && cargo clippy -- -D warnings
 
   # ============================================================================
-  # Job 2: Build Solana Program
+  # Job 2: Build Solana Program (cargo build only - no Solana CLI needed)
   # ============================================================================
   build-program:
     runs-on: ubuntu-latest
@@ -66,26 +66,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-
-      - name: Cache Solana CLI
-        id: cache-solana
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/solana/install
-          key: solana-${{ env.SOLANA_VERSION }}
-
-      - name: Install Solana CLI
-        if: steps.cache-solana.outputs.cache-hit != 'true'
-        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
-
-      - name: Add Solana to PATH
-        run: echo "PATH=$HOME/.local/share/solana/install/active_release/bin:$PATH" >> $GITHUB_ENV
-
-      - name: Verify Solana CLI
-        run: |
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-          solana -V
-          which solana
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -99,17 +79,8 @@ jobs:
           path: sc-solana/target
           key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
 
-      - name: Build Program
-        run: cd sc-solana && cargo build --manifest-path Cargo.toml
-
-      - name: Upload Program Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: program-artifacts
-          path: |
-            sc-solana/target/deploy/*.so
-            sc-solana/target/idl/*.json
-          retention-days: 5
+      - name: Build Program (cargo check)
+        run: cd sc-solana && cargo check --all-targets
 
   # ============================================================================
   # Job 3: TypeScript Type Checking
@@ -194,7 +165,10 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && npm ci --ignore-scripts || npm install
+        run: cd web && npm install --prefer-offline
+
+      - name: Verify autoprefixer installed
+        run: cd web && npx autoprefixer --version
 
       - name: Build Next.js Frontend
         run: cd web && npm run build

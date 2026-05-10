@@ -241,6 +241,56 @@ export function createSerialNumber(prefix: string = "NB", index: number = 1): st
   return `${prefix}-${index.toString().padStart(6, "0")}`;
 }
 
+// ============================================================================
+// Unique Serial and Token ID Generators (Test Isolation - Issue #188)
+// ============================================================================
+
+/**
+ * Counter for generating unique token IDs across test suites.
+ * Reset per test run to avoid collisions between test files.
+ */
+let _nextTokenId: number = 1000;
+
+/**
+ * Generate a unique token ID for testing.
+ * Starts at 1000 and increments to avoid collisions with tests using fixed IDs.
+ * Each test suite should call resetTokenCounter() before starting.
+ */
+export function generateTokenId(): number {
+  return _nextTokenId++;
+}
+
+/**
+ * Reset the token ID counter. Call this in beforeEach of each test suite
+ * to ensure fresh token IDs across test files.
+ */
+export function resetTokenCounter(): void {
+  _nextTokenId = 1000;
+}
+
+/**
+ * Generate a unique serial number for testing.
+ * Uses timestamp + random suffix to guarantee uniqueness across test runs.
+ * Format: `{prefix}-{timestamp}-{random4}` e.g., "SN-1715330145000-3847"
+ *
+ * @param prefix - Prefix for the serial (default: "SN")
+ */
+export function generateUniqueSerial(prefix: string = "SN"): string {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0");
+  return `${prefix}-${timestamp}-${random}`;
+}
+
+/**
+ * Generate a unique serial number with a specific prefix pattern.
+ * Useful for tests that need to verify prefix-based logic.
+ *
+ * @param prefix - Prefix for the serial (e.g., "ROLE", "FINAL", "TOKEN")
+ */
+export function generateUniqueSerialWithPrefix(prefix: string): string {
+  return generateUniqueSerial(prefix);
+}
+
 /**
  * Create a valid batch ID for testing
  */

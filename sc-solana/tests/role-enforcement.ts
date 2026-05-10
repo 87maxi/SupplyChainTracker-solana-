@@ -27,6 +27,8 @@ import {
   createHash,
   NetbookState,
   fundAndInitialize,
+  generateUniqueSerial,
+  resetTokenCounter,
 } from "./test-helpers";
 
 describe("Role Enforcement Boundary Tests", () => {
@@ -282,8 +284,9 @@ describe("Role Enforcement Boundary Tests", () => {
       const tokenId = config.nextTokenId.toNumber();
       const netbookPda = getNetbookPda(tokenId, program.programId);
 
+      const uniqueSerial = generateUniqueSerial("ROLE");
       const sig = await program.methods
-        .registerNetbook("ROLE-TEST-001", "ROLE-BATCH-001", "Test Model")
+        .registerNetbook(uniqueSerial, "ROLE-BATCH-001", "Test Model")
         .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
@@ -303,7 +306,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       try {
         await program.methods
-          .registerNetbook("ROLE-TEST-002", "ROLE-BATCH-002", "Test Model")
+          .registerNetbook(generateUniqueSerial("ROLE"), "ROLE-BATCH-002", "Test Model")
           .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
@@ -326,7 +329,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       try {
         await program.methods
-          .registerNetbook("ROLE-TEST-003", "ROLE-BATCH-003", "Test Model")
+          .registerNetbook(generateUniqueSerial("ROLE"), "ROLE-BATCH-003", "Test Model")
           .accounts({
             config: configPda,
             serialHashRegistry: serialHashRegistryPda,
@@ -364,9 +367,10 @@ describe("Role Enforcement Boundary Tests", () => {
       const config = await program.account.supplyChainConfig.fetch(configPda);
       const tokenId = config.nextTokenId.toNumber();
       const netbookPda = getNetbookPda(tokenId, program.programId);
+      const auditSerial = generateUniqueSerial("AUDIT");
 
       await program.methods
-        .registerNetbook("AUDIT-ROLE-001", "AUDIT-BATCH-001", "Audit Test Model")
+        .registerNetbook(auditSerial, "AUDIT-BATCH-001", "Audit Test Model")
         .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
@@ -376,15 +380,19 @@ describe("Role Enforcement Boundary Tests", () => {
         })
         .signers([fabricante])
         .rpc();
+
+      // Store for use in tests
+      (this as any).auditSerial = auditSerial;
     });
 
     it("allows auditor with AUDITOR_HW role to audit hardware", async () => {
       const config = await program.account.supplyChainConfig.fetch(configPda);
       const tokenId = config.nextTokenId.toNumber();
       const netbookPda = getNetbookPda(tokenId, program.programId);
+      const auditSerial = (this as any).auditSerial || generateUniqueSerial("AUDIT");
 
       const sig = await program.methods
-        .auditHardware("AUDIT-ROLE-001", true, createHash(42))
+        .auditHardware(auditSerial, true, createHash(42))
         .accounts({
           netbook: netbookPda,
           config: configPda,
@@ -461,9 +469,10 @@ describe("Role Enforcement Boundary Tests", () => {
       const config = await program.account.supplyChainConfig.fetch(configPda);
       const tokenId = config.nextTokenId.toNumber();
       netbookPda = getNetbookPda(tokenId, program.programId);
+      const validateSerial = generateUniqueSerial("VAL");
 
       await program.methods
-        .registerNetbook("VALIDATE-ROLE-001", "VALIDATE-BATCH-001", "Validate Test Model")
+        .registerNetbook(validateSerial, "VALIDATE-BATCH-001", "Validate Test Model")
         .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
@@ -476,7 +485,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       // Audit hardware first
       await program.methods
-        .auditHardware("VALIDATE-ROLE-001", true, createHash(50))
+        .auditHardware(validateSerial, true, createHash(50))
         .accounts({
           netbook: netbookPda,
           config: configPda,
@@ -484,11 +493,15 @@ describe("Role Enforcement Boundary Tests", () => {
         })
         .signers([auditor])
         .rpc();
+
+      // Store for use in tests
+      (this as any).validateSerial = validateSerial;
     });
 
     it("allows technician with TECNICO_SW role to validate software", async () => {
+      const validateSerial = (this as any).validateSerial || generateUniqueSerial("VAL");
       const sig = await program.methods
-        .validateSoftware("VALIDATE-ROLE-001", "Ubuntu 22.04", true)
+        .validateSoftware(validateSerial, "Ubuntu 22.04", true)
         .accounts({
           netbook: netbookPda,
           config: configPda,
@@ -500,9 +513,10 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects software validation from non-technician", async () => {
+      const validateSerial = (this as any).validateSerial || generateUniqueSerial("VAL");
       try {
         await program.methods
-          .validateSoftware("VALIDATE-ROLE-001", "Ubuntu 22.04", true)
+          .validateSoftware(validateSerial, "Ubuntu 22.04", true)
           .accounts({
             netbook: netbookPda,
             config: configPda,
@@ -517,9 +531,10 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects software validation from auditor without TECNICO_SW role", async () => {
+      const validateSerial = (this as any).validateSerial || generateUniqueSerial("VAL");
       try {
         await program.methods
-          .validateSoftware("VALIDATE-ROLE-001", "Ubuntu 22.04", true)
+          .validateSoftware(validateSerial, "Ubuntu 22.04", true)
           .accounts({
             netbook: netbookPda,
             config: configPda,
@@ -557,9 +572,10 @@ describe("Role Enforcement Boundary Tests", () => {
       const config = await program.account.supplyChainConfig.fetch(configPda);
       const tokenId = config.nextTokenId.toNumber();
       netbookPda = getNetbookPda(tokenId, program.programId);
+      const assignSerial = generateUniqueSerial("ASGN");
 
       await program.methods
-        .registerNetbook("ASSIGN-ROLE-001", "ASSIGN-BATCH-001", "Assign Test Model")
+        .registerNetbook(assignSerial, "ASSIGN-BATCH-001", "Assign Test Model")
         .accounts({
           config: configPda,
           serialHashRegistry: serialHashRegistryPda,
@@ -572,7 +588,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       // Audit hardware
       await program.methods
-        .auditHardware("ASSIGN-ROLE-001", true, createHash(60))
+        .auditHardware(assignSerial, true, createHash(60))
         .accounts({
           netbook: netbookPda,
           config: configPda,
@@ -583,7 +599,7 @@ describe("Role Enforcement Boundary Tests", () => {
 
       // Validate software
       await program.methods
-        .validateSoftware("ASSIGN-ROLE-001", "Ubuntu 22.04", true)
+        .validateSoftware(assignSerial, "Ubuntu 22.04", true)
         .accounts({
           netbook: netbookPda,
           config: configPda,
@@ -591,11 +607,15 @@ describe("Role Enforcement Boundary Tests", () => {
         })
         .signers([technician])
         .rpc();
+
+      // Store for use in tests
+      (this as any).assignSerial = assignSerial;
     });
 
     it("allows school with ESCUELA role to assign netbook to student", async () => {
+      const assignSerial = (this as any).assignSerial || generateUniqueSerial("ASGN");
       const sig = await program.methods
-        .assignToStudent("ASSIGN-ROLE-001", createHash(100), createHash(200))
+        .assignToStudent(assignSerial, createHash(100), createHash(200))
         .accounts({
           netbook: netbookPda,
           config: configPda,
@@ -607,9 +627,10 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects student assignment from non-school account", async () => {
+      const assignSerial = (this as any).assignSerial || generateUniqueSerial("ASGN");
       try {
         await program.methods
-          .assignToStudent("ASSIGN-ROLE-001", createHash(101), createHash(201))
+          .assignToStudent(assignSerial, createHash(101), createHash(201))
           .accounts({
             netbook: netbookPda,
             config: configPda,
@@ -624,9 +645,10 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects student assignment from manufacturer without ESCUELA role", async () => {
+      const assignSerial = (this as any).assignSerial || generateUniqueSerial("ASGN");
       try {
         await program.methods
-          .assignToStudent("ASSIGN-ROLE-001", createHash(102), createHash(202))
+          .assignToStudent(assignSerial, createHash(102), createHash(202))
           .accounts({
             netbook: netbookPda,
             config: configPda,

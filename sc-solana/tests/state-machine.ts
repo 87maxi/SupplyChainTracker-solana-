@@ -34,6 +34,8 @@ import {
   NetbookState,
   fundAndInitialize,
   getAdminPda,
+  generateUniqueSerial,
+  resetTokenCounter,
 } from "./test-helpers";
 
 describe("State Machine Transition Validation Tests", () => {
@@ -92,10 +94,12 @@ describe("State Machine Transition Validation Tests", () => {
   }
 
   async function registerNetbook(
-    serialNumber: string,
+    _fixedSerial: string,
     batchId: string,
     modelSpecs: string
   ): Promise<PublicKey> {
+    // Generate unique serial to avoid collisions between test runs
+    const serialNumber = generateUniqueSerial("SM");
     const config = await program.account.supplyChainConfig.fetch(configPda);
     const tokenId = config.nextTokenId.toNumber();
     const netbookPda = getNetbookPda(tokenId, program.programId);

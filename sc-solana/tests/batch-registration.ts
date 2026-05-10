@@ -35,6 +35,8 @@ import {
   fundAndInitialize,
   assertNetbookState,
   NetbookState,
+  generateUniqueSerial,
+  resetTokenCounter,
 } from "./test-helpers";
 
 // Event interface for NetbooksRegistered event
@@ -89,8 +91,12 @@ describe("Batch Registration Integration Tests", () => {
   });
 
   describe("Successful Batch Registration", () => {
+    beforeEach(() => {
+      resetTokenCounter();
+    });
+
     it("registers a single netbook via batch instruction", async () => {
-      const serialNumber = "SN-BATCH-001";
+      const serialNumber = generateUniqueSerial("BATCH");
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = createModelSpecs("TestBrand", "TestModel", 2024);
 
@@ -126,7 +132,7 @@ describe("Batch Registration Integration Tests", () => {
       const modelSpecs: string[] = [];
 
       for (let i = 0; i < batchSize; i++) {
-        serialNumbers.push(`SN-BATCH-5-${String(i).padStart(3, "0")}`);
+        serialNumbers.push(generateUniqueSerial(`B5`));
         batchIds.push(createBatchId("TEST", 2024, 1));
         modelSpecs.push(createModelSpecs("TestBrand", `Model-${i}`, 2024));
       }
@@ -160,7 +166,7 @@ describe("Batch Registration Integration Tests", () => {
       const modelSpecs: string[] = [];
 
       for (let i = 0; i < batchSize; i++) {
-        serialNumbers.push(`SN-BATCH-10-${String(i).padStart(3, "0")}`);
+        serialNumbers.push(generateUniqueSerial(`B10`));
         batchIds.push(createBatchId("TEST", 2024, 1));
         modelSpecs.push(createModelSpecs("TestBrand", `Model-${i}`, 2024));
       }

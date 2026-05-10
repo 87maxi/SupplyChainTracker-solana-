@@ -28,6 +28,8 @@ import {
   createBatchId,
   createModelSpecs,
   fundAndInitialize,
+  generateUniqueSerial,
+  resetTokenCounter,
 } from "./test-helpers";
 
 describe("Overflow/Underflow Protection Tests", () => {
@@ -527,7 +529,7 @@ describe("Overflow/Underflow Protection Tests", () => {
     it("increments next_token_id and total_netbooks correctly for single registration", async () => {
       const countersBefore = await getCounterValues();
 
-      await registerNetbook("COUNTER-001", "COUNTER-BATCH-001", "Counter Model");
+      await registerNetbook(generateUniqueSerial("CNT"), "COUNTER-BATCH-001", "Counter Model");
 
       const countersAfter = await getCounterValues();
       expect(countersAfter.nextTokenId).to.equal(
@@ -1018,10 +1020,10 @@ describe("Overflow/Underflow Protection Tests", () => {
       const initialTotalNetbooks = countersBefore.totalNetbooks;
 
       // Single registration
-      await registerNetbook("MIXED-001", "MIXED-BATCH-001", "Mixed Model 1");
+      await registerNetbook(generateUniqueSerial("MXD"), "MIXED-BATCH-001", "Mixed Model 1");
 
       // Batch registration
-      const batch1Serials = ["MIXED-002", "MIXED-003", "MIXED-004"];
+      const batch1Serials = [generateUniqueSerial("MXD"), generateUniqueSerial("MXD"), generateUniqueSerial("MXD")];
       const batch1BatchIds = ["MIXED-BATCH-002", "MIXED-BATCH-003", "MIXED-BATCH-004"];
       const batch1Models = ["Mixed Model 2", "Mixed Model 3", "Mixed Model 4"];
 
@@ -1037,7 +1039,7 @@ describe("Overflow/Underflow Protection Tests", () => {
         .rpc();
 
       // Another single registration
-      await registerNetbook("MIXED-005", "MIXED-BATCH-005", "Mixed Model 5");
+      await registerNetbook(generateUniqueSerial("MXD"), "MIXED-BATCH-005", "Mixed Model 5");
 
       const countersAfter = await getCounterValues();
       expect(countersAfter.nextTokenId).to.equal(initialTokenId + 5);

@@ -15,7 +15,7 @@ import { Program } from "@coral-xyz/anchor";
 import { ScSolana } from "../target/types/sc_solana";
 import { expect } from "chai";
 import { Keypair, SystemProgram } from "@solana/web3.js";
-import { fundAndInitialize, getAdminPda } from "./test-helpers";
+import { fundAndInitialize, getAdminPda, generateUniqueSerial, resetTokenCounter } from "./test-helpers";
 
 // State enum values matching Rust
 const NetbookState = {
@@ -468,13 +468,18 @@ describe("SupplyChainTracker Solana", () => {
   });
 
   describe("3. Netbook Registration", () => {
+    beforeEach(() => {
+      resetTokenCounter();
+    });
+
     it("Can register a single netbook", async () => {
       // Sync with on-chain state
       const tokenId = await syncTokenCounter();
       const netbookPda = getNetbookPda(tokenId);
+      const uniqueSerial = generateUniqueSerial("SC");
       
       const tx = await program.methods
-        .registerNetbook("SN-2024-001", "BATCH-2024-Q1", "Intel i3, 8GB RAM, 256GB SSD")
+        .registerNetbook(uniqueSerial, "BATCH-2024-Q1", "Intel i3, 8GB RAM, 256GB SSD")
         .accounts({
           config: configPda,
           manufacturer: fabricante.publicKey,
@@ -488,7 +493,7 @@ describe("SupplyChainTracker Solana", () => {
 
       // Verify netbook was created
       const netbook = await program.account.netbook.fetch(netbookPda);
-      expect(netbook.serialNumber).to.equal("SN-2024-001");
+      expect(netbook.serialNumber).to.equal(uniqueSerial);
       expect(netbook.batchId).to.equal("BATCH-2024-Q1");
       expect(netbook.initialModelSpecs).to.equal("Intel i3, 8GB RAM, 256GB SSD");
       expect(netbook.state).to.equal(NetbookState.Fabricada);
@@ -555,10 +560,14 @@ describe("SupplyChainTracker Solana", () => {
   });
 
   describe("4. Hardware Audit", () => {
+    beforeEach(() => {
+      resetTokenCounter();
+    });
+
     it("Can audit hardware and transition to HwAprobado state", async () => {
       // Use token ID 1 (first registered netbook from test 3.1)
       const tokenId = 1;
-      const serial = "SN-2024-001";
+      const serial = generateUniqueSerial("SC");
       const netbookPda = getNetbookPda(tokenId);
       const reportHash = createHash(42);
 
@@ -678,10 +687,14 @@ describe("SupplyChainTracker Solana", () => {
   });
 
   describe("5. Software Validation", () => {
+    beforeEach(() => {
+      resetTokenCounter();
+    });
+
     it("Can validate software and transition to SwValidado state", async () => {
       // Use token ID 1 (first registered netbook, already in HwAprobado state)
       const tokenId = 1;
-      const serial = "SN-2024-001";
+      const serial = generateUniqueSerial("SC");
       const netbookPda = getNetbookPda(tokenId);
       const osVersion = "Ubuntu 22.04 LTS";
 
@@ -1048,7 +1061,7 @@ describe("SupplyChainTracker Solana", () => {
     it("Netbook PDA uses bump counter, not serial", async () => {
       const pda1 = getNetbookPda(1);
       const serialPda = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("netbook"), Buffer.from("SN-2024-001")],
+        [Buffer.from("netbook"), Buffer.from(generateUniqueSerial("SC"))],
         program.programId
       )[0];
       // The PDA should be based on token ID, not serial

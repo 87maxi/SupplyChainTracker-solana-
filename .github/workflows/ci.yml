@@ -350,11 +350,13 @@ jobs:
           # Count failures (excluding anchor tests which may fail due to validator issues)
           FAILED=0
           
-          for job in rust-lint build-program type-check frontend-lint test-unit build-frontend test-e2e; do
-            if [ "${{ needs.$job.result }}" = "failure" ]; then
-              FAILED=$((FAILED + 1))
-            fi
-          done
+          if [ "${{ needs.rust-lint.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.build-program.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.type-check.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.frontend-lint.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.test-unit.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.build-frontend.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.test-e2e.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
           
           echo ""
           echo "Critical jobs failed: $FAILED"

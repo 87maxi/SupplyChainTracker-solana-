@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [type-check, frontend-lint, test-unit]
     env:
-      NEXT_PUBLIC_PROGRAM_ID: "SupplyChainTracker1111111111111111111111111111111"
+      NEXT_PUBLIC_PROGRAM_ID: "11111111111111111111111111111112"
       NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com"
     steps:
       - uses: actions/checkout@v4
@@ -238,7 +238,7 @@ jobs:
         run: cd web && npm install --prefer-offline
 
       - name: Set Environment Variables
-        run: echo "NEXT_PUBLIC_PROGRAM_ID=SupplyChainTracker1111111111111111111111111111111" >> .env.local && echo "NEXT_PUBLIC_RPC_URL=https://api.devnet.solana.com" >> .env.local
+        run: echo "NEXT_PUBLIC_PROGRAM_ID=11111111111111111111111111111112" >> .env.local && echo "NEXT_PUBLIC_RPC_URL=https://api.devnet.solana.com" >> .env.local
 
       - name: Install Playwright Browsers
         run: cd web && npx playwright install --with-deps chromium

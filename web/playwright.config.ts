@@ -89,6 +89,8 @@ export default defineConfig({
       PORT: "3001",
       NEXT_PUBLIC_PROGRAM_ID: "11111111111111111111111111111112",
       NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com",
+      NEXT_PUBLIC_CLUSTER: "devnet",
+      NEXT_PUBLIC_NETWORK: "devnet",
     },
   },
   

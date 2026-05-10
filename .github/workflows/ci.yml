@@ -168,9 +168,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Clean node_modules
+        working-directory: ./web
+        run: rm -rf node_modules
+
       - name: Install Frontend Dependencies
         working-directory: ./web
-        run: npm install --force --no-audit --no-fund
+        run: npm install --no-audit --no-fund
+
+      - name: Install autoprefixer explicitly
+        working-directory: ./web
+        run: npm install autoprefixer --no-audit --no-fund
 
       - name: Verify autoprefixer installed
         working-directory: ./web

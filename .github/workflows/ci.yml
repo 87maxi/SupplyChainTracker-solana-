@@ -172,7 +172,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: ./web
-        run: npm install --prefer-offline --legacy-peer-deps --no-audit --no-fund
+        run: npm install --prefer-offline --no-audit --no-fund
 
       - name: Build Next.js Frontend
         working-directory: ./web

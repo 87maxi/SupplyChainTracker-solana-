@@ -31,15 +31,37 @@ El job `test-anchor` del pipeline CI/CD fallaba consistentemente debido a depend
 | Validator logs | No | Sí (artifact) | Debugging ↑ |
 | Flakiness rate | Alto | Bajo | ~70% ↓ |
 
-### LiteSVM POC Status
+### Análisis Completo de Alternativas para CI/CD
 
-Se evaluó la migración a LiteSVM para eliminar completamente las dependencias externas de `solana-test-validator`. Sin embargo, se determinó que:
+Se evaluaron 4 alternativas para eliminar las dependencias externas de `solana-test-validator`:
 
-- La API de `litesvm@0.11` es incompatible con la estructura actual del proyecto
-- Los crates de Solana (solana-signer, solana-instruction, etc.) tienen nombres y APIs diferentes
-- Se requiere más investigación para una integración exitosa
+#### Opción 1: LiteSVM Directo (0.11)
+- **Estado**: ❌ No viable
+- **Problema**: `solana-keypair@3.1.2` tiene un bug donde `DecodeError` no implementa `std::error::Error`, causando conflicto con `solana-signature@3.4.0`
+- **Error**: `trait bound 'DecodeError: std::error::Error' is not satisfied`
 
-**Recomendación**: La migración a LiteSVM se pospone para una futura fase cuando las dependencias de Solana estén mejor documentadas y sean más estables.
+#### Opción 2: anchor-litesvm (0.4)
+- **Estado**: ❌ No viable
+- **Problema**: `anchor-litesvm@0.4` depende de `anchor-lang@1.0.2`, pero el programa usa `anchor-lang@0.32.1`
+- **Error**: Version conflict - dos versiones diferentes de anchor-lang en el mismo workspace
+
+#### Opción 3: Mollusk (0.12.1-agave-4.0)
+- **Estado**: ❌ No viable
+- **Problema**: API incompatible - usa `Address` en lugar de `Pubkey`, métodos con signaturas diferentes
+- **Error**: `expected 'Address', found 'Pubkey'` y `no method named 'is_ok' found for struct 'InstructionResult'`
+
+#### Opción 4: Surfpool
+- **Estado**: ⚠️ No aplica
+- **Problema**: Sigue siendo un validator externo (drop-in replacement para solana-test-validator)
+- **Conclusión**: No elimina las dependencias externas del CI/CD
+
+#### Solución Final: Mejoras al Workflow Existente
+Dado que ninguna alternativa in-process es compatible con Anchor 0.32.1 en este momento, se implementaron mejoras al workflow existente:
+
+1. **Metaplex Actions**: `metaplex-foundation/actions/setup-solana@v1` para instalación confiable
+2. **Retry Logic**: Hasta 3 intentos con cleanup apropiado
+3. **Artifact Upload**: Logs del validator en caso de fallo
+4. **Quiet Mode**: `--quiet` para reducir output
 
 ## CI/CD Pipeline Fixes (Pre-existing)
 

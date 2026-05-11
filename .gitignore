@@ -18,5 +18,22 @@ sc/lib/
 sc-solana/target/
 sc-solana/.anchor/
 sc-solana/test-ledger/
+sc-solana/reports/
 get-admin-address/target/
 get-admin-address.rs
+
+# Analysis and temporary documents
+ANALYSIS/
+analysis/
+plans/
+.github/issue-*.md
+.github/issue-*.md
+*.md.tmp
+tmp/
+
+# Playwright reports (generated)
+web/playwright-report/
+web/test-results/
+
+# Docker
+docker/compose/.env

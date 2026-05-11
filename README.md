@@ -1,692 +1,1206 @@
-# SupplyChainTracker - Solana DApp
+# SupplyChainTracker - Solana Anchor Implementation
 
-> Plataforma descentralizada para rastrear la cadena de suministro de netbooks en la blockchain Solana, implementada con Anchor (Rust) y Next.js.
+> **Trazabilidad Inmutable para la Educación** — Plataforma blockchain para rastrear la distribución de netbooks educativas en Solana.
 
-[![Solana](https://img.shields.io/badge/Solana-Devnet-9945FF.svg?logo=solana)](https://solana.com)
-[![Anchor](https://img.shields.io/badge/Anchor-0.32.1-blue.svg)](https://www.anchor-lang.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-15-black.svg?logo=next.js)](https://nextjs.org)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Solana](https://img.shields.io/badge/blocks-solana-blue)](https://solana.com)
+[![Anchor](https://img.shields.io/badge/framework-anchor-orange)](https://www.anchor-lang.com)
+[![Next.js](https://img.shields.io/badge/frontend-next.js-black)](https://nextjs.org)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-## 📋 Tabla de Contenidos
+---
 
-- [Resumen del Proyecto](#resumen-del-proyecto)
-- [Funcionalidades](#funcionalidades)
-- [Arquitectura del Sistema](#arquitectura-del-sistema)
-- [Diagramas](#diagramas)
-- [Tecnologías](#tecnologías)
-- [Estructura del Proyecto](#estructura-del-proyecto)
-- [Instalación](#instalación)
-- [Desarrollo](#desarrollo)
-- [Despliegue](#despliegue)
-- [Testing](#testing)
-- [Roles y Permisos](#roles-y-permisos)
-- [Ciclo de Vida del Netbook](#ciclo-de-vida-del-netbook)
-- [Estado Actual](#current-status)
-- [Refactoring Status](#refactoring-status)
-- [Changelog](#changelog)
+## Tabla de Contenidos
 
-## Resumen del Proyecto
+1. [Overview](#overview)
+2. [Solana Anchor Program](#solana-anchor-program)
+   - [Program ID](#program-id)
+   - [State Accounts](#state-accounts)
+   - [Netbook State Machine](#netbook-state-machine)
+   - [Instructions](#instructions)
+   - [Events](#events)
+   - [Errors](#errors)
+3. [Frontend Web Application](#frontend-web-application)
+   - [Technology Stack](#technology-stack)
+   - [Directory Structure](#directory-structure)
+   - [Pages & Routes](#pages--routes)
+   - [Hooks Architecture](#hooks-architecture)
+   - [Services Layer](#services-layer)
+   - [Components Library](#components-library)
+4. [Development Setup](#development-setup)
+5. [Testing](#testing)
+6. [Deployment](#deployment)
+7. [Troubleshooting](#troubleshooting)
 
-SupplyChainTracker es una aplicación descentralizada (DApp) que permite rastrear el ciclo de vida completo de netbooks desde su fabricación hasta su distribución a escuelas. El sistema utiliza la blockchain Solana para garantizar la inmutabilidad, transparencia y trazabilidad de cada dispositivo.
+---
 
-**Program ID:** `7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN`
+## Overview
 
-### Casos de Uso
+SupplyChainTracker es un sistema de trazabilidad descentralizado que migra un sistema existente de Ethereum/Solidity a Solana/Anchor. El programa rastrea el ciclo de vida completo de netbooks educativas desde su fabricación hasta su distribución a estudiantes.
 
-1. **Fabricantes** registran netbooks con sus especificaciones técnicas
-2. **Auditores de Hardware** verifican la calidad física de los dispositivos
-3. **Técnicos de Software** validan la instalación del sistema operativo
-4. **Escuelas** reciben y asignan netbooks a estudiantes
-5. **Administradores** gestionan roles y supervisan el sistema
-
-## Funcionalidades
-
-### Gestión de Roles (RBAC)
-
-- **Administración de roles** con sistema de aprobación
-- **Solicitud de roles** por parte de usuarios
-- **Aprobación/Rechazo** de solicitudes por administradores
-- **Roles disponibles:**
-  - `FABRICANTE` - Registro de netbooks
-  - `AUDITOR_HW` - Auditoría de hardware
-  - `TECNICO_SW` - Validación de software
-  - `ESCUELA` - Asignación a estudiantes
-
-### Ciclo de Vida del Netbook
-
-1. **Fabricada** - Registro inicial por fabricante
-2. **HwAprobado** - Auditoría de hardware exitosa
-3. **SwValidado** - Validación de software completada
-4. **Distribuida** - Asignada a escuela/estudiante
-
-### Características Técnicas
-
-- ✅ Registro individual y por lotes de netbooks
-- ✅ Máquina de estados con transiciones validadas
-- ✅ Sistema de eventos para trazabilidad completa
-- ✅ Verificación de roles en cada operación
-- ✅ Interfaz web con conexión a wallet Solana
-- ✅ Dashboard con métricas en tiempo real
-- ✅ Panel de administración para gestión de roles
-
-## Arquitectura del Sistema
-
-### Arquitectura PDA-First (Deployer Pattern)
-
-**Toda la inicialización del sistema utiliza PDAs**, eliminando la necesidad de signers externos para crear cuentas. El patrón Deployer PDA financia la creación de todas las cuentas del sistema:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (Next.js)                       │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌─────────────┐ │
-│  │  Dashboard │  │  Registro  │  │  Auditoría │  │  Admin Panel│ │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └──────┬──────┘ │
-│        │               │               │               │         │
-│  ┌─────┴───────────────┴───────────────┴───────────────┴─────┐  │
-│  │              Service Layer (TypeScript)                    │  │
-│  │  ┌─────────────────┐  ┌──────────────────────────────┐   │  │
-│  │  │UnifiedSupplyChain│  │       RoleRequestService     │   │  │
-│  │  │    Service       │  │                              │   │  │
-│  │  └────────┬────────┘  └──────────────┬───────────────┘   │  │
-│  └───────────┼──────────────────────────┼───────────────────┘  │
-│              │                          │                       │
-│  ┌───────────┴──────────────────────────┴───────────────────┐  │
-│  │              Wallet Adapter (Solana)                      │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌──────────────────┐ │  │
-│  │  │  Phantom     │  │  Solflare   │  │  Wallet Standard │ │  │
-│  │  └─────────────┘  └─────────────┘  └──────────────────┘ │  │
-│  └────────────────────────┬─────────────────────────────────┘  │
-└───────────────────────────┼─────────────────────────────────────┘
-                            │ RPC Calls
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     Solana Blockchain                           │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │              Anchor Program (Rust)                        │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌──────────────────┐  │  │
-│  │  │ Instructions │  │   State     │  │     Events       │  │  │
-│  │  │  (20 total)  │  │  (6 PDAs)   │  │  (emitted)       │  │  │
-│  │  └─────────────┘  └─────────────┘  └──────────────────┘  │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Flujo de Despliegue PDA-First
-
-```
-1. Deploy Program (Anchor)
-         │
-         ▼
-2. fund_deployer(amount)          ← Financia el Deployer PDA
-         │                        [seeds: [b"deployer"]]
-         ▼
-3. initialize()                   ← Deployer PDA paga la creación
-         │                        de Config + SerialHashRegistry
-         ▼
-4. Sistema inicializado           ← Admin PDA derivado
-                                    [seeds: [b"admin", config]]
-         │
-         ▼
-5. close_deployer()               ← Recupera fondos restantes
-         │
-         ▼
-6. Sistema operativo              ← Listo para operaciones
-```
-
-### Cuentas PDA del Sistema
-
-| Cuenta | Seeds | Propósito |
-|--------|-------|-----------|
-| `DeployerState` | `[b"deployer"]` | Financia creación de cuentas |
-| `SupplyChainConfig` | `[b"config"]` | Configuración principal |
-| `SerialHashRegistry` | `[b"serial_hashes", config]` | Registro de hashes |
-| `Admin` | `[b"admin", config]` | Cuenta admin derivada |
-| `Netbook` | `[b"netbook", config, tokenId]` | Estado de netbook |
-| `RoleHolder` | `[b"role_holder", user]` | Roles de usuario |
-
-## Diagramas
-
-### Diagrama de Arquitectura General
-
-```mermaid
-graph TB
-    subgraph Frontend["Frontend - Next.js 15"]
-        UI["Componentes React"]
-        Hooks["Custom Hooks"]
-        Services["Service Layer"]
-        Wallet["Wallet Adapter"]
-    end
-
-    subgraph Solana["Blockchain - Solana"]
-        Program["Anchor Program"]
-        State["State Accounts"]
-        Events["Event Logs"]
-    end
-
-    subgraph State["State Accounts"]
-        Config["SupplyChainConfig"]
-        Netbook["Netbook"]
-        RoleHolder["RoleHolder"]
-        RoleRequest["RoleRequest"]
-        SerialHash["SerialHashRegistry"]
-    end
-
-    UI --> Hooks
-    Hooks --> Services
-    Services --> Wallet
-    Wallet --> Program
-    Program --> State
-    Program --> Events
-    Events --> UI
-```
-
-### Diagrama de Ciclo de Vida del Netbook
+### Netbook Lifecycle
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Fabricada: register_netbook
-    Fabricada --> HwAprobado: audit_hardware
-    HwAprobado --> SwValidado: validate_software
-    SwValidado --> Distribuida: assign_to_student
+    [*] --> Fabricada: RegisterNetbook()
+    Fabricada --> HwAprobado: AuditHardware(passed=true)
+    HwAprobado --> SwValidado: ValidateSoftware(passed=true)
+    SwValidado --> Distribuida: AssignToStudent()
     Distribuida --> [*]
 
     note right of Fabricada
-        Registrada por FABRICANTE
-        Con serial, batch y specs
+        State 0
+        batch_id
+        model_specs
     end note
-
     note right of HwAprobado
-        Auditada por AUDITOR_HW
-        Con hash de reporte
+        State 1
+        hw_auditor set
+        hw_report_hash
     end note
-
     note right of SwValidado
-        Validada por TECNICO_SW
-        Con versión de OS
+        State 2
+        sw_technician set
+        os_version
     end note
-
     note right of Distribuida
-        Asignada por ESCUELA
-        Con hash de escuela/estudiante
+        State 3
+        student_hash
+        school_hash
+        timestamp
     end note
 ```
 
-### Diagrama de Flujo de Roles
+### Role-Based Access Control (RBAC)
+
+```mermaid
+graph LR
+    AdminPDA["Admin PDA<br/>(seeds=[b'admin', config.key()])"] -->|Grant/Revoke| Fabricante["FABRICANTE"]
+    AdminPDA -->|Grant/Revoke| Auditor["AUDITOR HW"]
+    AdminPDA -->|Grant/Revoke| Tecnico["TECNICO SW"]
+    AdminPDA -->|Grant/Revoke| Escuela["ESCUELA"]
+    AdminPDA -->|Transfer| NewAdmin["New Admin"]
+
+    Usuario["Usuario"] -->|Request Role| Pending["Pending Request<br/>(60s cooldown)"]
+    Pending -->|Approve| Granted["Role Granted<br/>(RoleHolder created)"]
+    Pending -->|Reject| Denied["Role Rejected"]
+
+    classDef pda fill:#f97316,stroke:#c2410c,color:#fff
+    classDef role fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    classDef admin fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    class AdminPDA admin
+    class Fabricante,Auditor,Tecnico,Escuela role
+```
+
+### Role Request Flow
 
 ```mermaid
 sequenceDiagram
-    participant User as Usuario
-    participant Frontend as Frontend
-    participant Program as Anchor Program
-    participant Admin as Administrador
+    participant U as Usuario
+    participant P as Program
+    participant A as Admin PDA
 
-    User->>Frontend: Solicitar rol
-    Frontend->>Program: request_role(role)
-    Program->>Program: Crear RoleRequest PDA
-    Program-->>Frontend: Evento RoleRequested
+    U->>P: request_role(role)
+    Note over P: Creates RoleRequest PDA<br/>Status: Pending
+    P-->>U: RoleRequested event
 
-    Frontend->>Admin: Notificar solicitud
-    Admin->>Frontend: Revisar solicitud
-    Frontend->>Program: approve_role_request()
-    Program->>Program: Grant role automatically
-    Program-->>Frontend: Evento RoleApproved
+    A->>P: approve_role_request()
+    Note over P: Creates RoleHolder PDA<br/>Status: Approved
+    P-->>A: RoleGranted event
 
-    Frontend->>User: Rol concedido
+    alt Reject
+        A->>P: reject_role_request()
+        Note over P: Status: Rejected
+        P-->>A: RoleRevoked event
+    end
 ```
 
-### Diagrama de Estados del Sistema
+---
+
+## Solana Anchor Program
+
+### Program ID
+
+```
+Program ID: 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
+```
+
+> **Nota Crítico:** El Program ID debe ser consistente en tres lugares:
+> 1. [`declare_id!`](sc-solana/programs/sc-solana/src/lib.rs:17) en lib.rs
+> 2. [`target/idl/sc_solana.json`](sc-solana/target/idl/sc_solana.json) (generado por Anchor)
+> 3. [`Anchor.toml`](sc-solana/Anchor.toml:11) (`[programs.localnet]`)
+
+Si hay mismatch entre el keypair y el IDL, el deploy con surfpool/txtx fallará con:
+```
+program keypair does not match program pubkey found in IDL
+```
+
+### State Accounts
+
+El programa utiliza 5 tipos de cuentas de estado (todas PDA-based):
 
 ```mermaid
-erDiagram
-    SUPPLYCHAIN_CONFIG ||--|{ NETBOOK : manages
-    SUPPLYCHAIN_CONFIG ||--|{ ROLE_HOLDER : tracks
-    SUPPLYCHAIN_CONFIG ||--|{ ROLE_REQUEST : processes
-    SUPPLYCHAIN_CONFIG ||--|{ SERIAL_HASH_REGISTRY : indexes
+graph TD
+    Config["SupplyChainConfig<br/>seeds=[b'config']<br/>289 bytes"] -->|seeds=[b'serial_hashes', config.key()]| SHRegistry["SerialHashRegistry<br/>32,017 bytes"]
 
-    SUPPLYCHAIN_CONFIG {
-        pubkey admin
-        pubkey fabricante
-        pubkey auditor_hw
-        pubkey tecnico_sw
-        pubkey escuela
-        u64 next_token_id
-        u64 total_netbooks
-        u64 role_requests_count
-        u64 fabricante_count
-        u64 auditor_hw_count
-        u64 tecnico_sw_count
-        u64 escuela_count
-    }
+    Config -->|seeds=[b'admin', config.key()]| AdminPDA["Admin PDA<br/>(UncheckedAccount)"]
 
-    NETBOOK {
-        u32 token_id
-        string serial_number
-        string batch_id
-        string model_specs
-        u8 state
-        pubkey manufacturer
-        u64 timestamp
-    }
+    Serial["Netbook<br/>seeds=[b'netbook', serial]<br/>~1,147 bytes"] -.->|Related to| Config
+    RoleHolder["RoleHolder<br/>seeds=[b'role_holder', role, account]<br/>160 bytes"] -.->|Managed by| Config
+    RoleRequest["RoleRequest<br/>seeds=[b'role_request', user, role]<br/>variable"] -.->|Tracked by| Config
 
-    ROLE_HOLDER {
-        u64 id
-        pubkey user
-        string role
-        u64 granted_at
-    }
-
-    ROLE_REQUEST {
-        u64 id
-        pubkey requester
-        string role
-        u8 status
-        u64 timestamp
-    }
-
-    SERIAL_HASH_REGISTRY {
-        string serial_hash
-        u32 token_ids
-    }
+    classDef main fill:#f97316,stroke:#c2410c,color:#fff
+    class Config main
 ```
 
-## Tecnologías
+#### SupplyChainConfig
 
-### Backend (Solana Program)
+```mermaid
+classDiagram
+    class SupplyChainConfig {
+        +Pubkey admin
+        +u8 admin_bump
+        +u8 admin_pda_bump
+        +Pubkey fabricante
+        +Pubkey auditor_hw
+        +Pubkey tecnico_sw
+        +Pubkey escuela
+        +u64 next_token_id
+        +u64 total_netbooks
+        +u64 role_requests_count
+        +u64 fabricante_count
+        +u64 auditor_hw_count
+        +u64 tecnico_sw_count
+        +u64 escuela_count
+        +bool has_role(role, account)
+        +u64 get_role_holder_count(role)
+    }
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| Rust | 1.75+ | Lenguaje del programa |
-| Anchor | 0.32.1 | Framework de desarrollo |
-| Solana Web3.js | 1.98.0 | Client RPC |
+    note for SupplyChainConfig "Size: 289 bytes\nPDA: seeds=[b'config']"
+```
 
-### Frontend
+**Campos:**
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `admin` | `Pubkey` | Admin PDA address |
+| `admin_bump` | `u8` | Bump seed for Config PDA (`seeds=[b"config"]`) |
+| `admin_pda_bump` | `u8` | Bump seed for Admin PDA (`seeds=[b"admin", config.key()]`) |
+| `fabricante` | `Pubkey` | Legacy single fabricante (multiple holders via RoleHolder) |
+| `auditor_hw` | `Pubkey` | Legacy single auditor (multiple holders via RoleHolder) |
+| `tecnico_sw` | `Pubkey` | Legacy single technician (multiple holders via RoleHolder) |
+| `escuela` | `Pubkey` | Legacy single school (multiple holders via RoleHolder) |
+| `next_token_id` | `u64` | Next token ID to assign |
+| `total_netbooks` | `u64` | Total registered netbooks |
+| `role_requests_count` | `u64` | Total role requests |
+| `*_count` | `u64` | Role holder counts per role type |
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| Next.js | 15 | Framework web |
-| React | 19 | UI Library |
-| TypeScript | 5 | Type Safety |
-| Tailwind CSS | 3 | Styling |
-| Radix UI | Latest | Componentes accesibles |
-| Solana Wallet Adapter | Latest | Conexión wallets |
+#### SerialHashRegistry
 
-## Estructura del Proyecto
+```mermaid
+classDiagram
+    class SerialHashRegistry {
+        +u8 config_bump
+        +u64 serial_hash_count
+        +[[u8; 32]; 10] registered_serial_hashes
+        +bool is_serial_registered(hash)
+        +void store_serial_hash(hash)
+    }
+
+    note for SerialHashRegistry "Size: 32,017 bytes\nPDA: seeds=[b'serial_hashes', config.key()]\nMAX_SERIAL_HASHES: 10"
+```
+
+**Función:** Detección de duplicados de serial_number para prevenir registro duplicado.
+
+#### Netbook
+
+```mermaid
+classDiagram
+    class Netbook {
+        +String serial_number
+        +String batch_id
+        +String initial_model_specs
+        +Pubkey hw_auditor
+        +bool hw_integrity_passed
+        +[u8; 32] hw_report_hash
+        +Pubkey sw_technician
+        +String os_version
+        +bool sw_validation_passed
+        +[u8; 32] destination_school_hash
+        +[u8; 32] student_id_hash
+        +u64 distribution_timestamp
+        +u8 state
+        +bool exists
+        +u64 token_id
+    }
+
+    note for Netbook "Size: ~1,147 bytes\nPDA: seeds=[b'netbook', serial_number]\nPII protection via hashes"
+```
+
+**Campos:**
+| Campo | Tipo | Límite | Descripción |
+|-------|------|--------|-------------|
+| `serial_number` | `String` | 200 chars | Número de serie único |
+| `batch_id` | `String` | 100 chars | ID del lote de fabricación |
+| `initial_model_specs` | `String` | 500 chars | Especificaciones del modelo |
+| `hw_auditor` | `Pubkey` | - | Address del auditor HW |
+| `hw_integrity_passed` | `bool` | - | Resultado auditoría HW |
+| `hw_report_hash` | `[u8; 32]` | - | Hash del reporte HW (SHA-256) |
+| `sw_technician` | `Pubkey` | - | Address del técnico SW |
+| `os_version` | `String` | 100 chars | Versión del OS instalado |
+| `sw_validation_passed` | `bool` | - | Resultado validación SW |
+| `destination_school_hash` | `[u8; 32]` | - | Hash PII de la escuela |
+| `student_id_hash` | `[u8; 32]` | - | Hash PII del estudiante |
+| `distribution_timestamp` | `u64` | - | Timestamp de distribución |
+| `state` | `u8` | - | Estado actual (NetbookState) |
+| `exists` | `bool` | - | Flag de existencia |
+| `token_id` | `u64` | - | Token ID único |
+
+#### RoleHolder
+
+```mermaid
+classDiagram
+    class RoleHolder {
+        +u64 id
+        +Pubkey account
+        +String role
+        +Pubkey granted_by
+        +u64 timestamp
+    }
+
+    note for RoleHolder "Size: 160 bytes\nPDA: seeds=[b'role_holder', role, account]\nMAX_ROLE_HOLDERS: 100 per role"
+```
+
+#### RoleRequest
+
+```mermaid
+classDiagram
+    class RoleRequest {
+        +u64 id
+        +Pubkey user
+        +String role
+        +u8 status
+        +u64 timestamp
+    }
+
+    note for RoleRequest "PDA: seeds=[b'role_request', user, role]\nStatus: Pending(0) → Approved(1) / Rejected(2)"
+```
+
+### Netbook State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Fabricada: RegisterNetbook()\nserial_number, batch_id, model_specs
+
+    Fabricada --> HwAprobado: AuditHardware(serial, passed=true)\nhw_auditor, report_hash
+
+    HwAprobado --> SwValidado: ValidateSoftware(serial, os_version, passed=true)\nsw_technician
+
+    SwValidado --> Distribuida: AssignToStudent(serial, school_hash, student_hash)
+
+    Fabricada --> Fabricada: AuditHardware(passed=false)\nTransición no válida
+
+    SwValidado --> SwValidado: ValidateSoftware(passed=false)\nTransición no válida
+
+    note right of Fabricada
+        State: 0
+        Fabricada
+        batch_id set
+    end note
+    note right of HwAprobado
+        State: 1
+        HW Aprobado
+        hw_auditor set
+        hw_report_hash set
+    end note
+    note right of SwValidado
+        State: 2
+        SW Validado
+        sw_technician set
+        os_version set
+    end note
+    note right of Distribuida
+        State: 3
+        Distribuida
+        student_hash set
+        school_hash set
+        timestamp set
+    end note
+```
+
+### Instructions
+
+El programa implementa 22 instrucciones organizadas en 5 módulos:
+
+```mermaid
+graph TD
+    Program["sc_solana Program"] --> Deployer["deployer/"]
+    Program --> Init["initialize/"]
+    Program --> Netbook["netbook/"]
+    Program --> Role["role/"]
+    Program --> Query["query/"]
+
+    Deployer --> fund["fund_deployer()"]
+    Deployer --> close["close_deployer()"]
+
+    Init --> init["initialize()"]
+
+    Netbook --> reg["register_netbook()"]
+    Netbook --> regBatch["register_netbooks_batch()"]
+    Netbook --> audit["audit_hardware()"]
+    Netbook --> validate["validate_software()"]
+    Netbook --> assign["assign_to_student()"]
+
+    Role --> grant["grant_role()"]
+    Role --> revoke["revoke_role()"]
+    Role --> req["request_role()"]
+    Role --> approve["approve_role_request()"]
+    Role --> reject["reject_role_request()"]
+    Role --> reset["reset_role_request()"]
+    Role --> addHolder["add_role_holder()"]
+    Role --> removeHolder["remove_role_holder()"]
+    Role --> closeHolder["close_role_holder()"]
+    Role --> transfer["transfer_admin()"]
+
+    Query --> queryNB["query_netbook_state()"]
+    Query --> queryCfg["query_config()"]
+    Query --> queryRole["query_role()"]
+
+    classDef module fill:#f97316,stroke:#c2410c,color:#fff
+    class Deployer,Init,Netbook,Role,Query module
+```
+
+#### Instruction Details
+
+| Module | Instruction | Accounts | Description |
+|--------|-------------|----------|-------------|
+| **deployer** | `fund_deployer` | deployer (PDA), funder, system | Fund the deployer PDA for rent exemption |
+| **deployer** | `close_deployer` | deployer (PDA), funder | Close deployer and return funds |
+| **initialize** | `initialize` | config, serial_hash_registry, admin, deployer, funder, system | Initialize all accounts |
+| **netbook** | `register_netbook` | config, netbook (PDA), manufacturer, system | Register single netbook |
+| **netbook** | `register_netbooks_batch` | config, manufacturer, system | Register multiple netbooks |
+| **netbook** | `audit_hardware` | config, netbook (PDA), auditor, system | Hardware audit |
+| **netbook** | `validate_software` | config, netbook (PDA), technician, system | Software validation |
+| **netbook** | `assign_to_student` | config, netbook (PDA), system | Assign to student |
+| **role** | `grant_role` | config, role_holder (PDA), admin, recipient, system | Grant role with consent |
+| **role** | `revoke_role` | config, role_holder (PDA), admin, system | Revoke role |
+| **role** | `request_role` | config, role_request (PDA), requester, system | Request role (60s cooldown) |
+| **role** | `approve_role_request` | config, role_request (PDA), role_holder (PDA), admin, system | Approve request |
+| **role** | `reject_role_request` | config, role_request (PDA), admin, system | Reject request |
+| **role** | `reset_role_request` | config, role_request (PDA), requester, system | Reset request |
+| **role** | `add_role_holder` | config, role_holder (PDA), admin, system | Add holder to role |
+| **role** | `remove_role_holder` | config, role_holder (PDA), admin, system | Remove holder from role |
+| **role** | `close_role_holder` | config, role_holder (PDA), admin, system | Close role_holder account |
+| **role** | `transfer_admin` | config, admin (PDA), new_admin, system | Transfer admin role |
+| **query** | `query_netbook_state` | config, netbook (PDA), system | Query netbook state |
+| **query** | `query_config` | config, system | Query config |
+| **query** | `query_role` | config, system | Query role membership |
+
+### Events
+
+El programa emite 18 eventos organizados en 3 categorías:
+
+```mermaid
+graph LR
+    subgraph NetbookEvents["Netbook Events"]
+        NB1[NetbookRegistered]
+        NB2[HardwareAudited]
+        NB3[SoftwareValidated]
+        NB4[NetbookAssigned]
+        NB5[NetbooksRegistered]
+    end
+
+    subgraph RoleEvents["Role Events"]
+        RE1[RoleRequested]
+        RE2[RoleRequestUpdated]
+        RE3[RoleGranted]
+        RE4[RoleRevoked]
+        RE5[RoleHolderAdded]
+        RE6[RoleHolderRemoved]
+        RE7[AdminTransferred]
+    end
+
+    subgraph QueryEvents["Query Events"]
+        QE1[NetbookStateQuery]
+        QE2[ConfigQuery]
+        QE3[RoleQuery]
+    end
+
+    NetbookEvents -.->|Emitted by| Program["sc_solana Program"]
+    RoleEvents -.->|Emitted by| Program
+    QueryEvents -.->|Emitted by| Program
+
+    classDef nb fill:#22c55e,stroke:#16a34a,color:#fff
+    classDef role fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    classDef query fill:#a855f7,stroke:#9333ea,color:#fff
+    class NB1,NB2,NB3,NB4,NB5 nb
+    class RE1,RE2,RE3,RE4,RE5,RE6,RE7 role
+    class QE1,QE2,QE3 query
+```
+
+#### Event Details
+
+**Netbook Events** (`netbook_events.rs`):
+| Event | Fields |
+|-------|--------|
+| `NetbookRegistered` | serial_number, batch_id, token_id |
+| `HardwareAudited` | serial_number, passed |
+| `SoftwareValidated` | serial_number, os_version, passed |
+| `NetbookAssigned` | serial_number |
+| `NetbooksRegistered` | count, start_token_id, timestamp |
+
+**Role Events** (`role_events.rs`):
+| Event | Fields |
+|-------|--------|
+| `RoleRequested` | id, user, role |
+| `RoleRequestUpdated` | id, status |
+| `RoleGranted` | role, account, admin, timestamp |
+| `RoleRevoked` | role, account |
+| `RoleHolderAdded` | role, account, admin, timestamp |
+| `RoleHolderRemoved` | role, account, admin, timestamp |
+| `AdminTransferred` | previous_admin, new_admin, timestamp |
+
+**Query Events** (`query_events.rs`):
+| Event | Fields |
+|-------|--------|
+| `NetbookStateQuery` | serial_number, state, token_id, exists |
+| `ConfigQuery` | admin, fabricante, auditor_hw, tecnico_sw, escuela, next_token_id, total_netbooks, role_requests_count, *_count |
+| `RoleQuery` | account, role, has_role |
+
+### Errors
+
+El programa define 15 error codes (range 6000-6014):
+
+```mermaid
+graph LR
+    Error["SupplyChainError<br/>(error_code)"] --> E1["6000 Unauthorized"]
+    Error --> E2["6001 InvalidStateTransition"]
+    Error --> E3["6002 NetbookNotFound"]
+    Error --> E4["6003 InvalidInput"]
+    Error --> E5["6004 DuplicateSerial"]
+    Error --> E6["6005 ArrayLengthMismatch"]
+    Error --> E7["6006 RoleAlreadyGranted"]
+    Error --> E8["6007 RoleNotFound"]
+    Error --> E9["6008 InvalidSignature"]
+    Error --> E10["6009 EmptySerial"]
+    Error --> E11["6010 StringTooLong"]
+    Error --> E12["6011 MaxRoleHoldersReached"]
+    Error --> E13["6012 RoleHolderNotFound"]
+    Error --> E14["6013 InvalidRequestState"]
+    Error --> E15["6014 RateLimited"]
+
+    classDef auth fill:#ef4444,stroke:#b91c1c,color:#fff
+    classDef data fill:#f97316,stroke:#c2410c,color:#fff
+    classDef role fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    class E1,E8,E9 auth
+    class E2,E3,E4,E5,E6,E10,E11 data
+    class E7,E12,E13,E14,E14 role
+```
+
+---
+
+## Frontend Web Application
+
+### Technology Stack
+
+| Layer | Technology | Version |
+|-------|------------|---------|
+| Framework | Next.js | 16.0.10 |
+| Language | TypeScript (strict mode) | Latest |
+| UI Library | React | 19.2.3 |
+| Styling | Tailwind CSS | Latest |
+| Component Library | shadcn/ui + Radix UI | Latest |
+| Solana SDK | @solana/web3.js | ^1.98.0 |
+| Anchor SDK | @coral-xyz/anchor | ^0.32.0 |
+| Wallet Adapter | @solana/wallet-adapter-react/ui | Latest |
+| State Management | TanStack React Query + Table | Latest |
+| Testing (Unit) | Jest + Testing Library | Latest |
+| Testing (E2E) | Playwright | Latest |
+| Linting | ESLint | Latest |
+
+### Directory Structure
 
 ```
-SupplyChainTracker-solana-/
-├── sc-solana/                    # Programa Solana (Anchor)
-│   ├── programs/sc-solana/
-│   │   └── src/
-│   │       ├── lib.rs            # Entry point del programa
-│   │       ├── state/            # Definiciones de estado
-│   │       │   ├── config.rs     # Configuración global
-│   │       │   ├── netbook.rs    # Estado del netbook
-│   │       │   ├── role_holder.rs
-│   │       │   ├── role_request.rs
-│   │       │   └── serial_hash_registry.rs
-│   │       ├── instructions/     # Instrucciones del programa
-│   │       │   ├── initialize.rs
-│   │       │   ├── netbook/      # Instrucciones de netbook
-│   │       │   │   ├── register.rs
-│   │       │   │   ├── register_batch.rs
-│   │       │   │   ├── audit.rs
-│   │       │   │   ├── validate.rs
-│   │       │   │   └── assign.rs
-│   │       │   ├── role/         # Instrucciones de roles
-│   │       │   │   ├── grant.rs
-│   │       │   │   ├── revoke.rs
-│   │       │   │   ├── request.rs
-│   │       │   │   ├── holder_add.rs
-│   │       │   │   └── holder_remove.rs
-│   │       │   └── query/        # Instrucciones de consulta
-│   │       │       ├── config.rs
-│   │       │       ├── netbook_state.rs
-│   │       │       └── role.rs
-│   │       ├── events/           # Eventos emitidos
-│   │       ├── errors/           # Códigos de error
-│   │       └── utils/            # Utilidades
-│   ├── tests/                    # Tests del programa
-│   └── Anchor.toml               # Configuración Anchor
+web/
+├── .env                    # Environment variables (needs Solana config)
+├── .env.local              # Local environment overrides
+├── EXAMPLE.env             # Example with Solana configuration
+├── next.config.mjs         # Next.js configuration
+├── tailwind.config.js      # Tailwind CSS configuration
+├── postcss.config.mjs      # PostCSS configuration
+├── tsconfig.json           # TypeScript configuration
+├── playwright.config.ts    # Playwright E2E configuration
+├── jest.config.js          # Jest unit test configuration
+├── jest.setup.js           # Jest setup file
+├── components.json         # shadcn/ui configuration
+├── eslint.config.mjs       # ESLint configuration
+├── role-requests.json      # Role requests data
 │
-├── web/                          # Frontend Next.js
-│   ├── src/
-│   │   ├── app/                  # App Router
-│   │   │   ├── page.tsx          # Página principal
-│   │   │   ├── dashboard/        # Dashboard principal
-│   │   │   ├── admin/            # Panel de administración
-│   │   │   ├── tokens/           # Gestión de tokens/netbooks
-│   │   │   └── transfers/        # Transferencias
-│   │   ├── components/           # Componentes React
-│   │   │   ├── contracts/        # Formularios de transacciones
-│   │   │   ├── layout/           # Componentes de layout
-│   │   │   └── ui/               # Componentes UI base
-│   │   ├── hooks/                # Custom hooks
-│   │   ├── lib/                  # Librerías y utilidades
-│   │   │   ├── contracts/        # Interacción con programa
-│   │   │   ├── solana/           # Configuración Solana
-│   │   │   └── cache/            # Sistema de caché
-│   │   └── services/             # Servicios de negocio
-│   │       ├── UnifiedSupplyChainService.ts
-│   │       └── RoleRequestService.ts
-│   ├── public/                   # Assets estáticos
-│   └── package.json
+├── public/                 # Static assets
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   ├── window.svg
+│   └── health-check.txt
 │
-├── .github/                      # GitHub configuration
-├── plans/                        # Planes de desarrollo
-├── reports/                      # Reportes técnicos
-├── ROADMAP.md                    # Roadmap del proyecto
-└── README.md                     # Este archivo
+├── e2e/                    # Playwright E2E tests
+│   ├── dashboard.spec.ts
+│   ├── full-user-flow.spec.ts
+│   ├── homepage.spec.ts
+│   ├── netbook-registration.spec.ts
+│   ├── role-management.spec.ts
+│   ├── wallet-connection.spec.ts
+│   ├── helpers/
+│   │   └── test-utils.ts
+│   └── README.md
+│
+├── playwright-report/      # Test reports
+│   └── index.html
+│
+├── scripts/                # Test scripts
+│   ├── run-all-tests.sh
+│   ├── run-e2e-tests.sh
+│   └── run-unit-tests.sh
+│
+└── src/
+    ├── app/                # Next.js App Router (pages)
+    ├── components/         # React components
+    ├── hooks/              # Custom React hooks
+    ├── lib/                # Utilities and configuration
+    └── services/           # Business logic services
 ```
 
-## Instalación
+### Pages & Routes
 
-### Requisitos Previos
+```mermaid
+graph TD
+    Root["Root Layout<br/>(layout.tsx)"] --> Home["<code>/</code><br/>Home/Landing"]
+    Root --> Dashboard["<code>/dashboard</code><br/>Main Dashboard"]
+    Root --> Admin["<code>/admin</code><br/>Admin Panel"]
+    Root --> Tokens["<code>/tokens</code><br/>Token Listing"]
+    Root --> Transfers["<code>/transfers</code><br/>Transfer Management"]
 
-- [Node.js](https://nodejs.org/) 18+
-- [Yarn](https://yarnpkg.com/) o npm
-- [Rust](https://www.rust-lang.org/tools/install) 1.75+
-- [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools) 1.18+
-- [Anchor CLI](https://www.anchor-lang.com/docs/installation) 0.32.1
+    Admin --> Analytics["<code>/admin/analytics</code><br/>Analytics"]
+    Admin --> Audit["<code>/admin/audit</code><br/>Audit"]
+    Admin --> Roles["<code>/admin/roles</code><br/>Role Management"]
+    Admin --> Settings["<code>/admin/settings</code><br/>Settings"]
 
-### Configuración del Programa Solana
+    Roles --> Pending["<code>/admin/roles/pending-requests</code><br/>Pending Requests"]
+
+    Tokens --> TokenDetail["<code>/tokens/[id]</code><br/>Token Detail"]
+    Tokens --> TokenCreate["<code>/tokens/create</code><br/>Create Token"]
+
+    classDef layout fill:#f97316,stroke:#c2410c,color:#fff
+    classDef page fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    class Root layout
+    class Home,Dashboard,Admin,Tokens,Transfers,Analytics,Audit,Roles,Settings,Pending,TokenDetail,TokenCreate page
+```
+
+#### Page Components
+
+| Route | Main Component | Key Sub-components |
+|-------|---------------|-------------------|
+| `/` | `page.tsx` | Hero, FeatureCard, WalletMultiButton |
+| `/dashboard` | `dashboard/page.tsx` | NetbookDataTable, UserDataTable, NetbookStats, RoleActions, PendingRoleApprovals |
+| `/admin` | `admin/page.tsx` | AdminClient, ActivityLogs, DashboardMetrics, DataManagementPanel, UsersList |
+| `/admin/analytics` | `admin/analytics/page.tsx` | AnalyticsChart, DateRangeSelector, ReportGenerator, PeriodSummary |
+| `/admin/audit` | `admin/audit/page.tsx` | AuditTimeline |
+| `/admin/roles/pending-requests` | `pending-requests/page.tsx` | EnhancedPendingRoleRequests |
+| `/admin/settings` | `admin/settings/page.tsx` | Settings panel |
+| `/tokens` | `tokens/page.tsx` | Token listing |
+| `/tokens/[id]` | `tokens/[id]/page.tsx` | Token detail view |
+| `/tokens/create` | `tokens/create/page.tsx` | Create token form |
+| `/transfers` | `transfers/page.tsx` | Transfer management |
+
+### Hooks Architecture
+
+```mermaid
+graph TD
+    Solana["useSolanaWeb3<br/>Wallet connection"] --> Service["useSupplyChainService<br/>Program interface"]
+
+    Service --> DataFetch["Data Fetching"]
+    DataFetch --> FetchNB["useFetchNetbooks"]
+    DataFetch --> FetchU["useFetchUsers"]
+    DataFetch --> StatsNB["useNetbookStats"]
+    DataFetch --> StatsU["useUserStats"]
+    DataFetch --> Processed["useProcessedUserAndNetbookData"]
+
+    Service --> RoleMgmt["Role Management"]
+    RoleMgmt --> RoleData["useRoleData"]
+    RoleMgmt --> RoleReq["useRoleRequests"]
+    RoleMgmt --> UserRoles["useUserRoles"]
+    RoleMgmt --> RoleCalls["useRoleCallsManager"]
+
+    Service --> Tx["useTransaction<br/>Transaction tracking"]
+
+    Solana --> Safe["useSafeWallet<br/>Safe Wallet support"]
+    Solana --> Web3["useWeb3<br/>Legacy hook"]
+
+    Service --> Cached["useCachedData<br/>Cache utility"]
+
+    UI["UI/UX Hooks"] --> Toast["useToast"]
+    UI --> Notif["useNotifications"]
+    UI --> Analytics["useAnalyticsData"]
+
+    classDef core fill:#f97316,stroke:#c2410c,color:#fff
+    classDef data fill:#22c55e,stroke:#16a34a,color:#fff
+    classDef role fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    classDef ui fill:#a855f7,stroke:#9333ea,color:#fff
+    class Solana,Service core
+    class FetchNB,FetchU,StatsNB,StatsU,Processed,Cached data
+    class RoleData,RoleReq,UserRoles,RoleCalls role
+    class Toast,Notif,Analytics ui
+```
+
+#### Hooks Reference
+
+| Hook | Category | Purpose |
+|------|----------|---------|
+| `useSolanaWeb3()` | Solana Core | Wallet connection & state |
+| `useSupplyChainService()` | Solana Core | Program interaction wrapper |
+| `useWeb3()` | Solana Core | Legacy Web3 hook |
+| `useSafeWallet()` | Solana Core | Safe Wallet support |
+| `useTransaction()` | Solana Core | Transaction tracking |
+| `useFetchNetbooks()` | Data Fetching | Fetch netbooks from chain |
+| `useFetchUsers()` | Data Fetching | Fetch users data |
+| `useNetbookStats()` | Data Fetching | Netbook statistics |
+| `useUserStats()` | Data Fetching | User statistics |
+| `useProcessedUserAndNetbookData()` | Data Fetching | Processed combined data |
+| `useCachedData()` | Data Fetching | Cached data utility |
+| `useRoleData()` | Role Management | Role data fetching |
+| `useRoleRequests()` | Role Management | Role request management |
+| `useUserRoles()` | Role Management | User roles query |
+| `useRoleCallsManager()` | Role Management | Role call orchestration |
+| `useToast()` | UI/UX | Toast notifications |
+| `useNotifications()` | UI/UX | Notification management |
+| `useAnalyticsData()` | UI/UX | Analytics data |
+
+### Services Layer
+
+```mermaid
+graph TD
+    Components["Components/Hooks"] --> Unified["UnifiedSupplyChainService<br/>(Singleton - Active)"]
+
+    Unified --> NetbookOps["Netbook Operations"]
+    NetbookOps --> Reg["registerNetbook()"]
+    NetbookOps --> RegBatch["registerNetbooksBatch()"]
+    NetbookOps --> Audit["auditHardware()"]
+    NetbookOps --> Validate["validateSoftware()"]
+    NetbookOps --> Assign["assignToStudent()"]
+
+    Unified --> RoleOps["Role Operations"]
+    RoleOps --> Grant["grantRole()"]
+    RoleOps --> Revoke["revokeRole()"]
+    RoleOps --> Request["requestRole()"]
+    RoleOps --> Approve["approveRoleRequest()"]
+    RoleOps --> Reject["rejectRoleRequest()"]
+
+    Unified --> QueryOps["Query Operations"]
+    QueryOps --> QNB["queryNetbookState()"]
+    QueryOps --> QCfg["queryConfig()"]
+    QueryOps --> QRole["queryRole()"]
+
+    Unified --> Events["Event Emission"]
+    Events --> E1["NetbookRegistered"]
+    Events --> E2["HardwareAudited"]
+    Events --> E3["SoftwareValidated"]
+    Events --> E4["NetbookAssigned"]
+
+    Legacy1["SolanaSupplyChainService<br/>(Deprecated)"] -.->|Delegates to| Unified
+    Legacy2["SupplyChainService<br/>(Deprecated)"] -.->|Delegates to| Unified
+
+    Other["RoleRequestService<br/>ContractRegistryService<br/>actions.ts"]
+
+    classDef active fill:#22c55e,stroke:#16a34a,color:#fff
+    classDef deprecated fill:#ef4444,stroke:#b91c1c,color:#fff
+    class Unified,Other active
+    class Legacy1,Legacy2 deprecated
+```
+
+#### Services Reference
+
+| Service | Status | Purpose |
+|---------|--------|---------|
+| `UnifiedSupplyChainService` | Active | Main Solana program interface (singleton) |
+| `SolanaSupplyChainService` | Deprecated | Legacy wrapper (delegates to Unified) |
+| `SupplyChainService` | Deprecated | Legacy service |
+| `RoleRequestService` | Active | Role request management |
+| `ContractRegistryService` | Active | Contract address registry |
+| `actions.ts` | Active | Server actions |
+
+### Components Library
+
+```mermaid
+graph TD
+    Components["Components"] --> UI["UI (shadcn/ui)<br/>Button, Card, Badge, Input,<br/>Textarea, Table, Dialog, Form,<br/>Checkbox, Switch, Tabs,<br/>Select, Popover, Skeleton,<br/>Toast/Toaster, Alert, Label,<br/>Calendar, NavigationMenu,<br/>NotificationContainer"]
+    Components --> Wallet["Wallet<br/>SolanaWalletClientProvider,<br/>WalletConnectButton,<br/>WalletReadyGate"]
+    Components --> Layout["Layout<br/>Header, Navigation"]
+    Components --> Auth["Auth<br/>RequireWallet"]
+    Components --> Dashboard["Dashboard<br/>NetbookDataTable, UserDataTable,<br/>NetbookStats, UserStats,<br/>RoleActions, StatusBadge,<br/>TrackingCard, NetbookDetailsModal,<br/>ProgressStepper, DataTable"]
+    Components --> Admin["Admin<br/>AdminClient, DashboardOverview,<br/>DashboardSkeleton, ActivityLogs,<br/>ActivityLogsTable, DashboardMetrics,<br/>DataManagementPanel, UsersList,<br/>EmptyState, NetbookStateMetrics,<br/>PendingRoleRequests,<br/>EnhancedPendingRoleRequests,<br/>RoleManagementSection,<br/>RoleRequestsDashboard,<br/>EnhancedRoleApprovalDialog,<br/>ApprovedAccountsList"]
+    Components --> Forms["Forms<br/>HardwareAuditForm,<br/>NetbookForm,<br/>SoftwareValidationForm,<br/>StudentAssignmentForm,<br/>TransactionConfirmation"]
+    Components --> Charts["Charts<br/>AnalyticsChart,<br/>NetbookStatusChart,<br/>UserRolesChart"]
+    Components --> Audit["Audit<br/>AuditTimeline"]
+    Components --> Diag["Diagnostics<br/>DiagnosticRunner,<br/>DebugComponent"]
+
+    classDef ui fill:#eab308,stroke:#ca8a04,color:#fff
+    classDef other fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    class UI ui
+    class Wallet,Layout,Auth,Dashboard,Admin,Forms,Charts,Audit,Diag other
+```
+
+---
+
+## Development Setup
+
+### Prerequisites
+
+| Tool | Version | Purpose | Installation |
+|------|---------|---------|--------------|
+| Rust | Latest stable | Solana program compilation | [`rustup`](https://rustup.rs/) |
+| Anchor | 0.32.0 | Solana program framework | `cargo install anchor-cli --locked` |
+| Node.js | Latest LTS | Frontend development | [`nvm`](https://github.com/nvm-sh/nvm) or [nodejs.org](https://nodejs.org) |
+| Yarn | Latest | Package manager | `npm install -g yarn` |
+| Solana CLI | Latest | Solana validator & tools | [`sh -c "$(curl -sSfL https://release.solana.com/stable/install)"`](https://docs.solana.com/cli/install-solana-cli-tools) |
+| Surfpool/txtx | Latest | Local deployment system | `npm install -g @surfpool/txtx` |
+
+### Step-by-Step Installation
+
+#### 1. Clone the Repository
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/87maxi/SupplyChainTracker-solana-.git
-cd SupplyChainTracker-solana-
+git clone https://github.com/your-org/SupplyChainTracker-solana.git
+cd SupplyChainTracker-solana
+```
 
-# Construir el programa
+#### 2. Install Solana Tools
+
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+rustup update stable
+
+# Install Anchor CLI
+cargo install anchor-cli --locked
+
+# Install Solana CLI
+sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+source ~/.local/share/solana/install/active_solana/env
+
+# Verify installations
+anchor --version
+solana --version
+cargo --version
+```
+
+#### 3. Build the Solana Program
+
+```bash
 cd sc-solana
-cargo build-bpf
 
-# Ejecutar tests
-anchor test
+# Build the program (compiles Rust + generates IDL + keypair)
+anchor build
+
+# This produces:
+# - target/deploy/sc_solana.so        (program binary)
+# - target/deploy/sc_solana-keypair.json (program keypair)
+# - target/idl/sc_solana.json         (IDL)
+# - target/types/sc_solana.ts         (TypeScript types)
+
+# Verify build
+ls -la target/deploy/
+ls -la target/idl/
 ```
 
-### Configuración del Frontend
+#### 4. Configure Environment Variables
 
 ```bash
-# Instalar dependencias
-cd web
+# Navigate to web directory
+cd ../web
+
+# Copy example environment
+cp EXAMPLE.env .env.local
+
+# Edit .env.local with your configuration
+nano .env.local
+```
+
+**Required Environment Variables:**
+
+| Variable | Description | Example Value |
+|----------|-------------|---------------|
+| `NEXT_PUBLIC_RPC_URL` | Solana RPC endpoint | `http://localhost:8899` (local) or `https://api.devnet.solana.com` |
+| `NEXT_PUBLIC_WS_URL` | WebSocket RPC endpoint | `ws://localhost:8900` (local) or `wss://api.devnet.solana.com` |
+| `NEXT_PUBLIC_PROGRAM_ID` | Program ID pubkey | `7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb` |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect project ID | Your WC project ID from [cloud.walletconnect.com](https://cloud.walletconnect.com) |
+
+**Optional Environment Variables:**
+
+| Variable | Description | Example Value |
+|----------|-------------|---------------|
+| `NEXT_PUBLIC_MONGODB_URI` | MongoDB connection | `mongodb://localhost:27017/supplychain` |
+| `NEXT_PUBLIC_DEBUG_MODE` | Enable debug mode | `true` |
+
+#### 5. Install Frontend Dependencies
+
+```bash
+# Install all dependencies
 yarn install
 
-# Configurar variables de entorno
-cp .env.example .env.local
-# Editar .env.local con tus valores
-
-# Iniciar servidor de desarrollo
-yarn dev
+# Verify installation
+yarn list --depth=0
 ```
 
-### Variables de Entorno Requeridas
-
-| Variable | Descripción | Ejemplo |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_PROGRAM_ID` | ID del programa desplegado | `7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN` |
-| `NEXT_PUBLIC_CLUSTER` | Cluster de Solana | `devnet` |
-| `NEXT_PUBLIC_DEFAULT_ADMIN_ADDRESS` | Dirección del admin | `7eCTmt5LYSqnjgw8jebHjUzf8X7omxEpxYHbsXsmPtZQ` |
-| `NEXT_PUBLIC_RPC_URL` | URL RPC personalizada (opcional) | `https://api.devnet.solana.com` |
-
-## Desarrollo
-
-### Comandos del Programa Solana
+#### 6. Start Local Solana Validator
 
 ```bash
+# In a separate terminal
+solana-test-validator
+
+# Or with specific configuration (from Anchor.toml)
+anchor test --localnet
+
+# The validator runs on:
+# - RPC: http://localhost:8899
+# - WebSocket: ws://localhost:8900
+```
+
+#### 7. Deploy Program to Localnet
+
+```bash
+# Method 1: Using anchor deploy
 cd sc-solana
-
-# Construir
-cargo build-bpf
-
-# Tests
-anchor test
-
-# Desplegar a devnet
-anchor deploy --provider.cluster devnet
-
-# Ejecutar tests específicos
-anchor test --lib pda-derivation
-```
-
-### Comandos del Frontend
-
-```bash
-cd web
-
-# Desarrollo
-yarn dev
-
-# Construcción producción
-yarn build
-
-# Tests
-yarn test
-yarn test:watch
-yarn test:coverage
-
-# Tests E2E
-yarn test:e2e
-yarn test:e2e:ui
-
-# Linting
-yarn lint
-yarn lint:fix
-```
-
-## Despliegue
-
-### Desplegar Programa a Devnet
-
-```bash
-cd sc-solana
-
-# Configurar cluster
-anchor config set provider.cluster devnet
-
-# Desplegar
 anchor deploy
 
-# Inicializar programa
-anchor run initialize
+# Method 2: Using txtx runbook (Surfpool)
+txtx run runbooks/01-deployment/deploy-program.tx
+
+# Verify deployment
+solana program show --program-id 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
 ```
 
-### Desplegar Frontend
+#### 8. Start Frontend Development Server
 
 ```bash
 cd web
+yarn dev
 
-# Construir para producción
-yarn build
-
-# Iniciar servidor producción
-yarn start
+# The frontend runs on:
+# - HTTP: http://localhost:3000
+# - The server will hot-reload on file changes
 ```
+
+### Development Workflow
+
+```mermaid
+graph LR
+    Terminal1["Terminal 1<br/>solana-test-validator"] -->|RPC:8899| Frontend["Frontend<br/>localhost:3000"]
+    Terminal2["Terminal 2<br/>yarn dev"] -->|RPC:8899| Frontend
+    Frontend -->|Transactions| Program["sc_solana Program<br/>deployed on localnet"]
+
+    Dev["Developer"] -->|cargo build| Program
+    Dev -->|yarn dev| Frontend
+    Dev -->|txtx run| Program
+
+    classDef terminal fill:#f97316,stroke:#c2410c,color:#fff
+    classDef service fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    class Terminal1,Terminal2 terminal
+    class Frontend,Program service
+```
+
+### Recommended Terminal Layout
+
+| Terminal | Command | Purpose |
+|----------|---------|---------|
+| 1 | `solana-test-validator` | Local Solana validator |
+| 2 | `cd web && yarn dev` | Frontend dev server |
+| 3 | `cd sc-solana && anchor build --watch` | Program build watcher |
+| 4 | `cd sc-solana && cargo test` | Run tests on demand |
+
+---
 
 ## Testing
 
-### Guía Completa de Testing
+### Solana Program Tests
 
-El proyecto cuenta con múltiples capas de testing para garantizar la calidad del código:
-
-#### Tests del Programa Anchor (Rust)
-
-Los tests se ejecutan en `sc-solana/tests/` con validator local:
-
-| Test File | Descripción | Cobertura |
-|-----------|-------------|-----------|
-| `unit-tests.ts` | Tests unitarios de instrucciones | Register, Grant, Query |
-| `integration-full-lifecycle.ts` | Tests de ciclo completo | Register → Audit → Validate → Assign |
-| `role-enforcement.ts` | Tests de verificación de roles | RBAC en todas las instrucciones |
-| `pda-derivation.ts` | Tests de derivación PDA | PDAs de accounts |
-| `batch-registration.ts` | Tests de registro por lotes | RegisterBatch |
-| `state-machine.ts` | Tests de máquina de estados | Transiciones válidas/inválidas |
-| `lifecycle.ts` | Tests de ciclo de vida | Flujo completo netbook |
-| `role-management.ts` | Tests de gestión de roles | Grant/Revoke/Request |
-| `test-isolation.ts` | Tests de aislamiento | Contextos independientes |
-| `edge-cases.ts` | Tests de casos edge | Overflow, inputs inválidos |
-| `overflow-protection.ts` | Tests de protección overflow | Límites de datos |
-| `query-instructions.ts` | Tests de instrucciones query | Getters de estado |
-| `rbac-consistency.ts` | Tests de consistencia RBAC | Permisos cruzados |
-| `deployer-pda.ts` | Tests de Deployer PDA | Patrón Deployer |
-
-**Ejecutar tests Anchor:**
 ```bash
 cd sc-solana
-anchor test --local
-# O con validator local explícito:
-solana-test-validator &
+
+# Run all Cargo unit tests
+cargo test
+
+# Run all Anchor integration tests
 anchor test
+
+# Run Anchor tests with verbose output
+anchor test -- --nocapture
+
+# Run specific test file
+anchor test -- --test tests/lifecycle.ts
+
+# Run specific test function
+anchor test -- --test tests/lifecycle.ts --grep "test_netbook_space"
 ```
 
-#### Tests del Frontend (Jest)
+#### Test Files
 
-Tests unitarios en `web/src/`:
+| File | Description | Type |
+|------|-------------|------|
+| `tests/lifecycle.ts` | Full netbook lifecycle test | Integration |
+| `tests/batch-registration.ts` | Batch registration tests | Integration |
+| `tests/pda-derivation.ts` | PDA derivation verification | Integration |
+| `tests/deployer-pda.ts` | Deployer PDA tests | Integration |
+| `tests/query-instructions.ts` | Query instruction tests | Integration |
+| `tests/rbac-consistency.ts` | RBAC consistency tests | Integration |
+| `tests/edge-cases.ts` | Edge case tests | Integration |
+| `tests/overflow-protection.ts` | Overflow protection tests | Integration |
+| `tests/integration-full-lifecycle.ts` | Full lifecycle integration | Integration |
+| `tests/unit-tests.ts` | Unit test equivalents | Unit |
+
+### Frontend Tests
 
 ```bash
 cd web
-yarn test              # Ejecutar todos los tests
-yarn test --watch      # Modo watch
-yarn test --coverage   # Con cobertura
+
+# Run all Jest unit tests
+yarn test
+
+# Run Jest tests in watch mode
+yarn test --watch
+
+# Run Jest tests with coverage
+yarn test --coverage
+
+# Run Playwright E2E tests
+yarn exec playwright test
+
+# Run Playwright E2E tests with UI mode
+yarn exec playwright test --ui
+
+# Run Playwright E2E tests with headed browser
+yarn exec playwright test --headed
+
+# Run specific E2E test
+yarn exec playwright test e2e/dashboard.spec.ts
+
+# Generate Playwright report
+yarn exec playwright show-report
+
+# Run all tests (unit + E2E)
+./scripts/run-all-tests.sh
 ```
 
-#### Tests E2E (Playwright)
+#### E2E Test Files
 
-Tests end-to-end en `web/e2e/`:
+| File | Description |
+|------|-------------|
+| `e2e/homepage.spec.ts` | Homepage rendering and wallet connection |
+| `e2e/dashboard.spec.ts` | Dashboard functionality |
+| `e2e/wallet-connection.spec.ts` | Wallet adapter connection flow |
+| `e2e/netbook-registration.spec.ts` | Netbook registration flow |
+| `e2e/role-management.spec.ts` | Role management operations |
+| `e2e/full-user-flow.spec.ts` | Complete user journey |
+
+---
+
+## Deployment
+
+### Local Deployment with Surfpool/txtx
 
 ```bash
-cd web
-npx playwright test              # Ejecutar E2E tests
-npx playwright test --ui         # Con interfaz UI
-npx playwright test --headed     # Con browser visible
+cd sc-solana
+
+# Deploy program
+txtx run runbooks/01-deployment/deploy-program.tx
+
+# Run operations
+txtx run runbooks/02-operations/query/query-config.tx
+txtx run runbooks/02-operations/query/query-role.tx
+txtx run runbooks/03-role-management/request-role.tx
+txtx run runbooks/03-role-management/approve-role-request.tx
+
+# Run full lifecycle
+txtx run runbooks/04-testing/full-lifecycle.tx
+
+# Run role workflow
+txtx run runbooks/04-testing/role-workflow.tx
 ```
 
-#### CI/CD Pipeline
+### Production Deployment
 
-El pipeline automatiza todos los tests en GitHub Actions:
+```bash
+# Build program
+cd sc-solana
+anchor build
 
-| Job | Descripción | Trigger |
-|-----|-------------|---------|
-| `rust-lint` | cargo fmt + clippy -D warnings | Push/PR |
-| `type-check` | tsc --noEmit (web) | Push/PR |
-| `frontend-lint` | ESLint + Prettier | Push/PR |
-| `test-unit` | Jest unit tests | Push/PR |
-| `build-frontend` | Next.js build | After tests |
-| `test-anchor` | Anchor tests con validator | Push/PR |
-| `test-e2e` | Playwright E2E tests | After build |
+# Deploy to devnet
+solana config set --url devnet
+anchor deploy
 
-Ver `.github/workflows/ci.yml` para configuración completa.
-
-### Estado Actual de Tests
-
-| Tipo | Estado | Passing | Total |
-|------|--------|---------|-------|
-| Unit Tests (Jest) | ✅ | 6 | 6 |
-| Anchor Tests | ⚠️ | Requiere validator local | - |
-| E2E Tests (Playwright) | ✅ | 46 | 46 |
-
-#### Resultados E2E Tests (2026-05-10)
-| Test Suite | Passing | Total |
-|------------|---------|-------|
-| Homepage E2E Tests | 7 | 7 |
-| Dashboard E2E Tests | 6 | 6 |
-| Netbook Registration E2E Tests | 6 | 6 |
-| Role Management E2E Tests | 6 | 6 |
-| Wallet Connection E2E Tests | 5 | 5 |
-| Full User Flow Tests | 16 | 16 |
-
-#### Flujos de Usuario E2E
-| Flujo | Descripción | Tests |
-|-------|-------------|-------|
-| Flow 1 | New User Journey con Wallet Connection | 3 |
-| Flow 2 | Netbook Registration con Solana | 2 |
-| Flow 3 | Role Management Admin | 2 |
-| Flow 4 | Integración Blockchain Solana | 3 |
-| Flow 5 | Responsive Design & Accessibility | 3 |
-| Flow 6 | Error Handling & Edge Cases | 3 |
-
-## Roles y Permisos
-
-| Rol | Permisos | Instrucciones Accesibles |
-|-----|----------|-------------------------|
-| `ADMIN` | Gestión completa | Todas las instrucciones |
-| `FABRICANTE` | Registro de netbooks | `register_netbook`, `register_netbooks_batch` |
-| `AUDITOR_HW` | Auditoría hardware | `audit_hardware` |
-| `TECNICO_SW` | Validación software | `validate_software` |
-| `ESCUELA` | Asignación estudiantes | `assign_to_student` |
-
-## Ciclo de Vida del Netbook
-
-```
-┌──────────────┐      ┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-│  Fabricada   │ ────▶│ HwAprobado   │ ────▶│  SwValidado  │ ────▶│ Distribuida  │
-│              │      │              │      │              │      │              │
-│ Registro     │      │ Auditoría    │      │ Validación   │      │ Asignación   │
-│ inicial      │      │ hardware     │      │ software     │      │ escuela      │
-└──────────────┘      └──────────────┘      └──────────────┘      └──────────────┘
-     Fabri-                 Audi-                Téc-                  Es-
-     cante                  tor HW               nico SW               cuela
+# Deploy to mainnet-beta (requires program upgrade authority)
+solana config set --url mainnet-beta
+anchor deploy --program-keypair target/deploy/sc_solana-keypair.json
 ```
 
-## Current Status
+### CI/CD
 
-| Component | Status | Completion |
-|-----------|--------|------------|
-| Smart Contract (sc-solana) | Modularized, Core Complete | ~95% |
-| Frontend (web/) | Solana Migrated (Partial) | ~90% |
-| Testing | Integration Tests Complete | ~60% |
-| Documentation | Updated | ~95% |
-| Runbooks (txtx) | Consistent with Surfpool | ~90% |
-| CI/CD | Pipeline Configured | ✅ Completed |
+```bash
+# GitHub Actions workflows
+# .github/workflows/ci.yml       - Continuous Integration
+# .github/workflows/deploy.yml   - Deployment pipeline
 
-### Build & Lint Verification (2026-05-10)
+# CI runs on push/PR:
+# 1. cargo build
+# 2. cargo test
+# 3. anchor build
+# 4. yarn install (web)
+# 5. yarn test (web)
+```
 
-| Check | Status | Details |
-|-------|--------|---------|
-| `cargo build` | ✅ Passed | Build exitoso |
-| `cargo fmt --check` | ✅ Passed | Formato correcto |
-| `cargo clippy -- -D warnings` | ✅ Passed | Sin warnings |
-| `anchor build` | ✅ Passed | IDL regenerada |
-| `yarn build` | ✅ Passed | Frontend build exitoso |
-| `npx tsc --noEmit` | ✅ Passed | TypeScript type check |
-| `npx eslint src/ --max-warnings=0` | ✅ Passed | 0 warnings |
-| `yarn test` (Jest) | ✅ Passed | 6/6 passing |
+---
 
-## Refactoring Status
+## Troubleshooting
 
-**Active Refactoring:** Completed Phases 0-8
+### Common Issues
 
-| Phase | Description | Status |
-|-------|-------------|--------|
-| Phase 0 | Cleanup Documentation | ✅ Completed |
-| Phase 1 | Clean Up Obsolete Code and Scripts | ✅ Completed |
-| Phase 2 | Fix Program ID Inconsistency | ✅ Completed |
-| Phase 3 | Remove Dead Code and Allow Directives | ✅ Completed |
-| Phase 4 | Verify Consistency with Surfpool/txtx IAC | ✅ Completed |
-| Phase 5 | Update Documentation and Create CHANGELOG | ✅ Completed |
-| Phase 6 | Test Execution with Validator | ✅ Completed |
-| Phase 7 | Test Error Fixes | ✅ Completed |
-| Phase 8 | Quality Verifications | ✅ Completed |
+#### 1. Program Keypair Mismatch
 
-See [`analysis/issues-hierarchical-plan.md`](analysis/issues-hierarchical-plan.md) for details on the refactoring process.
+**Error:**
+```
+program keypair does not match program pubkey found in IDL:
+keypair pubkey: '8F8SCnsz...'; IDL pubkey: '7bGrgLgT...'
+```
 
-## Changelog
+**Solution:**
+```bash
+# Verify consistency
+echo "declare_id!: $(grep 'declare_id!' sc-solana/programs/sc-solana/src/lib.rs)"
+echo "IDL address: $(grep '"address"' sc-solana/target/idl/sc_solana.json)"
+echo "Keypair pubkey: $(solana-keygen pubkey target/deploy/sc_solana-keypair.json)"
+echo "Anchor.toml: $(grep 'sc_solana' sc-solana/Anchor.toml)"
 
-Refer to [`CHANGELOG.md`](CHANGELOG.md) for a complete history of changes to this project.
+# All should show: 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
 
-## Licencia
+# If mismatched, restore keypair from git:
+git show <commit>:sc-solana/target/deploy/sc_solana-keypair.json > sc-solana/target/deploy/sc_solana-keypair.json
+```
 
-MIT License - ver [LICENSE](LICENSE) para más detalles.
+#### 2. Port Conflicts
 
-## Contribuir
+**Error:**
+```
+Address already in use
+```
 
-1. Fork el repositorio
-2. Crear rama de feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit cambios (`git commit -m 'feat: agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Abrir Pull Request
+**Solution:**
+```bash
+# Check which process uses port 8899
+lsof -i :8899
 
-## Enlaces
+# Kill the process
+kill -9 <PID>
 
-- [Documentación Solana](https://docs.solana.com/)
-- [Documentación Anchor](https://www.anchor-lang.com/docs)
-- [Solana Explorer (Devnet)](https://explorer.solana.com/?cluster=devnet)
-- [Wallet Adapter Docs](https://github.com/solana-labs/wallet-adapter)
+# Or use different ports in Anchor.toml
+```
+
+#### 3. Anchor Build Fails
+
+**Solution:**
+```bash
+# Clean build artifacts
+cd sc-solana
+rm -rf target/deploy/*.so target/deploy/*-keypair.json target/idl/*.json
+
+# Rebuild
+anchor build
+
+# If still failing, check Rust toolchain
+rustup default stable
+cargo install anchor-cli --locked --force
+```
+
+#### 4. Frontend Cannot Connect to Program
+
+**Solution:**
+```bash
+# Verify validator is running
+solana cluster-version
+
+# Check RPC endpoint in .env.local
+cat web/.env.local | grep RPC_URL
+
+# Verify program is deployed
+solana program show --program-id 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
+
+# Check browser console for errors
+# Open DevTools > Console
+```
+
+#### 5. Wallet Connection Issues
+
+**Solution:**
+```bash
+# Verify wallet adapter is installed
+yarn list @solana/wallet-adapter-react
+
+# Check WalletConnect project ID
+# Visit https://cloud.walletconnect.com for project setup
+
+# For local testing, use Phantom wallet directly (no WalletConnect needed)
+```
+
+### Configuration Reference
+
+#### Solana Program (`sc-solana/Anchor.toml`)
+
+```toml
+[toolchain]
+package_manager = "yarn"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+sc_solana = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+
+[test.validator]
+rpc_port = 8899
+```
+
+#### Frontend Environment (`.env.local`)
+
+```env
+NEXT_PUBLIC_RPC_URL=http://localhost:8899
+NEXT_PUBLIC_PROGRAM_ID=7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+```
+
+### Key Files Reference
+
+| File | Purpose |
+|------|---------|
+| [`sc-solana/Anchor.toml`](sc-solana/Anchor.toml) | Anchor program configuration |
+| [`sc-solana/Cargo.toml`](sc-solana/Cargo.toml) | Rust program dependencies |
+| [`sc-solana/programs/sc-solana/src/lib.rs`](sc-solana/programs/sc-solana/src/lib.rs) | Program entry point + `declare_id!` |
+| [`sc-solana/txtx.yml`](sc-solana/txtx.yml) | Surfpool/txtx configuration |
+| [`web/package.json`](web/package.json) | Frontend dependencies |
+| [`web/.env.local`](web/.env.local) | Frontend environment variables |
+| [`web/next.config.mjs`](web/next.config.mjs) | Next.js configuration |
+| [`web/tailwind.config.js`](web/tailwind.config.js) | Tailwind CSS configuration |
+
+---
+
+## License
+
+MIT
+
+## Author
+
+Codecrypto
+
+## Acknowledgments
+
+- Migrated from Ethereum/Solidity to Solana/Anchor
+- Built with [Anchor Framework](https://www.anchor-lang.com)
+- Frontend powered by [Next.js 16](https://nextjs.org) and [shadcn/ui](https://ui.shadcn.com)

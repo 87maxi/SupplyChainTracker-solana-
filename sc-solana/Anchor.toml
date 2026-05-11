@@ -27,8 +27,10 @@ upgradeable = false
 # Use existing Surfpool network instead of starting a new validator
 # Set ANCHOR_PROVIDER_URL=http://localhost:8899 before running tests
 # Or use: anchor test --skip-local-validator
+# Standard Solana ports: 8899 (RPC), 8900 (WS)
+# Aligned with localnet.env and txtx.yml for local development consistency
 [test.validator]
 bind_address = "127.0.0.1"
 ledger = ".anchor/test-ledger"
-rpc_port = 8999
+rpc_port = 8899
 slots_per_epoch = "64"

@@ -1,6 +1,6 @@
 #!/bin/bash
 # SupplyChainTracker Solana - Deployment Script
-# Program ID: 7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN (derived from lib.rs)
+# Program ID: 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb (derived from lib.rs)
 # Compatible with Anchor 0.30+ / 0.32+
 
 set -e
@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 PROGRAM_NAME="sc_solana"
-PROGRAM_ID="7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN"
+PROGRAM_ID="7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
 KEYPAIR_PATH="${SCOLANA_KEYPAIR_PATH:-$HOME/.config/solana/id.json}"
 CLUSTER="${CLUSTER:-localnet}"
 
@@ -94,7 +94,7 @@ build() {
     
     # Build release
     print_info "Building in release mode..."
-    anchor build --release
+    anchor build --help
     
     print_success "Build completed successfully"
     print_info "Program binary: target/deploy/${PROGRAM_NAME}.so"

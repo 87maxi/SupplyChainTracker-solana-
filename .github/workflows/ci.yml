@@ -8,9 +8,11 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SOLANA_VERSION: 1.18.18
+  SOLANA_VERSION: 2.1.19
   ANCHOR_VERSION: 0.32.1
   NODE_VERSION: 20
+  # Placeholder program ID - E2E tests run against devnet with real RPC
+  # Program interactions fail gracefully for UI-only tests
   NEXT_PUBLIC_PROGRAM_ID: "11111111111111111111111111111112"
   NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com"
   NEXT_TELEMETRY_DISABLED: "1"

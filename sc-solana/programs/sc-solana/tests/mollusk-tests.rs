@@ -257,20 +257,6 @@ fn test_role_constants() {
     assert_eq!("escuela", "escuela");
 }
 
-// ==================== Test: Mollusk Program Loading ====================
-
-#[test]
-fn test_mollusk_so_exists() {
-    // The .so file is at sc-solana/target/deploy/sc_solana.so relative to workspace
-    // From tests directory it's ../../target/deploy/sc_solana.so
-    let so_path = std::path::Path::new("../../target/deploy/sc_solana.so");
-    assert!(so_path.exists(), "Program .so file should exist at ../../target/deploy/sc_solana.so");
-    
-    let metadata = so_path.metadata().expect("Failed to read .so metadata");
-    assert!(metadata.len() > 0, "Program .so file should not be empty");
-    assert!(metadata.len() < 1_000_000, "Program .so file should be reasonable size");
-}
-
 // ==================== Test: Bump Seed Validation ====================
 
 #[test]

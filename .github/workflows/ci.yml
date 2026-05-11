@@ -55,7 +55,7 @@ jobs:
         run: cd sc-solana && cargo clippy -- -D warnings
 
   # ============================================================================
-  # Job 2: Build Solana Program (cargo build only - no Solana CLI needed)
+  # Job 2: Build Solana Program (cargo build + SBPF)
   # ============================================================================
   build-program:
     runs-on: ubuntu-latest
@@ -66,6 +66,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+
+      - name: Install Solana CLI
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/solana-labs/solana/v1.18.18/install/solana-install-init.sh | \
+          sh -s - v1.18.18
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -82,6 +88,15 @@ jobs:
       - name: Build Program (cargo check)
         run: cd sc-solana && cargo check --all-targets
 
+      - name: Build Program for SBPF (create .so file)
+        run: cd sc-solana && cargo build-sbf
+
+      - name: Upload Program .so
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-so
+          path: sc-solana/target/deploy/sc_solana.so
+
   # ============================================================================
   # Job 2b: Mollusk Tests (In-process SVM testing - no validator needed)
   # ============================================================================
@@ -96,29 +111,14 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install Solana CLI
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/solana-labs/solana/v${{ env.SOLANA_VERSION }}/install/solana-install-init.sh | \
-          sh -s - v${{ env.SOLANA_VERSION }}
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
+      - name: Download Program .so
+        uses: actions/download-artifact@v4
         with:
-          path: ~/.cargo/registry
-          key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
+          name: program-so
+          path: sc-solana/target/deploy/
 
-      - name: Cache Cargo build
-        uses: actions/cache@v4
-        with:
-          path: sc-solana/target
-          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
-
-      - name: Verify Solana CLI
-        run: solana --version
-
-      - name: Build Program for SBPF (create .so file)
-        run: cd sc-solana && cargo build-sbf
+      - name: Verify Program .so exists
+        run: ls -la sc-solana/target/deploy/sc_solana.so
 
       - name: Run Mollusk Tests
         run: cd sc-solana/programs/sc-solana && cargo test --test mollusk-tests

@@ -7,8 +7,6 @@
 //! Run with: cargo test --test mollusk-tests
 
 use anchor_lang::prelude::Pubkey;
-use mollusk_svm::Mollusk;
-use solana_system_interface::instruction as system_instruction;
 use solana_sdk_ids::system_program;
 
 // ==================== Constants ====================
@@ -43,10 +41,9 @@ fn test_program_id_valid() {
 fn test_config_pda_derivation() {
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     let config_seed: &[u8] = b"config";
-    let (pda, bump) = find_program_address(&[config_seed], &program_id);
+    let (pda, _bump) = find_program_address(&[config_seed], &program_id);
 
     assert_ne!(pda, program_id);
-    assert!(bump <= 255, "Bump seed for config should be <= 255, got {}", bump);
 }
 
 #[test]
@@ -54,32 +51,29 @@ fn test_admin_pda_derivation() {
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     let admin_seed: &[u8] = b"admin";
     let config_key = Pubkey::new_unique();
-    let (pda, bump) = find_program_address(&[admin_seed, config_key.as_ref()], &program_id);
+    let (pda, _bump) = find_program_address(&[admin_seed, config_key.as_ref()], &program_id);
 
     assert_ne!(pda, program_id);
     assert_ne!(pda, config_key);
-    assert!(bump <= 255, "Bump seed for admin should be <= 255, got {}", bump);
 }
 
 #[test]
 fn test_deployer_pda_derivation() {
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     let deployer_seed: &[u8] = b"deployer";
-    let (pda, bump) = find_program_address(&[deployer_seed], &program_id);
+    let (pda, _bump) = find_program_address(&[deployer_seed], &program_id);
 
     assert_ne!(pda, program_id);
-    assert!(bump <= 255, "Bump seed for deployer should be <= 255, got {}", bump);
 }
 
 #[test]
 fn test_netbook_pda_derivation() {
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     let netbook_seed: &[u8] = b"netbook";
-    let (pda, bump) =
+    let (pda, _bump) =
         find_program_address(&[netbook_seed, &0u64.to_le_bytes()], &program_id);
 
     assert_ne!(pda, program_id);
-    assert!(bump <= 255, "Bump seed for netbook should be <= 255, got {}", bump);
 }
 
 #[test]
@@ -87,11 +81,10 @@ fn test_serial_hashes_pda_derivation() {
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     let serial_hashes_seed: &[u8] = b"serial_hashes";
     let config_key = Pubkey::new_unique();
-    let (pda, bump) = find_program_address(&[serial_hashes_seed, config_key.as_ref()], &program_id);
+    let (pda, _bump) = find_program_address(&[serial_hashes_seed, config_key.as_ref()], &program_id);
 
     assert_ne!(pda, program_id);
     assert_ne!(pda, config_key);
-    assert!(bump <= 255, "Bump seed for serial_hashes should be <= 255, got {}", bump);
 }
 
 #[test]
@@ -99,11 +92,10 @@ fn test_role_holder_pda_derivation() {
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     let role_holder_seed: &[u8] = b"role_holder";
     let account_key = Pubkey::new_unique();
-    let (pda, bump) = find_program_address(&[role_holder_seed, account_key.as_ref()], &program_id);
+    let (pda, _bump) = find_program_address(&[role_holder_seed, account_key.as_ref()], &program_id);
 
     assert_ne!(pda, program_id);
     assert_ne!(pda, account_key);
-    assert!(bump <= 255, "Bump seed for role_holder should be <= 255, got {}", bump);
 }
 
 #[test]
@@ -111,11 +103,10 @@ fn test_role_request_pda_derivation() {
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     let role_request_seed: &[u8] = b"role_request";
     let requester = Pubkey::new_unique();
-    let (pda, bump) = find_program_address(&[role_request_seed, requester.as_ref()], &program_id);
+    let (pda, _bump) = find_program_address(&[role_request_seed, requester.as_ref()], &program_id);
 
     assert_ne!(pda, program_id);
     assert_ne!(pda, requester);
-    assert!(bump <= 255, "Bump seed for role_request should be <= 255, got {}", bump);
 }
 
 // ==================== Test: Instruction Discriminators ====================
@@ -244,10 +235,7 @@ fn test_netbook_state_values() {
 #[test]
 fn test_netbook_state_transitions() {
     // Valid transitions: Fabricada -> HwAprobado -> SwValidado -> Distribuida
-    let mut state: u8 = 0; // Fabricada
-    state = 1; // HwAprobado
-    state = 2; // SwValidado
-    state = 3; // Distribuida
+    let state: u8 = 3; // Distribuida (estado final)
     assert_eq!(state, 3);
 }
 
@@ -271,8 +259,6 @@ fn test_role_constants() {
 
 // ==================== Test: Mollusk Program Loading ====================
 
-// ==================== Test: Mollusk Program Loading ====================
-
 #[test]
 fn test_mollusk_so_exists() {
     // The .so file is at sc-solana/target/deploy/sc_solana.so relative to workspace
@@ -289,17 +275,14 @@ fn test_mollusk_so_exists() {
 
 #[test]
 fn test_bump_seed_range() {
-    // Bump seeds should always be < 255
+    // Bump seeds are u8, so they are always in range 0-255
+    // This test verifies that PDAs can be derived with valid bump seeds
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     
-    let (_, bump) = Pubkey::find_program_address(&[b"config"], &program_id);
-    assert!(bump <= 255, "Bump seed for config should be <= 255, got {}", bump);
-    
-    let (_, bump) = Pubkey::find_program_address(&[b"deployer"], &program_id);
-    assert!(bump <= 255, "Bump seed for deployer should be <= 255, got {}", bump);
-    
-    let (_, bump) = Pubkey::find_program_address(&[b"admin"], &program_id);
-    assert!(bump <= 255, "Bump seed for admin should be <= 255, got {}", bump);
+    let (_, _bump) = Pubkey::find_program_address(&[b"config"], &program_id);
+    let (_, _bump) = Pubkey::find_program_address(&[b"deployer"], &program_id);
+    let (_, _bump) = Pubkey::find_program_address(&[b"admin"], &program_id);
+    // If we got here without panics, the bump seeds are valid
 }
 
 #[test]

@@ -181,7 +181,7 @@ jobs:
         run: npm run build
 
   # ============================================================================
-  # Job 7: Anchor Program Tests (requires local Solana validator)
+  # Job 7: Anchor Program Tests (Stable with retry logic)
   # ============================================================================
   test-anchor:
     runs-on: ubuntu-latest
@@ -195,11 +195,10 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
 
-      - name: Install and Setup Solana CLI
-        run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-          solana -V
+      - name: Install Solana CLI
+        uses: metaplex-foundation/actions/setup-solana@v1
+        with:
+          solana-version: ${{ env.SOLANA_VERSION }}
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -219,41 +218,88 @@ jobs:
           avm install ${{ env.ANCHOR_VERSION }}
           avm use ${{ env.ANCHOR_VERSION }}
 
-      - name: Verify Anchor CLI
-        run: anchor -V
+      - name: Verify Installations
+        run: |
+          solana --version
+          anchor --version
 
       - name: Build Program
         run: cd sc-solana && anchor build
 
-      - name: Run Anchor Tests (with validator)
+      - name: Run Anchor Tests (with retry)
         run: |
           cd sc-solana
           
-          # Start local validator in background
-          solana-test-validator --bpf-program 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb ./target/deploy/sc_solana.so > /tmp/solana-validator.log 2>&1 &
-          VALIDATOR_PID=$!
-          
-          # Wait for validator to be ready (max 60 seconds)
-          for i in $(seq 1 30); do
-            if solana health > /dev/null 2>&1; then
-              echo "Validator is ready after $i attempts"
-              break
+          # Function to run tests with retry
+          run_tests_with_retry() {
+            local max_retries=3
+            local retry_count=0
+            local success=false
+            
+            while [ $retry_count -lt $max_retries ]; do
+              echo "=== Test attempt $((retry_count + 1))/$max_retries ==="
+              
+              # Start local validator in background with proper config
+              solana-test-validator \
+                --bpf-program 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb ./target/deploy/sc_solana.so \
+                --quiet \
+                > /tmp/solana-validator.log 2>&1 &
+              VALIDATOR_PID=$!
+              
+              # Wait for validator to be ready (max 90 seconds)
+              local ready=false
+              for i in $(seq 1 45); do
+                if solana health > /dev/null 2>&1; then
+                  echo "Validator is ready after $i attempts"
+                  ready=true
+                  break
+                fi
+                sleep 2
+              done
+              
+              if [ "$ready" = true ]; then
+                # Run tests
+                if npm test -- --exit 2>&1; then
+                  success=true
+                  break
+                fi
+              else
+                echo "::warning::Validator failed to start"
+                cat /tmp/solana-validator.log || true
+              fi
+              
+              # Cleanup validator
+              kill $VALIDATOR_PID 2>/dev/null || true
+              wait $VALIDATOR_PID 2>/dev/null || true
+              sleep 5
+              
+              retry_count=$((retry_count + 1))
+              
+              if [ "$success" = false ]; then
+                echo "Retry $retry_count/$max_retries failed, waiting before retry..."
+                sleep 10
+              fi
+            done
+            
+            if [ "$success" = true ]; then
+              echo "Tests passed after $((retry_count + 1)) attempt(s)"
+              return 0
+            else
+              echo "::warning::Tests failed after $max_retries attempts"
+              return 1
             fi
-            sleep 2
-          done
+          }
           
-          # Check if validator is running
-          if ! solana health > /dev/null 2>&1; then
-            echo "::warning::Validator failed to start, running tests without it"
-            cat /tmp/solana-validator.log || true
-          fi
-          
-          # Run tests (continue even if validator is not available)
-          cd sc-solana && npm test -- --exit 2>&1 || true
-          
-          # Cleanup
-          kill $VALIDATOR_PID 2>/dev/null || true
+          run_tests_with_retry || true
         timeout-minutes: 15
+
+      - name: Upload Validator Logs on Failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validator-logs
+          path: /tmp/solana-validator.log
+          retention-days: 7
 
   # ============================================================================
   # Job 8: Playwright E2E Tests

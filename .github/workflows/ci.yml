@@ -96,6 +96,12 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Install Solana CLI
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/solana-labs/solana/v${{ env.SOLANA_VERSION }}/install/solana-install-init.sh | \
+          sh -s - v${{ env.SOLANA_VERSION }}
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
       - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
@@ -107,6 +113,9 @@ jobs:
         with:
           path: sc-solana/target
           key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Verify Solana CLI
+        run: solana --version
 
       - name: Build Program for SBPF (create .so file)
         run: cd sc-solana && cargo build-sbf

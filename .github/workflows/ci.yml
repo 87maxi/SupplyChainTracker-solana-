@@ -82,14 +82,11 @@ jobs:
       - name: Build Program (cargo check)
         run: cd sc-solana && cargo check --all-targets
 
-      - name: Install Anchor CLI for building .so
+      - name: Build Program with Anchor Docker (create .so file)
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor avm --locked
-          avm install ${{ env.ANCHOR_VERSION }}
-          avm use ${{ env.ANCHOR_VERSION }}
-
-      - name: Build Program with Anchor (create .so file)
-        run: cd sc-solana && anchor build
+          docker pull ghcr.io/coral-xyz/anchor:0.32.1
+          cd sc-solana
+          docker run --rm -v "$(pwd):/app" -w /app ghcr.io/coral-xyz/anchor:0.32.1 anchor build
 
       - name: Upload Program .so
         uses: actions/upload-artifact@v4

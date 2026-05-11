@@ -382,7 +382,7 @@ jobs:
   # ============================================================================
   summary:
     runs-on: ubuntu-latest
-    needs: [rust-lint, build-program, type-check, frontend-lint, test-unit, build-frontend, test-anchor, test-e2e]
+    needs: [rust-lint, build-program, test-mollusk, type-check, frontend-lint, test-unit, build-frontend, test-anchor, test-e2e]
     if: always()
     steps:
       - name: Check All Jobs Status
@@ -395,13 +395,15 @@ jobs:
           echo "Unit Tests: ${{ needs.test-unit.result }}"
           echo "Build Frontend: ${{ needs.build-frontend.result }}"
           echo "Anchor Tests: ${{ needs.test-anchor.result }}"
+          echo "Mollusk Tests: ${{ needs.test-mollusk.result }}"
           echo "E2E Tests: ${{ needs.test-e2e.result }}"
           
-          # Count failures (excluding anchor tests which may fail due to validator issues)
+          # Count failures (test-anchor may fail due to validator issues, but test-mollusk is stable)
           FAILED=0
           
           if [ "${{ needs.rust-lint.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
           if [ "${{ needs.build-program.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.test-mollusk.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
           if [ "${{ needs.type-check.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
           if [ "${{ needs.frontend-lint.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
           if [ "${{ needs.test-unit.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi

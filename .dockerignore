@@ -1,0 +1,89 @@
+# SupplyChainTracker - Docker Ignore File
+# Este archivo excluye archivos innecesarios del contexto de Docker
+
+# ==================== Node.js ====================
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.npm
+.yarn
+
+# ==================== Next.js ====================
+.next
+.nyc_output
+.next-build
+out
+dist
+build
+
+# ==================== Git ====================
+.git
+.gitignore
+.gitattributes
+
+# ==================== IDE ====================
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ==================== Tests ====================
+coverage
+.nyc_output
+*.lcov
+test-results
+playwright-report
+
+# ==================== Docker ====================
+docker-compose.override.yml
+*.md
+!docker/README.md
+
+# ==================== Documentation ====================
+docs
+*.md
+
+# ==================== Scripts ====================
+scripts
+
+# ==================== Config ====================
+config/keypairs
+*.json
+!sc-solana/programs/sc-solana/src/lib.rs
+
+# ==================== Logs ====================
+*.log
+logs
+
+# ==================== Temporary Files ====================
+tmp
+temp
+*.tmp
+*.bak
+*.cache
+
+# ==================== Environment ====================
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ==================== Rust ====================
+target
+Cargo.lock
+!sc-solana/Cargo.lock
+
+# ==================== Solana ====================
+sc-solana/target
+sc-solana/dist
+
+# ==================== Root ====================
+README.md
+LICENSE
+AGENTS.md
+ROADMAP.md

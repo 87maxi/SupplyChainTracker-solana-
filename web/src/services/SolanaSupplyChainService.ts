@@ -4,12 +4,7 @@
 
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import {
-  UnifiedSupplyChainService,
-  TransactionResult as UnifiedTransactionResult,
-  NetbookData as UnifiedNetbookData,
-  ConfigData as UnifiedConfigData,
-} from './UnifiedSupplyChainService';
+import { UnifiedSupplyChainService } from './UnifiedSupplyChainService';
 
 // ==================== Legacy Type Exports ====================
 
@@ -79,10 +74,12 @@ export class SolanaSupplyChainService {
 
   static setInstance(_instance: SolanaSupplyChainService): void {
     // No-op in new architecture; UnifiedSupplyChainService uses its own singleton
+    void _instance;
     console.warn('SolanaSupplyChainService.setInstance() is deprecated. Use UnifiedSupplyChainService.initialize() instead.');
   }
 
   static setProgram(_program: any): void {
+    void _program;
     console.warn('SolanaSupplyChainService.setProgram() is deprecated.');
   }
 
@@ -188,7 +185,7 @@ export class SolanaSupplyChainService {
     }
   }
 
-  async approveRoleRequest(requestId: number, approver: PublicKey): Promise<TransactionResult> {
+  async approveRoleRequest(_requestId: number, _approver: PublicKey): Promise<TransactionResult> {
     console.warn('approveRoleRequest with requestId is deprecated. Use UnifiedSupplyChainService.approveRoleRequest(role) instead.');
     try {
       const signature = await this.unifiedService.approveRoleRequest('');
@@ -198,7 +195,7 @@ export class SolanaSupplyChainService {
     }
   }
 
-  async rejectRoleRequest(requestId: number): Promise<TransactionResult> {
+  async rejectRoleRequest(_requestId: number): Promise<TransactionResult> {
     console.warn('rejectRoleRequest with requestId is deprecated. Use UnifiedSupplyChainService.rejectRoleRequest(role) instead.');
     try {
       const signature = await this.unifiedService.rejectRoleRequest('');
@@ -227,6 +224,7 @@ export class SolanaSupplyChainService {
   }
 
   async getAccountBalance(_address: PublicKey): Promise<number> {
+    void _address;
     console.warn('getAccountBalance is not implemented in UnifiedSupplyChainService');
     return 0;
   }
@@ -252,6 +250,7 @@ export class SolanaSupplyChainService {
   }
 
   async getRoleRequest(_userAddress: PublicKey): Promise<any> {
+    void _userAddress;
     const requests = await this.unifiedService.getRoleRequests();
     return requests[0] || null;
   }

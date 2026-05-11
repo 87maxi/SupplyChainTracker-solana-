@@ -3,10 +3,8 @@
 import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Factory, ShieldCheck, Gavel } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { AnalyticsChart } from './components/AnalyticsChart';
 import { DateRangeSelector } from './components/DateRangeSelector';
 import { useAnalyticsData } from '@/hooks/useAnalyticsData';
@@ -18,10 +16,9 @@ import { useAnalyticsData } from '@/hooks/useAnalyticsData';
  * y herramientas para análisis de la red de participantes.
  */
 export default function AnalyticsPage() {
-  const { address, isConnected, connectWallet } = useSolanaWeb3();
+  const { isConnected, connectWallet } = useSolanaWeb3();
   const { isAdmin, isLoading: rolesLoading } = useUserRoles();
-  const { toast } = useToast();
-  const { data, stats, isLoading: analyticsLoading, error } = useAnalyticsData();
+  const { data, stats, isLoading: analyticsLoading } = useAnalyticsData();
 
   const loading = rolesLoading || analyticsLoading;
 

@@ -78,7 +78,6 @@ export function SolanaWalletProvider({ children }: { children: ReactNode }) {
       // Note: Backpack and other Wallet Standard wallets are auto-detected
       // by the wallet adapter without needing explicit configuration
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [network]
   );
 

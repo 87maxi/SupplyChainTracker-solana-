@@ -135,7 +135,7 @@ export class SolanaEventListener {
       try {
         callback(event);
       } catch (error) {
-        // eslint-disable-next-line no-console
+         
         console.error('Error in event callback:', error);
       }
     }
@@ -152,8 +152,8 @@ export class SolanaEventListener {
     
     console.log(`🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
     
-    // eslint-disable-next-line no-restricted-globals
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, no-restricted-globals
+     
+     
     setTimeout(async () => {
       await this.start();
     }, delay);

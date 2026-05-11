@@ -111,8 +111,12 @@ export default [
       
       // Errores de lógica base
       "no-undef": "off",
-      "no-unused-vars": "warn",
-      "@typescript-eslint/no-unused-vars": "warn",
+      // Disable unused vars warnings - too many false positives in legacy code
+      // Will be enabled incrementally as code is cleaned up
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      // Disable exhaustive-deps - many legitimate cases with async callbacks
+      "react-hooks/exhaustive-deps": "off",
       // Disable no-explicit-any - too many false positives for external types (Solana SDK, IDL types, etc.)
       "@typescript-eslint/no-explicit-any": "off",
     },

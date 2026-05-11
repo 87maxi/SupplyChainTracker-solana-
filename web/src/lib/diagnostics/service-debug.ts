@@ -29,7 +29,7 @@ function logAudit(message: string, service?: string, method?: string, error?: un
     error
   };
   serviceAuditLog.push(entry);
-  // eslint-disable-next-line no-console
+   
   console.log(`[AUDIT] ${message}`, service ? `(${service})` : '', method ? `-> ${method}` : '', error ? `: ${error}` : '');
 }
 

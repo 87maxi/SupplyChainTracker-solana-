@@ -7,7 +7,7 @@ import { contractRegistry } from '@/services/contract-registry.service';
 export default function DebugComponent() {
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     try {

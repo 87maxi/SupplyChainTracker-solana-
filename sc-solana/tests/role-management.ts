@@ -28,9 +28,15 @@ import {
   fundKeypair,
   fundAndInitialize,
   grantRoleWithAdminPda,
+  ensureAllFunds,
   approveRoleRequestWithAdminPda,
   RequestStatus,
 } from "./test-helpers";
+import {
+  isTestStateClean,
+  resetTestState,
+  logTestEnvironment,
+} from "./test-isolation";
 
 // Role constants (matching the program)
 const FABRICANTE_ROLE = "FABRICANTE";
@@ -71,7 +77,7 @@ describe("Role Management Integration Tests", () => {
       anchor.setProvider(updatedProvider);
       program = new anchor.Program({ ...idl, address: programId.toString() }, updatedProvider);
     }
-    
+
     // Generate test accounts (each test needs fresh accounts for proper isolation)
     admin = Keypair.generate();
     fabricante = Keypair.generate();
@@ -80,7 +86,26 @@ describe("Role Management Integration Tests", () => {
     escuela = Keypair.generate();
     randomUser = Keypair.generate();
 
-    // Fund all accounts
+    // Check test state before initialization
+    const { clean, accountCount } = await isTestStateClean(
+      provider.connection,
+      program.programId
+    );
+
+    if (!clean) {
+      console.log(`[Role Management] Resetting test state: ${accountCount} accounts found`);
+      try {
+        await resetTestState(
+          provider,
+          [admin, fabricante, auditor, tecnico, escuela, randomUser],
+          5
+        );
+      } catch (e: any) {
+        console.warn("[Role Management] State reset failed (continuing anyway):", e.message);
+      }
+    }
+
+    // Fund all accounts with sufficient balance for all operations
     for (const kp of [admin, fabricante, auditor, tecnico, escuela, randomUser]) {
       await fundKeypair(provider, kp, 2);
     }
@@ -89,15 +114,12 @@ describe("Role Management Integration Tests", () => {
     [adminPda, adminBump] = getAdminPda(configPda, program.programId);
 
     // Initialize using shared initialization (Issue #178)
-    await fundAndInitialize(program, provider, admin);
+    // Use force=true to ensure fresh state for test isolation
+    await fundAndInitialize(program, provider, admin, { force: true });
 
-    // Fund accounts if needed
-    for (const kp of [fabricante, auditor, tecnico, escuela]) {
-      const balance = await provider.connection.getBalance(kp.publicKey);
-      if (balance < 0.5 * LAMPORTS_PER_SOL) {
-        await fundKeypair(provider, kp, 2);
-      }
-    }
+    // Ensure ALL accounts have sufficient funds for operations like requestRole
+    // requestRole needs ~0.003 SOL for rent, but we give 5 SOL for safety
+    await ensureAllFunds(provider, [admin, fabricante, auditor, tecnico, escuela, randomUser], 5);
   });
 
   describe("Grant Role Operations", () => {

@@ -34,3 +34,38 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Testing
+
+### Unit Tests (Jest)
+```bash
+npm run test           # Run all unit tests
+npm run test:unit      # Same as test
+npm run test:coverage  # Run with coverage report
+npm run test:watch     # Run in watch mode
+```
+
+### E2E Tests (Playwright)
+```bash
+npm run test:e2e              # Run E2E tests headless
+npm run test:e2e:ui           # Run with Playwright UI mode
+npm run test:e2e:headed       # Run with browser window visible
+npm run test:e2e:report       # Show existing test report
+```
+
+### Run All Tests
+```bash
+npm run test:all  # Run unit + E2E tests sequentially
+```
+
+### Test Scripts
+```bash
+./scripts/run-unit-tests.sh  # Run unit tests via bash script
+./scripts/run-e2e-tests.sh   # Run E2E tests via bash script
+./scripts/run-all-tests.sh   # Run all tests via bash script
+```
+
+### Test Structure
+- **Unit/Integration Tests**: Located in `web/src/` with `.test.ts` or `.spec.ts` suffix
+- **E2E Tests**: Located in `web/e2e/` using Playwright
+- **Solana Program Tests**: Located in `sc-solana/tests/` using Anchor framework

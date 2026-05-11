@@ -113,7 +113,7 @@ export function ApprovedAccountsList() {
         }
     }, [getAllRolesSummary, toast]);
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         fetchMembers(false);

@@ -112,7 +112,7 @@ export default function TokensPage() {
         clearCaches();
 
         // Refresh the netbooks list with a delay to avoid cascading renders
-        // eslint-disable-next-line no-restricted-globals
+         
         setTimeout(() => {
           fetchNetbooks();
         }, 100);

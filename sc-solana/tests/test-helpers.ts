@@ -354,6 +354,49 @@ export async function fundAllAccounts(
 }
 
 // ============================================================================
+
+/**
+ * Ensure a keypair has sufficient SOL for operations that require rent/payment.
+ * This is specifically for operations like requestRole that need payer funds.
+ * 
+ * Minimum balance: 5 SOL (enough for rent + transaction fees)
+ */
+export async function ensureSufficientFunds(
+  provider: AnchorProvider,
+  keypair: Keypair,
+  minSol: number = 5
+): Promise<string> {
+  const balance = await provider.connection.getBalance(keypair.publicKey);
+  const minLamports = minSol * anchor.web3.LAMPORTS_PER_SOL;
+  
+  if (balance < minLamports) {
+    const amount = minLamports - balance;
+    const signature = await provider.connection.requestAirdrop(
+      keypair.publicKey,
+      amount
+    );
+    await provider.connection.confirmTransaction(signature, "confirmed");
+    return signature;
+  }
+  return "";
+}
+
+/**
+ * Ensure multiple accounts have sufficient funds.
+ */
+export async function ensureAllFunds(
+  provider: AnchorProvider,
+  accounts: Keypair[],
+  minSol: number = 5
+): Promise<string[]> {
+  const signatures: string[] = [];
+  for (const account of accounts) {
+    const sig = await ensureSufficientFunds(provider, account, minSol);
+    if (sig) signatures.push(sig);
+  }
+  return signatures;
+}
+
 // Deployer PDA Helper Functions
 // ============================================================================
 
@@ -448,34 +491,67 @@ export async function executeWithAdminPda(
 }
 
 /**
- * Execute any instruction with admin PDA signing automatically added.
- * This is a convenience wrapper that takes the method name and arguments
- * and handles all the PDA signing details.
+ * Execute grantRole instruction with admin PDA verification.
+ *
+ * IMPORTANT: grantRole requires account_to_grant to be a signer (consent-based granting).
+ * This is different from other instructions that use executeWithAdminPda.
+ *
+ * The Rust instruction signature (grant.rs):
+ * - config: Account<'info, SupplyChainConfig> (mut)
+ * - admin: UncheckedAccount<'info> (PDA verified, NOT signer)
+ * - account_to_grant: Signer<'info> (MUST sign)
+ * - systemProgram: Program<'info, System>
  */
 export async function grantRoleWithAdminPda(
   program: Program<ScSolana>,
   provider: AnchorProvider,
   configPda: PublicKey,
   adminPda: PublicKey,
-  adminBump: number,
+  _adminBump: number,
   role: string,
   accountToGrant: PublicKey,
   signer: Keypair
 ): Promise<string> {
-  return executeWithAdminPda(
-    program,
-    provider,
-    configPda,
-    adminPda,
-    adminBump,
-    program.methods.grantRole(role),
-    {
-      config: configPda,
-      accountToGrant,
-      systemProgram: SystemProgram.programId,
-    },
-    [signer]
-  );
+  // Build accounts - note: admin is UncheckedAccount, NOT a signer
+  const allAccounts = {
+    config: configPda,
+    admin: adminPda,
+    accountToGrant,
+    systemProgram: SystemProgram.programId,
+  };
+
+  const instruction: TransactionInstruction = await program.methods
+    .grantRole(role)
+    .accounts(allAccounts)
+    .instruction();
+
+  const { blockhash } = await provider.connection.getLatestBlockhash("max");
+
+  // Compute budget for priority fee
+  const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({ units: 1000000 });
+  
+  // Build transaction message
+  const message = new TransactionMessage({
+    payerKey: signer.publicKey,
+    recentBlockhash: blockhash,
+    instructions: [computeBudgetIx, instruction],
+  });
+
+  // Create versioned transaction
+  const compiledMessage = message.compileToV0Message([]);
+  const tx = new VersionedTransaction(compiledMessage);
+
+  // signer is account_to_grant who must sign (consent-based)
+  tx.sign([signer]);
+
+  // Send with skipPreflight for reliability
+  const signature = await provider.connection.sendTransaction(tx, {
+    skipPreflight: true,
+    maxRetries: 5,
+  });
+
+  await provider.connection.confirmTransaction(signature, "confirmed");
+  return signature;
 }
 
 /**
@@ -514,6 +590,16 @@ let _initPromise: Promise<string> | null = null;
 let _initialized = false;
 
 /**
+ * Initialization options interface
+ */
+export interface FundAndInitializeOptions {
+  /** Amount of lamports to fund the deployer PDA (default: 20 SOL for parallel tests) */
+  amount?: number;
+  /** Force re-initialization even if config already exists (for test isolation) */
+  force?: boolean;
+}
+
+/**
  * Fund the deployer PDA and initialize the config in one step.
  * This is the PDA-first initialization pattern that replaces the old
  * pattern of using an external signer for initialize.
@@ -524,14 +610,27 @@ let _initialized = false;
  * @param program - Anchor program instance
  * @param provider - Anchor provider
  * @param funder - Keypair that will fund the deployer PDA (must have SOL)
- * @param amount - Amount of lamports to fund the deployer PDA (default: 20 SOL for parallel tests)
+ * @param options - Optional configuration (amount, force re-initialization)
  */
 export async function fundAndInitialize(
   program: Program<ScSolana>,
   provider: AnchorProvider,
   funder: Keypair,
-  amount: number = 20 * anchor.web3.LAMPORTS_PER_SOL
+  options?: number | FundAndInitializeOptions
 ): Promise<string> {
+  // Handle both old signature (amount as number) and new signature (options object)
+  let amount: number;
+  let force: boolean = false;
+
+  if (typeof options === 'number') {
+    amount = options;
+  } else if (options) {
+    amount = options.amount ?? 20 * anchor.web3.LAMPORTS_PER_SOL;
+    force = options.force ?? false;
+  } else {
+    amount = 20 * anchor.web3.LAMPORTS_PER_SOL;
+  }
+
   // Return the transaction signature as string
   // Always ensure funder has enough SOL (outside lock, so every caller gets funded)
   const funderBalance = await provider.connection.getBalance(funder.publicKey);
@@ -545,18 +644,38 @@ export async function fundAndInitialize(
     await provider.connection.confirmTransaction(airdropTx, "confirmed");
   }
 
-  // Already initialized, skip
-  if (_initialized) {
+  // Check if config already exists
+  const [configPda] = getConfigPda(program);
+  let configExists = true;
+  try {
+    await program.account.supplyChainConfig.fetch(configPda);
+  } catch {
+    configExists = false;
+  }
+
+  // If config exists and force is not set, return existing state
+  if (configExists && !force) {
+    console.log("Config already exists, skipping initialization");
+    return "";
+  }
+
+  // If force is set and config exists, log that we're bypassing
+  if (configExists && force) {
+    console.log("Force initialization requested - config exists but will be bypassed");
+  }
+
+  // Already initialized (and no force), skip
+  if (_initialized && !force) {
     return "";
   }
 
   // If another test is already initializing, wait for it
-  if (_initPromise) {
+  if (_initPromise && !force) {
     return _initPromise;
   }
 
   // This test will perform the initialization
-  _initPromise = _performInitialization(program, provider, funder, amount);
+  _initPromise = _performInitialization(program, provider, funder, amount, force);
   return _initPromise;
 }
 
@@ -567,7 +686,8 @@ async function _performInitialization(
   program: Program<ScSolana>,
   provider: AnchorProvider,
   funder: Keypair,
-  amount: number
+  amount: number,
+  force: boolean = false
 ): Promise<string> {
   const [configPda] = getConfigPda(program);
   const serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
@@ -591,11 +711,13 @@ async function _performInitialization(
     // Check if config already exists (idempotent initialization)
     try {
       const existingConfig = await program.account.supplyChainConfig.fetchNullable(configPda);
-      if (existingConfig) {
+      if (existingConfig && !force) {
         console.log("Config already exists, skipping initialization");
         _initialized = true;
         return "";
       }
+      // If force is true and config exists, we still try to initialize
+      // The program will handle the error if initialization fails
     } catch (e: any) {
       // Account doesn't exist yet, continue with initialization
       if (!e.message.includes("does not exist")) {

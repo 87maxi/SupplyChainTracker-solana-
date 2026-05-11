@@ -43,6 +43,12 @@ import {
   StudentAssignmentData,
 } from "./test-helpers";
 
+// Import test isolation utilities
+import {
+  isTestStateClean,
+  resetTestState,
+} from "./test-isolation";
+
 // ============================================================================
 // Test Data Constants
 // ============================================================================
@@ -249,6 +255,25 @@ describe("Lifecycle Integration Tests", () => {
    * Setup: Fund accounts and initialize program
    */
   before(async () => {
+    // Check test state before initialization
+    const { clean, accountCount } = await isTestStateClean(
+      provider.connection,
+      program.programId
+    );
+
+    if (!clean) {
+      console.log(`[Lifecycle] Resetting test state: ${accountCount} accounts found`);
+      try {
+        await resetTestState(
+          provider,
+          [admin, fabricante, auditor, technician, school],
+          5
+        );
+      } catch (e: any) {
+        console.warn("[Lifecycle] State reset failed (continuing anyway):", e.message);
+      }
+    }
+
     // Fund all test accounts
     await fundKeypair(provider, admin);
     await fundKeypair(provider, fabricante);
@@ -263,9 +288,9 @@ describe("Lifecycle Integration Tests", () => {
       program.programId
     )[0];
 
-    // Initialize program using PDA-first pattern
+    // Initialize program using PDA-first pattern with force=true for test isolation
     const funder = Keypair.generate();
-    await fundAndInitialize(program, provider, admin);
+    await fundAndInitialize(program, provider, admin, { force: true });
     [adminPda, adminBump] = getAdminPda(configPda, program.programId);
   });
 
@@ -281,8 +306,7 @@ describe("Lifecycle Integration Tests", () => {
       console.log("Step 1: Granting FABRICANTE role...");
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         fabricante,
         ROLE_TYPES.FABRICANTE
       );
@@ -311,8 +335,7 @@ describe("Lifecycle Integration Tests", () => {
       console.log("\nStep 3: Granting AUDITOR_HW role...");
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         auditor,
         ROLE_TYPES.AUDITOR_HW
       );
@@ -340,8 +363,7 @@ describe("Lifecycle Integration Tests", () => {
       console.log("\nStep 5: Granting TECNICO_SW role...");
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         technician,
         ROLE_TYPES.TECNICO_SW
       );
@@ -372,8 +394,7 @@ describe("Lifecycle Integration Tests", () => {
       console.log("\nStep 7: Granting ESCUELA role...");
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         school,
         ROLE_TYPES.ESCUELA
       );
@@ -418,15 +439,13 @@ describe("Lifecycle Integration Tests", () => {
       // Grant roles
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         fabricante,
         ROLE_TYPES.FABRICANTE
       );
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         auditor,
         ROLE_TYPES.AUDITOR_HW
       );
@@ -481,15 +500,13 @@ describe("Lifecycle Integration Tests", () => {
         // Setup
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           fabricante,
           ROLE_TYPES.FABRICANTE
         );
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           technician,
           ROLE_TYPES.TECNICO_SW
         );
@@ -537,22 +554,19 @@ describe("Lifecycle Integration Tests", () => {
         // Setup
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           fabricante,
           ROLE_TYPES.FABRICANTE
         );
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           auditor,
           ROLE_TYPES.AUDITOR_HW
         );
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           school,
           ROLE_TYPES.ESCUELA
         );
@@ -616,29 +630,25 @@ describe("Lifecycle Integration Tests", () => {
         // Setup - create a fully distributed netbook
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           fabricante,
           ROLE_TYPES.FABRICANTE
         );
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           auditor,
           ROLE_TYPES.AUDITOR_HW
         );
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           technician,
           ROLE_TYPES.TECNICO_SW
         );
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           school,
           ROLE_TYPES.ESCUELA
         );
@@ -764,29 +774,25 @@ describe("Lifecycle Integration Tests", () => {
         // Setup roles
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           fabricante,
           ROLE_TYPES.FABRICANTE
         );
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           auditor,
           ROLE_TYPES.AUDITOR_HW
         );
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           technician,
           ROLE_TYPES.TECNICO_SW
         );
         await grantRole(
           program,
-          configPda,
-          admin,
+          configPda, admin.publicKey,
           school,
           ROLE_TYPES.ESCUELA
         );

@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-globals */
+ 
 /**
  * Solana Event Provider
  *
@@ -61,13 +61,13 @@ export function SolanaEventProvider({ children }: { children: ReactNode }) {
       setIsProcessing(true);
       
       // Clear processing state after a delay
-      // eslint-disable-next-line no-restricted-globals
+       
       const timer = setTimeout(() => {
         setIsProcessing(false);
       }, 3000);
       
       return () => {
-        // eslint-disable-next-line no-restricted-globals
+         
         clearTimeout(timer);
       };
     }

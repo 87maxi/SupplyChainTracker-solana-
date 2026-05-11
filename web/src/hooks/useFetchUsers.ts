@@ -73,7 +73,7 @@ export function useFetchUsers(params: { page?: number; limit?: number; role?: st
     }
   };
   
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+   
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchUsers();

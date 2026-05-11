@@ -126,7 +126,7 @@ export default function ManagerDashboard() {
         clearCaches();
 
         // Refresh dashboard data with a delay
-        // eslint-disable-next-line no-restricted-globals
+         
         setTimeout(() => {
           fetchDashboardData();
         }, 100);

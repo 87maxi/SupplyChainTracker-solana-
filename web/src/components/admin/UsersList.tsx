@@ -122,7 +122,7 @@ export function UsersList() {
   };
 
   // Fetch users when component mounts or connection changes
-  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isConnected) {
       fetchUsers();

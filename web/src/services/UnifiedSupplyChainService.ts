@@ -38,7 +38,6 @@ function findAdminPda(configPda: PublicKey): [PublicKey, number] {
   );
 }
 import { CacheService, CACHE_TAGS } from '@/lib/cache/cache-service';
-import { safeJsonStringify } from '@/lib/utils';
 
 // Use Program<any> to avoid deep type instantiation issues with Anchor IDL
 type AnchorProgram = Program<any>;

@@ -1,0 +1,52 @@
+# ============================================================================
+# SupplyChainTracker - Dockerfile para Tests E2E de Playwright
+# ============================================================================
+# Esta imagen incluye Playwright y todas las dependencias necesarias para
+# ejecutar los tests E2E del frontend Next.js.
+# ============================================================================
+
+# ---- Stage: Base ----
+FROM mcr.microsoft.com/playwright:v1.40.0-jammy AS base
+
+# Configurar directorio de trabajo
+WORKDIR /app/web
+
+# Instalar Yarn
+RUN apt-get update && apt-get install -y curl && \
+    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
+    echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list && \
+    apt-get update && \
+    apt-get install -y yarn && \
+    yarn config set prefix /usr/local && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Configurar npm registry globalmente
+RUN npm config set registry https://registry.npmjs.org/
+
+# ---- Stage: Dependencies ----
+FROM base AS deps
+
+# Copiar solo los archivos de dependencias primero (capa caché)
+COPY web/package.json web/package-lock.json ./
+
+# Instalar dependencias de producción y desarrollo
+RUN npm ci --no-audit --no-fund || yarn install --frozen-lockfile
+
+# ---- Stage: Test Runner ----
+FROM base AS test-runner
+
+# Instalar dependencias del sistema para Playwright
+RUN npx playwright install-deps && \
+    npx playwright install chromium
+
+# Copiar dependencias instaladas
+COPY --from=deps /app/web/node_modules ./node_modules
+
+# Copiar el código fuente del proyecto web
+COPY web/ ./
+
+# Verificar instalación de Playwright
+RUN npx playwright --version
+
+# Comando por defecto: ejecutar tests E2E
+CMD ["npx", "playwright", "test", "--reporter=list"]

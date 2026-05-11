@@ -19,8 +19,6 @@ export default function AuditPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  // Initialize mounted directly to avoid set-state-in-effect
-  const [mounted] = useState(() => typeof window !== 'undefined');
 
   // Load audit logs from localStorage (Solana-compatible approach)
   useEffect(() => {
@@ -89,7 +87,7 @@ export default function AuditPage() {
     try {
       const date = new Date(dateString);
       return formatDistanceToNow(date, { addSuffix: true, locale: es });
-    } catch (error) {
+    } catch {
       return 'Fecha inválida';
     }
   };

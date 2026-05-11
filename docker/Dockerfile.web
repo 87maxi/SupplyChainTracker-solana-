@@ -1,0 +1,51 @@
+# ============================================================================
+# SupplyChainTracker - Dockerfile para Servidor de Desarrollo Next.js
+# ============================================================================
+# Esta imagen está optimizada para desarrollo con hot reload.
+# Usa volume mounts para que los cambios en el código se reflejen inmediatamente.
+# ============================================================================
+
+# ---- Stage: Base ----
+FROM node:20-alpine AS base
+
+# Instalar Yarn
+RUN corepack enable && corepack prepare yarn@1.22.22 --activate
+
+# Configurar directorio de trabajo
+WORKDIR /app/web
+
+# Configurar npm registry globalmente
+RUN npm config set registry https://registry.npmjs.org/
+
+# ---- Stage: Dependencies ----
+FROM base AS deps
+
+# Copiar solo los archivos de dependencias primero (capa caché)
+COPY web/package.json web/package-lock.json ./
+
+# Instalar dependencias
+RUN npm ci --no-audit --no-fund || yarn install --frozen-lockfile
+
+# ---- Stage: Development ----
+FROM base AS development
+
+# Variables de entorno para desarrollo
+ENV NODE_ENV=development
+ENV CHOKIDAR_USEPOLLING=true
+ENV NEXT_TELEMETRY_DISABLED=0
+
+# Copiar dependencias instaladas
+COPY --from=deps /app/web/node_modules ./node_modules
+
+# Copiar el código fuente del proyecto web
+COPY web/ ./
+
+# Exponer el puerto del servidor de desarrollo
+EXPOSE 3000
+
+# Script de healthcheck
+HEALTHCHECK --interval=10s --timeout=5s --retries=10 --start-period=30s \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+
+# Comando para iniciar el servidor de desarrollo con hot reload
+CMD ["sh", "-c", "npm run dev -- -p 3000 -H 0.0.0.0"]

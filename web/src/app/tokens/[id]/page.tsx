@@ -66,7 +66,7 @@ export default function TokenDetailsPage({ params }: TokenDetailsProps) {
         clearCaches();
 
         // Refresh the netbook data with a delay to avoid cascading renders
-        // eslint-disable-next-line no-restricted-globals
+         
         setTimeout(() => {
           fetchNetbook();
         }, 100);

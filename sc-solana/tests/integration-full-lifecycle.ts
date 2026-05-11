@@ -40,6 +40,12 @@ import {
   SoftwareValidationData,
 } from "./test-helpers";
 
+// Import test isolation utilities
+import {
+  isTestStateClean,
+  resetTestState,
+} from "./test-isolation";
+
 // ============================================================================
 // Test Data Constants
 // ============================================================================
@@ -219,6 +225,25 @@ describe("Integration Testing with Local Solana Network", () => {
   before(async () => {
     console.log("\n=== Setting up Integration Test Environment ===\n");
 
+    // Check test state before initialization
+    const { clean, accountCount } = await isTestStateClean(
+      provider.connection,
+      program.programId
+    );
+
+    if (!clean) {
+      console.log(`[Integration Full Lifecycle] Resetting test state: ${accountCount} accounts found`);
+      try {
+        await resetTestState(
+          provider,
+          [admin, fabricante, auditor, technician, school, estudiante],
+          5
+        );
+      } catch (e: any) {
+        console.warn("[Integration Full Lifecycle] State reset failed (continuing anyway):", e.message);
+      }
+    }
+
     // Fund all test accounts
     console.log("Funding test accounts...");
     await fundKeypair(provider, admin);
@@ -233,9 +258,9 @@ describe("Integration Testing with Local Solana Network", () => {
     [configPda, configBump] = getConfigPda(program);
     serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
 
-    // Initialize program using PDA-first pattern
+    // Initialize program using PDA-first pattern with force=true for test isolation
     const funder = Keypair.generate();
-    await fundAndInitialize(program, provider, admin);
+    await fundAndInitialize(program, provider, admin, { force: true });
     [adminPda, adminBump] = getAdminPda(configPda, program.programId);
   });
 
@@ -251,8 +276,7 @@ describe("Integration Testing with Local Solana Network", () => {
       console.log("Step 1: Granting FABRICANTE role...");
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         fabricante,
         ROLE_TYPES.FABRICANTE
       );
@@ -283,8 +307,7 @@ describe("Integration Testing with Local Solana Network", () => {
       console.log("\nStep 3: Granting AUDITOR_HW role...");
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         auditor,
         ROLE_TYPES.AUDITOR_HW
       );
@@ -312,8 +335,7 @@ describe("Integration Testing with Local Solana Network", () => {
       console.log("\nStep 5: Granting TECNICO_SW role...");
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         technician,
         ROLE_TYPES.TECNICO_SW
       );
@@ -341,8 +363,7 @@ describe("Integration Testing with Local Solana Network", () => {
       console.log("\nStep 7: Granting ESCUELA role...");
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         school,
         ROLE_TYPES.ESCUELA
       );
@@ -618,8 +639,7 @@ describe("Integration Testing with Local Solana Network", () => {
       // Grant FABRICANTE role to random user
       await grantRole(
         program,
-        configPda,
-        admin,
+        configPda, admin.publicKey,
         randomUser,
         ROLE_TYPES.FABRICANTE
       );

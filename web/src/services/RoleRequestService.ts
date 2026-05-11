@@ -2,7 +2,6 @@
 // Service implementation for role requests - fully integrated with Solana blockchain
 
 import { UnifiedSupplyChainService } from './UnifiedSupplyChainService';
-import { PublicKey } from '@solana/web3.js';
 
 // Role request interface for UI
 export interface RoleRequest {

@@ -1,0 +1,174 @@
+# SupplyChainTracker - Docker Compose para Tests E2E de Playwright
+#
+# Este archivo configura los servicios necesarios para ejecutar
+# los tests E2E del frontend Next.js con Playwright.
+#
+# Servicios:
+#   - web-dev:     Servidor de desarrollo de Next.js (puerto 3000)
+#   - playwright:  Servicio para ejecutar tests E2E headless
+#   - playwright-ui: Servicio para la interfaz visual de Playwright (puerto 9323)
+
+services:
+  # ============================================================================
+  # Servidor de desarrollo de Next.js
+  # ============================================================================
+  web-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        - NODE_ENV=development
+    container_name: supplychain-web-dev
+    working_dir: /app/web
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../web:/app/web
+      - ../web/node_modules:/app/web/node_modules
+      - type: bind
+        source: ../web/.env.local
+        target: /app/web/.env.local
+        read_only: true
+      - type: bind
+        source: ../web/.env.example
+        target: /app/web/.env.example
+        read_only: true
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_PROGRAM_ID=${NEXT_PUBLIC_PROGRAM_ID:-0000000000000000000000000000000000000000}
+      - NEXT_PUBLIC_RPC_URL=${NEXT_PUBLIC_RPC_URL:-http://localhost:8899}
+      - NEXT_PUBLIC_CLUSTER=${NEXT_PUBLIC_CLUSTER:-devnet}
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    networks:
+      - e2e-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ============================================================================
+  # Servicio para ejecutar tests E2E (headless)
+  # ============================================================================
+  playwright:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.playwright
+    container_name: supplychain-playwright
+    working_dir: /app/web
+    volumes:
+      - ../web:/app/web
+      - ../web/node_modules:/app/web/node_modules
+      - playwright-results:/app/web/playwright-report
+      - playwright-test-results:/app/web/test-results
+    environment:
+      - NODE_ENV=test
+      - NEXT_PUBLIC_PROGRAM_ID=${NEXT_PUBLIC_PROGRAM_ID:-0000000000000000000000000000000000000000}
+      - NEXT_PUBLIC_RPC_URL=${NEXT_PUBLIC_RPC_URL:-http://web-dev:3000}
+      - NEXT_PUBLIC_CLUSTER=${NEXT_PUBLIC_CLUSTER:-devnet}
+      - NEXT_PUBLIC_APP_URL=http://web-dev:3000
+      - CI=true
+    depends_on:
+      web-dev:
+        condition: service_healthy
+    networks:
+      - e2e-network
+    command: ["npx", "playwright", "test", "--reporter=list"]
+
+  # ============================================================================
+  # Servicio para la interfaz visual de Playwright (UI Mode)
+  # ============================================================================
+  playwright-ui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.playwright
+    container_name: supplychain-playwright-ui
+    working_dir: /app/web
+    ports:
+      - "9323:9323"
+    volumes:
+      - ../web:/app/web
+      - ../web/node_modules:/app/web/node_modules
+      - playwright-results:/app/web/playwright-report
+      - playwright-test-results:/app/web/test-results
+    environment:
+      - NODE_ENV=test
+      - NEXT_PUBLIC_PROGRAM_ID=${NEXT_PUBLIC_PROGRAM_ID:-0000000000000000000000000000000000000000}
+      - NEXT_PUBLIC_RPC_URL=${NEXT_PUBLIC_RPC_URL:-http://web-dev:3000}
+      - NEXT_PUBLIC_CLUSTER=${NEXT_PUBLIC_CLUSTER:-devnet}
+      - NEXT_PUBLIC_APP_URL=http://web-dev:3000
+    depends_on:
+      web-dev:
+        condition: service_healthy
+    networks:
+      - e2e-network
+    command: ["npx", "playwright", "test", "--ui", "--ui-port=9323"]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9323"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ============================================================================
+  # Servicio orquestador para ejecutar los tests E2E completos
+  # ============================================================================
+  e2e:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.playwright
+    container_name: supplychain-e2e
+    working_dir: /app/web
+    volumes:
+      - ../web:/app/web
+      - ../web/node_modules:/app/web/node_modules
+      - playwright-results:/app/web/playwright-report
+      - playwright-test-results:/app/web/test-results
+    environment:
+      - NODE_ENV=test
+      - NEXT_PUBLIC_PROGRAM_ID=${NEXT_PUBLIC_PROGRAM_ID:-0000000000000000000000000000000000000000}
+      - NEXT_PUBLIC_RPC_URL=${NEXT_PUBLIC_RPC_URL:-http://web-dev:3000}
+      - NEXT_PUBLIC_CLUSTER=${NEXT_PUBLIC_CLUSTER:-devnet}
+      - NEXT_PUBLIC_APP_URL=http://web-dev:3000
+      - CI=true
+    depends_on:
+      web-dev:
+        condition: service_healthy
+    networks:
+      - e2e-network
+    command: >
+      sh -c "
+        echo 'Esperando a que el servidor web esté listo...' &&
+        npx playwright install --with-deps chromium &&
+        npx playwright test --reporter=html
+      "
+
+# ============================================================================
+# Volúmenes para compartir datos entre servicios
+# ============================================================================
+volumes:
+  playwright-results:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./web/playwright-report
+  playwright-test-results:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./web/test-results
+
+# ============================================================================
+# Redes aisladas para los servicios
+# ============================================================================
+networks:
+  e2e-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

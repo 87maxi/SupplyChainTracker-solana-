@@ -55,7 +55,7 @@ jobs:
         run: cd sc-solana && cargo clippy -- -D warnings
 
   # ============================================================================
-  # Job 2: Build Solana Program (cargo build + Anchor build for .so)
+  # Job 2: Build Solana Program (cargo check only)
   # ============================================================================
   build-program:
     runs-on: ubuntu-latest
@@ -82,24 +82,11 @@ jobs:
       - name: Build Program (cargo check)
         run: cd sc-solana && cargo check --all-targets
 
-      - name: Build Program with Anchor Docker (create .so file)
-        run: |
-          docker pull ghcr.io/coral-xyz/anchor:0.32.1
-          cd sc-solana
-          docker run --rm -v "$(pwd):/app" -w /app ghcr.io/coral-xyz/anchor:0.32.1 anchor build
-
-      - name: Upload Program .so
-        uses: actions/upload-artifact@v4
-        with:
-          name: program-so
-          path: sc-solana/target/deploy/sc_solana.so
-
   # ============================================================================
   # Job 2b: Mollusk Tests (In-process SVM testing - no validator needed)
   # ============================================================================
   test-mollusk:
     runs-on: ubuntu-latest
-    needs: [build-program]
     steps:
       - uses: actions/checkout@v4
 
@@ -108,16 +95,19 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Download Program .so
-        uses: actions/download-artifact@v4
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
         with:
-          name: program-so
-          path: sc-solana/target/deploy/
+          path: ~/.cargo/registry
+          key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
 
-      - name: Verify Program .so exists
-        run: ls -la sc-solana/target/deploy/sc_solana.so
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: sc-solana/target
+          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
 
-      - name: Run Mollusk Tests
+      - name: Run Mollusk Tests (no .so file required)
         run: cd sc-solana/programs/sc-solana && cargo test --test mollusk-tests
 
   # ============================================================================

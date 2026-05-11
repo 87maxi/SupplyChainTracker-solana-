@@ -55,7 +55,7 @@ jobs:
         run: cd sc-solana && cargo clippy -- -D warnings
 
   # ============================================================================
-  # Job 2: Build Solana Program (cargo build + SBPF)
+  # Job 2: Build Solana Program (cargo build + Anchor build for .so)
   # ============================================================================
   build-program:
     runs-on: ubuntu-latest
@@ -66,12 +66,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-
-      - name: Install Solana CLI
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/solana-labs/solana/v1.18.18/install/solana-install-init.sh | \
-          sh -s - v1.18.18
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -88,8 +82,14 @@ jobs:
       - name: Build Program (cargo check)
         run: cd sc-solana && cargo check --all-targets
 
-      - name: Build Program for SBPF (create .so file)
-        run: cd sc-solana && cargo build-sbf
+      - name: Install Anchor CLI for building .so
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked
+          avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
+
+      - name: Build Program with Anchor (create .so file)
+        run: cd sc-solana && anchor build
 
       - name: Upload Program .so
         uses: actions/upload-artifact@v4

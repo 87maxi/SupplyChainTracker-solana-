@@ -70,8 +70,7 @@ fn test_deployer_pda_derivation() {
 fn test_netbook_pda_derivation() {
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     let netbook_seed: &[u8] = b"netbook";
-    let (pda, _bump) =
-        find_program_address(&[netbook_seed, &0u64.to_le_bytes()], &program_id);
+    let (pda, _bump) = find_program_address(&[netbook_seed, &0u64.to_le_bytes()], &program_id);
 
     assert_ne!(pda, program_id);
 }
@@ -81,7 +80,8 @@ fn test_serial_hashes_pda_derivation() {
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
     let serial_hashes_seed: &[u8] = b"serial_hashes";
     let config_key = Pubkey::new_unique();
-    let (pda, _bump) = find_program_address(&[serial_hashes_seed, config_key.as_ref()], &program_id);
+    let (pda, _bump) =
+        find_program_address(&[serial_hashes_seed, config_key.as_ref()], &program_id);
 
     assert_ne!(pda, program_id);
     assert_ne!(pda, config_key);
@@ -125,7 +125,10 @@ const INITIALIZE_DISCRIMINATOR: [u8; 8] = [163, 75, 128, 156, 59, 189, 146, 174]
 
 #[test]
 fn test_initialize_discriminator() {
-    assert_eq!(INITIALIZE_DISCRIMINATOR, [163, 75, 128, 156, 59, 189, 146, 174]);
+    assert_eq!(
+        INITIALIZE_DISCRIMINATOR,
+        [163, 75, 128, 156, 59, 189, 146, 174]
+    );
     assert_eq!(INITIALIZE_DISCRIMINATOR.len(), 8);
 }
 
@@ -134,7 +137,10 @@ const REGISTER_NETBOOK_DISCRIMINATOR: [u8; 8] = [206, 235, 55, 152, 143, 127, 12
 
 #[test]
 fn test_register_netbook_discriminator() {
-    assert_eq!(REGISTER_NETBOOK_DISCRIMINATOR, [206, 235, 55, 152, 143, 127, 127, 89]);
+    assert_eq!(
+        REGISTER_NETBOOK_DISCRIMINATOR,
+        [206, 235, 55, 152, 143, 127, 127, 89]
+    );
     assert_eq!(REGISTER_NETBOOK_DISCRIMINATOR.len(), 8);
 }
 
@@ -149,7 +155,10 @@ fn test_fund_deployer_instruction_data() {
 
     assert_eq!(instruction_data.len(), 16); // 8 (discriminator) + 8 (amount)
     assert_eq!(&instruction_data[0..8], &FUND_DEPLOYER_DISCRIMINATOR);
-    assert_eq!(u64::from_le_bytes(instruction_data[8..16].try_into().unwrap()), amount);
+    assert_eq!(
+        u64::from_le_bytes(instruction_data[8..16].try_into().unwrap()),
+        amount
+    );
 }
 
 #[test]
@@ -172,7 +181,7 @@ fn test_register_netbook_instruction_data() {
 
     // Verify structure
     assert!(instruction_data.len() > 8); // discriminator + string data
-    // 8 (discriminator) + 4 + 5 + 4 + 8 + 4 + 8 = 41 bytes
+                                         // 8 (discriminator) + 4 + 5 + 4 + 8 + 4 + 8 = 41 bytes
     assert_eq!(instruction_data.len(), 41);
 }
 
@@ -182,7 +191,8 @@ fn test_register_netbook_instruction_data() {
 fn test_netbook_space_calculation() {
     // Actual space from Netbook::INIT_SPACE implementation
     // 8 (discriminator) + 4 + 200 + 4 + 100 + 4 + 500 + 32 + 1 + 32 + 32 + 4 + 100 + 1 + 32 + 32 + 8 + 1 + 1 + 8
-    let expected = 8 + 4 + 200 + 4 + 100 + 4 + 500 + 32 + 1 + 32 + 32 + 4 + 100 + 1 + 32 + 32 + 8 + 1 + 1 + 8;
+    let expected =
+        8 + 4 + 200 + 4 + 100 + 4 + 500 + 32 + 1 + 32 + 32 + 4 + 100 + 1 + 32 + 32 + 8 + 1 + 1 + 8;
     assert_eq!(expected, 1104); // Actual calculated value
 }
 
@@ -264,7 +274,7 @@ fn test_bump_seed_range() {
     // Bump seeds are u8, so they are always in range 0-255
     // This test verifies that PDAs can be derived with valid bump seeds
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
-    
+
     let (_, _bump) = Pubkey::find_program_address(&[b"config"], &program_id);
     let (_, _bump) = Pubkey::find_program_address(&[b"deployer"], &program_id);
     let (_, _bump) = Pubkey::find_program_address(&[b"admin"], &program_id);
@@ -275,11 +285,11 @@ fn test_bump_seed_range() {
 fn test_multiple_bump_seeds() {
     // Test that different seeds produce different PDAs
     let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
-    
+
     let (pda1, _) = Pubkey::find_program_address(&[b"config"], &program_id);
     let (pda2, _) = Pubkey::find_program_address(&[b"deployer"], &program_id);
     let (pda3, _) = Pubkey::find_program_address(&[b"admin", &[0u8]], &program_id);
-    
+
     assert_ne!(pda1, pda2);
     assert_ne!(pda1, pda3);
     assert_ne!(pda2, pda3);

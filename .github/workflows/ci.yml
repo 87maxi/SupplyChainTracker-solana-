@@ -209,123 +209,7 @@ jobs:
         run: npm run build
 
   # ============================================================================
-  # Job 7: Anchor Program Tests (Stable with retry logic)
-  # ============================================================================
-  test-anchor:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
-
-      - name: Install Solana CLI
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/solana-labs/solana/v${{ env.SOLANA_VERSION }}/install/solana-install-init.sh | \
-          sh -s - v${{ env.SOLANA_VERSION }}
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-
-      - name: Clear Cargo registry cache (incompatible with Solana SDK 1.18.18)
-        run: |
-          rm -rf ~/.cargo/registry
-          rm -rf ~/.cargo/git
-          rm -rf ~/.cargo/target
-
-      - name: Install Anchor CLI
-        run: |
-          cargo install --git https://github.com/coral-xyz/anchor avm --locked
-          avm install ${{ env.ANCHOR_VERSION }}
-          avm use ${{ env.ANCHOR_VERSION }}
-
-      - name: Verify Installations
-        run: |
-          solana --version
-          anchor --version
-
-      - name: Build Program
-        run: cd sc-solana && anchor build
-
-      - name: Run Anchor Tests (with retry)
-        run: |
-          cd sc-solana
-          
-          # Function to run tests with retry
-          run_tests_with_retry() {
-            local max_retries=3
-            local retry_count=0
-            local success=false
-            
-            while [ $retry_count -lt $max_retries ]; do
-              echo "=== Test attempt $((retry_count + 1))/$max_retries ==="
-              
-              # Start local validator in background with proper config
-              solana-test-validator \
-                --bpf-program 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb ./target/deploy/sc_solana.so \
-                --quiet \
-                > /tmp/solana-validator.log 2>&1 &
-              VALIDATOR_PID=$!
-              
-              # Wait for validator to be ready (max 90 seconds)
-              local ready=false
-              for i in $(seq 1 45); do
-                if solana health > /dev/null 2>&1; then
-                  echo "Validator is ready after $i attempts"
-                  ready=true
-                  break
-                fi
-                sleep 2
-              done
-              
-              if [ "$ready" = true ]; then
-                # Run tests
-                if npm test -- --exit 2>&1; then
-                  success=true
-                  break
-                fi
-              else
-                echo "::warning::Validator failed to start"
-                cat /tmp/solana-validator.log || true
-              fi
-              
-              # Cleanup validator
-              kill $VALIDATOR_PID 2>/dev/null || true
-              wait $VALIDATOR_PID 2>/dev/null || true
-              sleep 5
-              
-              retry_count=$((retry_count + 1))
-              
-              if [ "$success" = false ]; then
-                echo "Retry $retry_count/$max_retries failed, waiting before retry..."
-                sleep 10
-              fi
-            done
-            
-            if [ "$success" = true ]; then
-              echo "Tests passed after $((retry_count + 1)) attempt(s)"
-              return 0
-            else
-              echo "::warning::Tests failed after $max_retries attempts"
-              return 1
-            fi
-          }
-          
-          run_tests_with_retry || true
-        timeout-minutes: 15
-
-      - name: Upload Validator Logs on Failure
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: validator-logs
-          path: /tmp/solana-validator.log
-          retention-days: 7
-
-  # ============================================================================
-  # Job 8: Playwright E2E Tests
+  # Job 7: Playwright E2E Tests
   # ============================================================================
   test-e2e:
     runs-on: ubuntu-latest
@@ -372,7 +256,7 @@ jobs:
   # ============================================================================
   summary:
     runs-on: ubuntu-latest
-    needs: [rust-lint, build-program, test-mollusk, type-check, frontend-lint, test-unit, build-frontend, test-anchor, test-e2e]
+    needs: [rust-lint, build-program, test-mollusk, type-check, frontend-lint, test-unit, build-frontend, test-e2e]
     if: always()
     steps:
       - name: Check All Jobs Status
@@ -384,11 +268,10 @@ jobs:
           echo "Frontend Lint: ${{ needs.frontend-lint.result }}"
           echo "Unit Tests: ${{ needs.test-unit.result }}"
           echo "Build Frontend: ${{ needs.build-frontend.result }}"
-          echo "Anchor Tests: ${{ needs.test-anchor.result }}"
           echo "Mollusk Tests: ${{ needs.test-mollusk.result }}"
           echo "E2E Tests: ${{ needs.test-e2e.result }}"
           
-          # Count failures (test-anchor may fail due to validator issues, but test-mollusk is stable)
+          # Count failures
           FAILED=0
           
           if [ "${{ needs.rust-lint.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi

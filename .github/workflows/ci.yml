@@ -170,9 +170,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
-      - name: Clean install Frontend Dependencies (with --legacy-peer-deps)
+      - name: Install Frontend Dependencies
         working-directory: ./web
-        run: rm -rf node_modules && npm ci --legacy-peer-deps --no-audit --no-fund
+        run: npm install --prefer-offline --legacy-peer-deps --no-audit --no-fund
 
       - name: Build Next.js Frontend
         working-directory: ./web

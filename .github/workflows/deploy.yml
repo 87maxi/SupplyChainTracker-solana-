@@ -40,8 +40,7 @@ jobs:
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
+        # Reads rust-toolchain.toml automatically for version pinning
 
       - name: Install Frontend Dependencies
         run: cd web && npm install --prefer-offline
@@ -53,9 +52,10 @@ jobs:
         run: cd web && npm test -- --forceExit --detectOpenHandles
 
       - name: Install Solana CLI
-        run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        uses: anza-xyz/solana-cli-action@v3
+        with:
+          solana-cli-version: ${{ env.SOLANA_VERSION }}
+          arch: x86_64
 
       - name: Verify Solana CLI
         run: solana -V

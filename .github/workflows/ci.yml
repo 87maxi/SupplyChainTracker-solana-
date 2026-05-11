@@ -149,9 +149,9 @@ jobs:
         working-directory: ./web
         run: npm install --prefer-offline --no-audit --no-fund
 
-      - name: ESLint (Allow existing warnings)
+      - name: ESLint (Strict - Zero Warnings)
         working-directory: ./web
-        run: npx eslint src/ --max-warnings=9999
+        run: npx eslint src/ --max-warnings=0
 
   # ============================================================================
   # Job 5: Unit Tests (Jest)

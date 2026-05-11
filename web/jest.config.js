@@ -18,10 +18,6 @@ export default {
     '<rootDir>/src/**/*.spec.ts',
     '<rootDir>/src/**/*.spec.tsx',
   ],
-  // Explicitly exclude Playwright E2E tests from Jest
-  ignorePatterns: [
-    '<rootDir>/e2e/',
-  ],
   transform: {
     // eslint-disable-next-line no-useless-escape
     '^.+\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],

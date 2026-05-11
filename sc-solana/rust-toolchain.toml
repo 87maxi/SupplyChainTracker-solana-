@@ -1,4 +1,8 @@
 [toolchain]
 channel = "1.89.0"
-components = ["rustfmt","clippy"]
+components = ["rustfmt", "clippy"]
 profile = "minimal"
+
+# Note: CI/CD uses this file automatically via dtolnay/rust-toolchain@stable
+# Keep this version aligned with Solana 2.1.x requirements
+# Solana 2.1.19 tested with Rust 1.89.0+

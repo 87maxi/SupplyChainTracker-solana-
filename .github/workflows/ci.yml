@@ -202,23 +202,12 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
 
-      - name: Cache Solana CLI
-        id: cache-solana
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/solana/install
-          key: solana-${{ env.SOLANA_VERSION }}
-
-      - name: Install Solana CLI
-        if: steps.cache-solana.outputs.cache-hit != 'true'
-        run: sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
-
-      - name: Add Solana to PATH
-        run: echo "PATH=$HOME/.local/share/solana/install/active_release/bin:$PATH" >> $GITHUB_PATH
-
-      - name: Verify Solana CLI
+      - name: Install and Setup Solana CLI
         run: |
-          solana -V && solana config get
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          solana -V
+          echo "PATH=$HOME/.local/share/solana/install/active_release/bin:$PATH" >> $GITHUB_PATH
 
       - name: Cache Cargo registry
         uses: actions/cache@v4

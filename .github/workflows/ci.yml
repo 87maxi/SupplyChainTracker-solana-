@@ -233,13 +233,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
-          key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
+          key: cargo-registry-anchor-${{ hashFiles('sc-solana/Cargo.lock') }}
 
       - name: Cache Cargo build
         uses: actions/cache@v4
         with:
           path: sc-solana/target
-          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
+          key: cargo-target-anchor-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Clear incompatible Cargo registry cache
+        run: |
+          rm -rf ~/.cargo/registry/src/index.crates.io-*/toml_edit*
+          rm -rf ~/.cargo/registry/cache/index.crates.io-*/toml_edit*
 
       - name: Install Anchor CLI
         run: |

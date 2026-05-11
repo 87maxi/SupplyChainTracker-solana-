@@ -19,6 +19,11 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   
+  /* Exclude integration tests from default test run - they require test validator */
+  testIgnore: [
+    "**/integration/**",
+  ],
+  
   /* Run tests in files in parallel */
   fullyParallel: true,
   

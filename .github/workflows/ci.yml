@@ -229,22 +229,11 @@ jobs:
           sh -s - v${{ env.SOLANA_VERSION }}
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry
-          key: cargo-registry-anchor-${{ hashFiles('sc-solana/Cargo.lock') }}
-
-      - name: Cache Cargo build
-        uses: actions/cache@v4
-        with:
-          path: sc-solana/target
-          key: cargo-target-anchor-${{ hashFiles('sc-solana/Cargo.lock') }}
-
-      - name: Clear incompatible Cargo registry cache
+      - name: Clear Cargo registry cache (incompatible with Solana SDK 1.18.18)
         run: |
-          rm -rf ~/.cargo/registry/src/index.crates.io-*/toml_edit*
-          rm -rf ~/.cargo/registry/cache/index.crates.io-*/toml_edit*
+          rm -rf ~/.cargo/registry
+          rm -rf ~/.cargo/git
+          rm -rf ~/.cargo/target
 
       - name: Install Anchor CLI
         run: |

@@ -177,6 +177,7 @@ jobs:
         working-directory: ./web
         env:
           NODE_ENV: production
+          NEXT_PUBLIC_CLUSTER: devnet
         run: npm run build
 
   # ============================================================================

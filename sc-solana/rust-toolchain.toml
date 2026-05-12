@@ -1,8 +1,7 @@
 [toolchain]
-channel = "1.85.0"
+channel = "stable"
 components = ["rustfmt", "clippy"]
 profile = "minimal"
 
 # Note: CI/CD uses this file automatically via dtolnay/rust-toolchain@stable
-# Keep this version aligned with Solana 2.1.x requirements
-# Rust 1.85.0+ required for edition2024 support (Anchor 0.32.1 deps)
+# Using 'stable' to ensure compatibility with latest Solana/Anchor dependencies

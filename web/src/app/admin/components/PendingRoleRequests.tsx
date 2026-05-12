@@ -17,7 +17,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { AnalyticsChart } from '@/components/charts/AnalyticsChart';
-import { getRoleMembers, getRoleMemberCount } from '@/services/RoleRequestService';
+import { getRoleRequests } from '@/services/RoleRequestService';
 import { roleMapper } from '@/lib/roleMapping';
 import { getRoleHashes } from '@/lib/roleUtils';
 import { eventBus, EVENTS } from '@/lib/events';

@@ -206,17 +206,17 @@ jobs:
         run: npm run build
 
   # ============================================================================
-  # Job 7: Playwright E2E Tests
+  # Job 7: Playwright E2E Tests (Local Solana Test Validator)
   # ============================================================================
   test-e2e:
     runs-on: ubuntu-latest
-    needs: [type-check, frontend-lint, test-unit]
-    timeout-minutes: 20
+    needs: [type-check, frontend-lint, test-unit, build-program]
+    timeout-minutes: 25
     env:
-      NEXT_PUBLIC_PROGRAM_ID: "11111111111111111111111111111112"
-      NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com"
-      NEXT_PUBLIC_CLUSTER: "devnet"
-      NEXT_PUBLIC_NETWORK: "devnet"
+      NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+      NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+      NEXT_PUBLIC_CLUSTER: "localnet"
+      NEXT_PUBLIC_NETWORK: "localnet"
     steps:
       - uses: actions/checkout@v4
 
@@ -227,6 +227,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install Frontend Dependencies
         working-directory: ./web
         run: npm install --prefer-offline
@@ -235,10 +238,98 @@ jobs:
         working-directory: ./web
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright E2E Tests (Headless Mode)
+      - name: Install Solana CLI
+        run: |
+          set -ex
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Verify Solana CLI
+        run: |
+          set -ex
+          which solana
+          solana -V
+
+      - name: Build Solana Program (.so)
+        run: |
+          cd sc-solana
+          cargo build-bpf --manifest-path programs/sc-solana/Cargo.toml
+          ls -lh target/deploy/sc_solana.so || echo "No .so found"
+
+      - name: Start Solana Test Validator
+        run: |
+          cd sc-solana
+          solana-test-validator \
+            --bpf-program 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb target/deploy/sc_solana.so \
+            > /tmp/validator.log 2>&1 &
+          echo "Waiting for validator to start..."
+          for i in {1..30}; do
+            if solana balance -u local >/dev/null 2>&1; then
+              echo "Validator is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          solana balance -u local
+
+      - name: Build Next.js for E2E
+        working-directory: ./web
+        env:
+          NODE_ENV: production
+        run: npm run build
+
+      - name: Start Next.js Server
+        working-directory: ./web
+        run: npm run start -- --port 3001 &
+        timeout-minutes: 1
+
+      - name: Wait for Next.js Server
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:3001 >/dev/null 2>&1; then
+              echo "Next.js server is ready!"
+              break
+            fi
+            echo "Waiting for Next.js... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run Playwright E2E Tests (Chromium only)
         working-directory: ./web
         run: npx playwright test --reporter=html --project=chromium
         timeout-minutes: 15
+
+      - name: Merge E2E Videos into Single Video
+        if: always()
+        run: |
+          set -ex
+          # Install ffmpeg
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          
+          VIDEO_DIR="web/test-results"
+          OUTPUT_VIDEO="e2e-full-recording.webm"
+          
+          # Find all video files
+          VIDEOS=$(find "$VIDEO_DIR" -name "*.webm" -type f 2>/dev/null | sort)
+          
+          if [ -z "$VIDEOS" ]; then
+            echo "No videos found to merge"
+            exit 0
+          fi
+          
+          # Create concat list for ffmpeg
+          echo "$VIDEOS" | while read f; do
+            echo "file '$(realpath "$f")'"
+          done > /tmp/video_concat.txt
+          
+          # Merge all videos into one
+          ffmpeg -f concat -safe 0 -i /tmp/video_concat.txt \
+            -c copy \
+            -y "$OUTPUT_VIDEO"
+          
+          echo "Merged video: $OUTPUT_VIDEO"
+          ls -lh "$OUTPUT_VIDEO"
 
       - name: Upload Playwright Report
         if: always()
@@ -256,13 +347,21 @@ jobs:
           path: web/test-results/
           retention-days: 30
 
-      - name: Upload E2E Videos
+      - name: Upload Unified E2E Video
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-videos
-          path: web/test-results/**/*.webm
+          name: e2e-unified-video
+          path: e2e-full-recording.webm
           retention-days: 30
+
+      - name: Upload Validator Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validator-logs
+          path: /tmp/validator.log
+          retention-days: 7
 
   # ============================================================================
   # Job 8: Integration E2E Tests (Real Solana Test Validator)

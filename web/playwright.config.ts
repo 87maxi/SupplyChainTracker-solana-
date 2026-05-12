@@ -85,10 +85,12 @@ export default defineConfig({
   ],
   
   /* Run your local dev server before starting the tests */
+  /* In CI, the CI workflow starts the production server and Playwright reuses it.
+     Locally, we start the dev server for hot-reload during development. */
   webServer: {
-    command: "npm run dev",
+    command: process.env.CI ? "npm start" : "npm run dev",
     url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 60000,
     env: {
       PORT: "3001",

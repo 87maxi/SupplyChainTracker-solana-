@@ -122,7 +122,12 @@ fn test_valid_state_transitions() {
     ];
 
     for (from, to) in &valid_transitions {
-        assert!(*to == *from + 1, "State should increment by 1: {} → {}", from, to);
+        assert!(
+            *to == *from + 1,
+            "State should increment by 1: {} → {}",
+            from,
+            to
+        );
     }
 }
 
@@ -211,11 +216,20 @@ fn test_role_constants_valid() {
 
 #[test]
 fn test_role_constants_unique() {
-    let roles = [FABRICANTE_ROLE, AUDITOR_HW_ROLE, TECNICO_SW_ROLE, ESCUELA_ROLE];
+    let roles = [
+        FABRICANTE_ROLE,
+        AUDITOR_HW_ROLE,
+        TECNICO_SW_ROLE,
+        ESCUELA_ROLE,
+    ];
 
     for i in 0..roles.len() {
         for j in (i + 1)..roles.len() {
-            assert_ne!(roles[i], roles[j], "Roles should be unique: {} vs {}", roles[i], roles[j]);
+            assert_ne!(
+                roles[i], roles[j],
+                "Roles should be unique: {} vs {}",
+                roles[i], roles[j]
+            );
         }
     }
 }
@@ -290,7 +304,11 @@ fn test_register_netbook_instruction_data() {
     let data = create_ix_data(disc, &args);
 
     assert!(data.len() > 8, "Data should include discriminator + args");
-    assert_eq!(&data[..8], &disc[..], "First 8 bytes should be discriminator");
+    assert_eq!(
+        &data[..8],
+        &disc[..],
+        "First 8 bytes should be discriminator"
+    );
 }
 
 #[test]
@@ -349,7 +367,8 @@ fn test_assign_to_student_instruction_data() {
 #[test]
 fn test_netbook_space_matches_state() {
     // From Netbook::INIT_SPACE
-    let expected = 8 + 4 + 200 + 4 + 100 + 4 + 500 + 32 + 1 + 32 + 32 + 4 + 100 + 1 + 32 + 32 + 8 + 1 + 1 + 8;
+    let expected =
+        8 + 4 + 200 + 4 + 100 + 4 + 500 + 32 + 1 + 32 + 32 + 4 + 100 + 1 + 32 + 32 + 8 + 1 + 1 + 8;
     assert_eq!(expected, 1104);
 }
 
@@ -459,19 +478,31 @@ fn test_lifecycle_state_progression() {
     let mut state = STATE_FABRICADA;
 
     // Step 1: Register → Fabricada (0)
-    assert_eq!(state, STATE_FABRICADA, "After register, state should be Fabricada");
+    assert_eq!(
+        state, STATE_FABRICADA,
+        "After register, state should be Fabricada"
+    );
 
     // Step 2: Audit Hardware (passed) → HwAprobado (1)
     state = STATE_HW_APROBADO;
-    assert_eq!(state, STATE_HW_APROBADO, "After audit, state should be HwAprobado");
+    assert_eq!(
+        state, STATE_HW_APROBADO,
+        "After audit, state should be HwAprobado"
+    );
 
     // Step 3: Validate Software (passed) → SwValidado (2)
     state = STATE_SW_VALIDADO;
-    assert_eq!(state, STATE_SW_VALIDADO, "After validate, state should be SwValidado");
+    assert_eq!(
+        state, STATE_SW_VALIDADO,
+        "After validate, state should be SwValidado"
+    );
 
     // Step 4: Assign to Student → Distribuida (3)
     state = STATE_DISTRIBUIDA;
-    assert_eq!(state, STATE_DISTRIBUIDA, "After assign, state should be Distribuida");
+    assert_eq!(
+        state, STATE_DISTRIBUIDA,
+        "After assign, state should be Distribuida"
+    );
 }
 
 #[test]
@@ -484,7 +515,10 @@ fn test_lifecycle_with_failed_audit() {
         state = STATE_HW_APROBADO;
     }
 
-    assert_eq!(state, STATE_FABRICADA, "Failed audit should not change state");
+    assert_eq!(
+        state, STATE_FABRICADA,
+        "Failed audit should not change state"
+    );
 }
 
 #[test]
@@ -497,7 +531,10 @@ fn test_lifecycle_with_failed_validation() {
         state = STATE_SW_VALIDADO;
     }
 
-    assert_eq!(state, STATE_HW_APROBADO, "Failed validation should not change state");
+    assert_eq!(
+        state, STATE_HW_APROBADO,
+        "Failed validation should not change state"
+    );
 }
 
 #[test]
@@ -517,7 +554,12 @@ fn test_cannot_skip_validation_step() {
 #[test]
 fn test_cannot_reverse_state() {
     // State should only progress forward
-    let states = [STATE_FABRICADA, STATE_HW_APROBADO, STATE_SW_VALIDADO, STATE_DISTRIBUIDA];
+    let states = [
+        STATE_FABRICADA,
+        STATE_HW_APROBADO,
+        STATE_SW_VALIDADO,
+        STATE_DISTRIBUIDA,
+    ];
 
     for i in 1..states.len() {
         assert!(states[i] > states[i - 1], "State should only increase");
@@ -575,7 +617,10 @@ fn test_role_revocation() {
 
     // Revoke role
     roles.remove(AUDITOR_HW_ROLE);
-    assert!(!roles.contains_key(AUDITOR_HW_ROLE), "Role should be revoked");
+    assert!(
+        !roles.contains_key(AUDITOR_HW_ROLE),
+        "Role should be revoked"
+    );
 }
 
 // ==================== Test: Compute Unit Budget Analysis ====================
@@ -627,7 +672,10 @@ fn test_batch_size_limits() {
 
     // A batch of 15 with max-length serials
     let total_data = max_safe_batch * (4 + max_serial_per_netbook);
-    assert!(total_data < u32::MAX as usize, "Batch data should fit in u32");
+    assert!(
+        total_data < u32::MAX as usize,
+        "Batch data should fit in u32"
+    );
 }
 
 #[test]

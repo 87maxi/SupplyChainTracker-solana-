@@ -29,3 +29,21 @@ Supply chain tracker on Solana with Anchor program (Rust) and Next.js frontend.
 - Rust: Anchor idioms, custom macros in `lib.rs`
 - TypeScript: Strict mode, React hooks pattern
 - Tests: Jest for frontend, Anchor tests for program
+
+## CI/CD Requirements
+- **Rust Formatting**: ALWAYS run `cd sc-solana && cargo fmt` before committing Rust code
+  - `cargo fmt --check` is enforced in CI (`rust-lint` job)
+  - Affected files: all `.rs` files in `sc-solana/programs/sc-solana/src/` and `tests/`
+- **E2E Tests**: Playwright manages the Next.js server lifecycle via `webServer` config
+  - Do NOT manually start servers in CI workflow (causes port conflicts)
+  - `reuseExistingServer: true` in `playwright.config.ts` handles server reuse
+- **Deploy Workflow**: Program deployment requires local Anchor CLI
+  - CI only runs `cargo check --all-targets` for validation
+  - To deploy: `cd sc-solana && anchor build && anchor deploy`
+
+## Pre-commit Checklist
+- [ ] Run `cargo fmt` on all Rust files
+- [ ] Run `cargo clippy -- -D warnings` for Rust warnings
+- [ ] Run `npx tsc --noEmit` in `web/` for type checking
+- [ ] Run `npx eslint src/ --max-warnings=0` in `web/` for linting
+- [ ] Run `npm test` in `web/` for unit tests

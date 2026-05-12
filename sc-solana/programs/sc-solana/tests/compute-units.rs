@@ -91,8 +91,22 @@ struct CuEstimate {
 }
 
 impl CuEstimate {
-    fn new(instruction: &'static str, account_reads: u64, account_writes: u64, base_cost: u64, data_cost: u64, cpi_cost: u64, log_cost: u64) -> Self {
-        let total = BASE_TX_OVERHEAD + account_reads * CU_PER_ACCOUNT_READ + account_writes * CU_PER_ACCOUNT_WRITE + base_cost + data_cost + cpi_cost + log_cost;
+    fn new(
+        instruction: &'static str,
+        account_reads: u64,
+        account_writes: u64,
+        base_cost: u64,
+        data_cost: u64,
+        cpi_cost: u64,
+        log_cost: u64,
+    ) -> Self {
+        let total = BASE_TX_OVERHEAD
+            + account_reads * CU_PER_ACCOUNT_READ
+            + account_writes * CU_PER_ACCOUNT_WRITE
+            + base_cost
+            + data_cost
+            + cpi_cost
+            + log_cost;
         let percent = (total as f64 / DEFAULT_CU_LIMIT as f64) * 100.0;
         let risk = if percent < 10.0 {
             "LOW"
@@ -128,12 +142,12 @@ fn estimate_fund_deployer() -> CuEstimate {
     // CPI: Transfer from System Program
     CuEstimate::new(
         "fund_deployer",
-        2,   // system_program, payer
-        1,   // deployer state
+        2, // system_program, payer
+        1, // deployer state
         BASE_INVOCATION_COST,
-        8 * CU_PER_INSTRUCTION_BYTE,  // u64 amount
-        CPI_OVERHEAD,  // System program transfer
-        0,  // No log
+        8 * CU_PER_INSTRUCTION_BYTE, // u64 amount
+        CPI_OVERHEAD,                // System program transfer
+        0,                           // No log
     )
 }
 
@@ -144,12 +158,12 @@ fn estimate_initialize() -> CuEstimate {
     // Creates SupplyChainConfig account
     CuEstimate::new(
         "initialize",
-        2,   // system_program, payer
-        1,   // config
-        BASE_INVOCATION_COST + 2_000,  // Account creation overhead
-        0,   // No instruction data
-        CPI_OVERHEAD,  // System program for account creation
-        LOG_COST,  // Emits Initialized event
+        2,                            // system_program, payer
+        1,                            // config
+        BASE_INVOCATION_COST + 2_000, // Account creation overhead
+        0,                            // No instruction data
+        CPI_OVERHEAD,                 // System program for account creation
+        LOG_COST,                     // Emits Initialized event
     )
 }
 
@@ -160,12 +174,12 @@ fn estimate_register_netbook() -> CuEstimate {
     // Data: serial_number (~20 bytes), batch_id (~10 bytes), model_specs (~50 bytes)
     CuEstimate::new(
         "register_netbook",
-        4,   // config, manufacturer, payer, system_program
-        3,   // netbook, serial_hash_registry, payer
-        BASE_INVOCATION_COST + 3_000,  // Account creation + hash computation
-        80 * CU_PER_INSTRUCTION_BYTE,  // ~80 bytes of string data
-        CPI_OVERHEAD,  // System program for account creation
-        LOG_COST,  // Emits NetbookRegistered event
+        4,                            // config, manufacturer, payer, system_program
+        3,                            // netbook, serial_hash_registry, payer
+        BASE_INVOCATION_COST + 3_000, // Account creation + hash computation
+        80 * CU_PER_INSTRUCTION_BYTE, // ~80 bytes of string data
+        CPI_OVERHEAD,                 // System program for account creation
+        LOG_COST,                     // Emits NetbookRegistered event
     )
 }
 
@@ -180,12 +194,12 @@ fn estimate_register_netbooks_batch(batch_size: u64) -> CuEstimate {
 
     CuEstimate::new(
         "register_netbooks_batch",
-        3,   // config, payer, system_program
-        2 + batch_size,  // serial_hash_registry + batch_size netbooks
+        3,              // config, payer, system_program
+        2 + batch_size, // serial_hash_registry + batch_size netbooks
         BASE_INVOCATION_COST + per_netbook * batch_size / 10,
         total_data * CU_PER_INSTRUCTION_BYTE,
-        CPI_OVERHEAD * batch_size,  // One CPI per netbook creation
-        LOG_COST,  // Single batch event
+        CPI_OVERHEAD * batch_size, // One CPI per netbook creation
+        LOG_COST,                  // Single batch event
     )
 }
 
@@ -195,12 +209,12 @@ fn estimate_audit_hardware() -> CuEstimate {
     // Data: serial (~20 bytes), passed (bool), report_hash (32 bytes)
     CuEstimate::new(
         "audit_hardware",
-        3,   // auditor, config, payer
-        1,   // netbook
-        BASE_INVOCATION_COST + 1_000,  // Hash comparison
-        60 * CU_PER_INSTRUCTION_BYTE,  // serial + bool + hash
-        0,   // No CPI
-        LOG_COST,  // Emits HardwareAudited event
+        3,                            // auditor, config, payer
+        1,                            // netbook
+        BASE_INVOCATION_COST + 1_000, // Hash comparison
+        60 * CU_PER_INSTRUCTION_BYTE, // serial + bool + hash
+        0,                            // No CPI
+        LOG_COST,                     // Emits HardwareAudited event
     )
 }
 
@@ -210,12 +224,12 @@ fn estimate_validate_software() -> CuEstimate {
     // Data: serial (~20 bytes), os_version (~20 bytes), passed (bool)
     CuEstimate::new(
         "validate_software",
-        3,   // technician, config, payer
-        1,   // netbook
+        3, // technician, config, payer
+        1, // netbook
         BASE_INVOCATION_COST + 1_000,
-        50 * CU_PER_INSTRUCTION_BYTE,  // serial + os_version + bool
-        0,   // No CPI
-        LOG_COST,  // Emits SoftwareValidated event
+        50 * CU_PER_INSTRUCTION_BYTE, // serial + os_version + bool
+        0,                            // No CPI
+        LOG_COST,                     // Emits SoftwareValidated event
     )
 }
 
@@ -225,12 +239,12 @@ fn estimate_assign_to_student() -> CuEstimate {
     // Data: serial (~20 bytes), school_hash (32 bytes), student_hash (32 bytes)
     CuEstimate::new(
         "assign_to_student",
-        3,   // school, config, payer
-        1,   // netbook
+        3, // school, config, payer
+        1, // netbook
         BASE_INVOCATION_COST + 1_000,
-        80 * CU_PER_INSTRUCTION_BYTE,  // serial + 2 hashes
-        0,   // No CPI
-        LOG_COST,  // Emits StudentAssigned event
+        80 * CU_PER_INSTRUCTION_BYTE, // serial + 2 hashes
+        0,                            // No CPI
+        LOG_COST,                     // Emits StudentAssigned event
     )
 }
 
@@ -241,12 +255,12 @@ fn estimate_grant_role() -> CuEstimate {
     // Data: role string (~15 bytes)
     CuEstimate::new(
         "grant_role",
-        5,   // config, admin, recipient, payer, system_program
-        2,   // role_holder, payer
-        BASE_INVOCATION_COST + 2_000,  // Account creation
-        15 * CU_PER_INSTRUCTION_BYTE,  // role string
-        CPI_OVERHEAD,  // System program
-        LOG_COST,  // Emits RoleGranted event
+        5,                            // config, admin, recipient, payer, system_program
+        2,                            // role_holder, payer
+        BASE_INVOCATION_COST + 2_000, // Account creation
+        15 * CU_PER_INSTRUCTION_BYTE, // role string
+        CPI_OVERHEAD,                 // System program
+        LOG_COST,                     // Emits RoleGranted event
     )
 }
 
@@ -256,12 +270,12 @@ fn estimate_request_role() -> CuEstimate {
     // Data: role string (~15 bytes)
     CuEstimate::new(
         "request_role",
-        3,   // config, payer, system_program
-        2,   // role_request, payer
+        3, // config, payer, system_program
+        2, // role_request, payer
         BASE_INVOCATION_COST + 2_000,
         15 * CU_PER_INSTRUCTION_BYTE,
         CPI_OVERHEAD,
-        LOG_COST,  // Emits RoleRequested event
+        LOG_COST, // Emits RoleRequested event
     )
 }
 
@@ -270,12 +284,12 @@ fn estimate_approve_role_request() -> CuEstimate {
     // Accounts: role_request (write), config (read), admin (signer)
     CuEstimate::new(
         "approve_role_request",
-        3,   // config, admin, payer
-        2,   // role_request, config (role count update)
+        3, // config, admin, payer
+        2, // role_request, config (role count update)
         BASE_INVOCATION_COST + 1_000,
-        0,   // No instruction data
-        0,   // No CPI
-        LOG_COST,  // Emits RoleGranted event
+        0,        // No instruction data
+        0,        // No CPI
+        LOG_COST, // Emits RoleGranted event
     )
 }
 
@@ -285,12 +299,12 @@ fn estimate_revoke_role() -> CuEstimate {
     // Data: role string (~15 bytes)
     CuEstimate::new(
         "revoke_role",
-        3,   // config, admin, payer
-        2,   // role_holder, config
+        3, // config, admin, payer
+        2, // role_holder, config
         BASE_INVOCATION_COST + 1_000,
         15 * CU_PER_INSTRUCTION_BYTE,
         0,
-        LOG_COST,  // Emits RoleRevoked event
+        LOG_COST, // Emits RoleRevoked event
     )
 }
 
@@ -300,12 +314,12 @@ fn estimate_query_netbook_state() -> CuEstimate {
     // Data: serial string (~20 bytes)
     CuEstimate::new(
         "query_netbook_state",
-        3,   // netbook, config, payer
-        0,   // Read-only query
+        3, // netbook, config, payer
+        0, // Read-only query
         BASE_INVOCATION_COST,
         20 * CU_PER_INSTRUCTION_BYTE,
         0,
-        LOG_COST,  // Emits NetbookStateQuery event
+        LOG_COST, // Emits NetbookStateQuery event
     )
 }
 
@@ -314,12 +328,12 @@ fn estimate_query_config() -> CuEstimate {
     // Accounts: config (read)
     CuEstimate::new(
         "query_config",
-        2,   // config, payer
-        0,   // Read-only
+        2, // config, payer
+        0, // Read-only
         BASE_INVOCATION_COST,
         0,
         0,
-        LOG_COST,  // Emits ConfigQuery event
+        LOG_COST, // Emits ConfigQuery event
     )
 }
 
@@ -329,12 +343,12 @@ fn estimate_query_role() -> CuEstimate {
     // Data: role string (~15 bytes)
     CuEstimate::new(
         "query_role",
-        2,   // config, payer
-        0,   // Read-only
+        2, // config, payer
+        0, // Read-only
         BASE_INVOCATION_COST,
         15 * CU_PER_INSTRUCTION_BYTE,
         0,
-        LOG_COST,  // Emits RoleQuery event
+        LOG_COST, // Emits RoleQuery event
     )
 }
 
@@ -354,7 +368,10 @@ fn test_fund_deployer_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 10, "Should be well within limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 10,
+        "Should be well within limit"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -366,7 +383,10 @@ fn test_initialize_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 10, "Should be well within limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 10,
+        "Should be well within limit"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -378,7 +398,10 @@ fn test_register_netbook_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 4, "Should be within 25% of limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 4,
+        "Should be within 25% of limit"
+    );
     assert!(estimate.risk_level == "LOW" || estimate.risk_level == "MEDIUM");
 }
 
@@ -392,7 +415,10 @@ fn test_register_netbooks_batch_cu_estimate() {
     );
 
     // Batch of 10 should still be within limits
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT, "Batch of 10 should fit in single tx");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT,
+        "Batch of 10 should fit in single tx"
+    );
 }
 
 #[test]
@@ -403,7 +429,10 @@ fn test_audit_hardware_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 10, "Should be well within limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 10,
+        "Should be well within limit"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -415,7 +444,10 @@ fn test_validate_software_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 10, "Should be well within limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 10,
+        "Should be well within limit"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -427,7 +459,10 @@ fn test_assign_to_student_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 10, "Should be well within limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 10,
+        "Should be well within limit"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -439,7 +474,10 @@ fn test_grant_role_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 5, "Should be within 20% of limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 5,
+        "Should be within 20% of limit"
+    );
 }
 
 #[test]
@@ -450,7 +488,10 @@ fn test_request_role_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 10, "Should be well within limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 10,
+        "Should be well within limit"
+    );
 }
 
 #[test]
@@ -461,7 +502,10 @@ fn test_approve_role_request_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 10, "Should be well within limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 10,
+        "Should be well within limit"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -473,7 +517,10 @@ fn test_revoke_role_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 10, "Should be well within limit");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 10,
+        "Should be well within limit"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -485,7 +532,10 @@ fn test_query_netbook_state_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 20, "Query should be very cheap");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 20,
+        "Query should be very cheap"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -497,7 +547,10 @@ fn test_query_config_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 20, "Query should be very cheap");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 20,
+        "Query should be very cheap"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -509,7 +562,10 @@ fn test_query_role_cu_estimate() {
         estimate.total_estimated, estimate.percent_of_limit, estimate.risk_level
     );
 
-    assert!(estimate.total_estimated < DEFAULT_CU_LIMIT / 20, "Query should be very cheap");
+    assert!(
+        estimate.total_estimated < DEFAULT_CU_LIMIT / 20,
+        "Query should be very cheap"
+    );
     assert_eq!(estimate.risk_level, "LOW");
 }
 
@@ -521,7 +577,10 @@ fn test_full_lifecycle_cu_estimate() {
     let validate = estimate_validate_software();
     let assign = estimate_assign_to_student();
 
-    let total_lifecycle = register.total_estimated + audit.total_estimated + validate.total_estimated + assign.total_estimated;
+    let total_lifecycle = register.total_estimated
+        + audit.total_estimated
+        + validate.total_estimated
+        + assign.total_estimated;
     let total_percent = (total_lifecycle as f64 / (DEFAULT_CU_LIMIT as f64 * 4.0)) * 100.0;
 
     println!(
@@ -541,7 +600,10 @@ fn test_account_space_calculations() {
     // Verify account sizes match state definitions
     assert_eq!(NETBOOK_SIZE, 1104, "Netbook size should match INIT_SPACE");
     assert_eq!(CONFIG_SIZE, 234, "Config size should match INIT_SPACE");
-    assert!(DEPLOYER_STATE_SIZE > 0 && DEPLOYER_STATE_SIZE < 100, "Deployer state should be small");
+    assert!(
+        DEPLOYER_STATE_SIZE > 0 && DEPLOYER_STATE_SIZE < 100,
+        "Deployer state should be small"
+    );
 }
 
 #[test]
@@ -588,9 +650,15 @@ fn test_all_instructions_within_budget() {
     let batch = estimate_register_netbooks_batch(20);
     println!(
         "  {:<25} {:>10} CU ({:>6.2}%) - {}",
-        "register_netbooks_batch(20)", batch.total_estimated, batch.percent_of_limit, batch.risk_level
+        "register_netbooks_batch(20)",
+        batch.total_estimated,
+        batch.percent_of_limit,
+        batch.risk_level
     );
-    assert!(batch.total_estimated < DEFAULT_CU_LIMIT, "Batch of 20 should fit");
+    assert!(
+        batch.total_estimated < DEFAULT_CU_LIMIT,
+        "Batch of 20 should fit"
+    );
 }
 
 // ==================== Report Generation ====================
@@ -619,7 +687,10 @@ fn generate_cu_report() {
         estimate_query_role(),
     ];
 
-    println!("{:<25} {:>10} {:>8} {:>8}", "Instruction", "CU Est.", "% Limit", "Risk");
+    println!(
+        "{:<25} {:>10} {:>8} {:>8}",
+        "Instruction", "CU Est.", "% Limit", "Risk"
+    );
     println!("{}", "-".repeat(55));
 
     for inst in &instructions {

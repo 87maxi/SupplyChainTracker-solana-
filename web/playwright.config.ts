@@ -40,7 +40,7 @@ export default defineConfig({
   reporter: "html",
   
   /* Global setup for wallet mock injection */
-  globalSetup: require.resolve("./e2e/fixtures/global-setup"),
+  globalSetup: "./e2e/fixtures/global-setup.ts",
   
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {

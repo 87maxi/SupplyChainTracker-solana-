@@ -277,6 +277,9 @@ jobs:
         working-directory: ./web
         env:
           NODE_ENV: production
+          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+          NEXT_PUBLIC_CLUSTER: "localnet"
+          NEXT_PUBLIC_NETWORK: "localnet"
         run: npm run build
 
       - name: Start Next.js Server

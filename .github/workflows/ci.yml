@@ -250,7 +250,18 @@ jobs:
         working-directory: ./web
         run: npx playwright install --with-deps chromium
 
+      - name: Build Next.js for E2E (production server required)
+        working-directory: ./web
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+          NEXT_PUBLIC_CLUSTER: "localnet"
+          NEXT_PUBLIC_NETWORK: "localnet"
+        run: npm run build
+
       # Playwright webServer config handles server lifecycle automatically.
+      # In CI: uses 'npm start' (production server, requires build)
+      # Locally: uses 'npm run dev' (development server with hot-reload)
       # No manual server startup needed - webServer starts, waits for health-check,
       # runs tests, and shuts down the server automatically.
       - name: Run Playwright E2E Tests (Chromium only)

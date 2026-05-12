@@ -74,7 +74,7 @@ stateDiagram-v2
 
 ```mermaid
 graph LR
-    AdminPDA["Admin PDA<br/>(seeds=[b'admin', config.key()])"] -->|Grant/Revoke| Fabricante["FABRICANTE"]
+    AdminPDA["Admin PDA<br/>(seeds=[b`admin`, config.key()])"] -->|Grant/Revoke| Fabricante["FABRICANTE"]
     AdminPDA -->|Grant/Revoke| Auditor["AUDITOR HW"]
     AdminPDA -->|Grant/Revoke| Tecnico["TECNICO SW"]
     AdminPDA -->|Grant/Revoke| Escuela["ESCUELA"]
@@ -140,13 +140,13 @@ El programa utiliza 5 tipos de cuentas de estado (todas PDA-based):
 
 ```mermaid
 graph TD
-    Config["SupplyChainConfig<br/>seeds=[b'config']<br/>289 bytes"] -->|seeds=[b'serial_hashes', config.key()]| SHRegistry["SerialHashRegistry<br/>32,017 bytes"]
+    Config["SupplyChainConfig<br/>seeds=[b`config`]<br/>289 bytes"] -->|seeds=[b`serial_hashes`, config.key()]| SHRegistry["SerialHashRegistry<br/>32,017 bytes"]
 
-    Config -->|seeds=[b'admin', config.key()]| AdminPDA["Admin PDA<br/>(UncheckedAccount)"]
+    Config -->|seeds=[b`admin`, config.key()]| AdminPDA["Admin PDA<br/>(UncheckedAccount)"]
 
-    Serial["Netbook<br/>seeds=[b'netbook', serial]<br/>~1,147 bytes"] -.->|Related to| Config
-    RoleHolder["RoleHolder<br/>seeds=[b'role_holder', role, account]<br/>160 bytes"] -.->|Managed by| Config
-    RoleRequest["RoleRequest<br/>seeds=[b'role_request', user, role]<br/>variable"] -.->|Tracked by| Config
+    Serial["Netbook<br/>seeds=[b`netbook`, serial]<br/>~1,147 bytes"] -.->|Related to| Config
+    RoleHolder["RoleHolder<br/>seeds=[b`role_holder`, role, account]<br/>160 bytes"] -.->|Managed by| Config
+    RoleRequest["RoleRequest<br/>seeds=[b`role_request`, user, role]<br/>variable"] -.->|Tracked by| Config
 
     classDef main fill:#f97316,stroke:#c2410c,color:#fff
     class Config main
@@ -175,7 +175,7 @@ classDiagram
         +u64 get_role_holder_count(role)
     }
 
-    note for SupplyChainConfig "Size: 289 bytes\nPDA: seeds=[b'config']"
+    note for SupplyChainConfig "Size: 289 bytes\nPDA: seeds=[b`config`]"
 ```
 
 **Campos:**
@@ -205,7 +205,7 @@ classDiagram
         +void store_serial_hash(hash)
     }
 
-    note for SerialHashRegistry "Size: 32,017 bytes\nPDA: seeds=[b'serial_hashes', config.key()]\nMAX_SERIAL_HASHES: 10"
+    note for SerialHashRegistry "Size: 32,017 bytes\nPDA: seeds=[b`serial_hashes`, config.key()]\nMAX_SERIAL_HASHES: 10"
 ```
 
 **Función:** Detección de duplicados de serial_number para prevenir registro duplicado.
@@ -232,7 +232,7 @@ classDiagram
         +u64 token_id
     }
 
-    note for Netbook "Size: ~1,147 bytes\nPDA: seeds=[b'netbook', serial_number]\nPII protection via hashes"
+    note for Netbook "Size: ~1,147 bytes\nPDA: seeds=[b`netbook`, serial_number]\nPII protection via hashes"
 ```
 
 **Campos:**
@@ -266,7 +266,7 @@ classDiagram
         +u64 timestamp
     }
 
-    note for RoleHolder "Size: 160 bytes\nPDA: seeds=[b'role_holder', role, account]\nMAX_ROLE_HOLDERS: 100 per role"
+    note for RoleHolder "Size: 160 bytes\nPDA: seeds=[b`role_holder`, role, account]\nMAX_ROLE_HOLDERS: 100 per role"
 ```
 
 #### RoleRequest
@@ -281,7 +281,7 @@ classDiagram
         +u64 timestamp
     }
 
-    note for RoleRequest "PDA: seeds=[b'role_request', user, role]\nStatus: Pending(0) → Approved(1) / Rejected(2)"
+    note for RoleRequest "PDA: seeds=[b`role_request`, user, role]\nStatus: Pending(0) → Approved(1) / Rejected(2)"
 ```
 
 ### Netbook State Machine

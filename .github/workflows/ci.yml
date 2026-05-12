@@ -308,6 +308,15 @@ jobs:
           which solana
           solana -V
 
+      - name: Install Anchor CLI
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked
+          avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
+
+      - name: Verify Anchor CLI
+        run: anchor -V
+
       - name: Build Solana Program
         working-directory: ./sc-solana
         run: anchor build

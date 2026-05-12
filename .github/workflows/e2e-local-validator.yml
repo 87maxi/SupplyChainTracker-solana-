@@ -1,0 +1,285 @@
+name: E2E Tests (Local Validator)
+
+# Run on push to main/develop and pull requests
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  # Allow manual trigger
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: 20
+  SOLANA_VERSION: 3.1.13
+  ANCHOR_VERSION: 0.32.1
+  NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+  LOCAL_VALIDATOR_RPC: "http://localhost:8899"
+  LOCAL_VALIDATOR_WS: "ws://localhost:8900"
+
+jobs:
+  # ============================================================================
+  # Job 1: Build Solana Program for Local Validator
+  # ============================================================================
+  build-program:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: sc-solana/target
+          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Install Solana CLI
+        run: |
+          set -ex
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Install Anchor CLI
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --locked
+          avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
+
+      - name: Build Solana Program
+        working-directory: ./sc-solana
+        run: anchor build
+
+      - name: Upload Program Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-binary
+          path: sc-solana/target/deploy/sc_solana.so
+          retention-days: 1
+
+  # ============================================================================
+  # Job 2: E2E Tests with Local Validator (Full Integration)
+  # ============================================================================
+  test-e2e-local:
+    runs-on: ubuntu-latest
+    needs: [build-program]
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+      NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+      NEXT_PUBLIC_CLUSTER: "localnet"
+      NEXT_PUBLIC_NETWORK: "localnet"
+      NEXT_PUBLIC_TEST_MODE: "true"
+      USE_LOCAL_VALIDATOR: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Program Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: program-binary
+          path: sc-solana/target/deploy/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./web
+        run: npm install --prefer-offline --no-audit --no-fund
+
+      - name: Install Solana CLI
+        run: |
+          set -ex
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Install Playwright Browsers
+        working-directory: ./web
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Local Validator
+        run: |
+          mkdir -p .github/e2e-ledger
+          bash scripts/start-local-validator.sh .github/e2e-ledger 8899 8900 \
+            sc-solana/target/deploy/sc_solana.so \
+            "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+
+      - name: Verify Local Validator
+        run: bash scripts/verify-local-validator.sh
+
+      - name: Build Next.js for E2E
+        working-directory: ./web
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+          NEXT_PUBLIC_CLUSTER: "localnet"
+          NEXT_PUBLIC_NETWORK: "localnet"
+          NEXT_PUBLIC_TEST_MODE: "true"
+        run: npm run build
+
+      - name: Run E2E Tests with Local Validator
+        working-directory: ./web
+        run: npx playwright test --reporter=html --project=chromium
+        timeout-minutes: 15
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-local-report
+          path: web/playwright-report/
+          retention-days: 30
+
+      - name: Upload E2E Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-local-screenshots
+          path: web/test-results/
+          retention-days: 30
+
+      - name: Upload Validator Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validator-logs
+          path: /tmp/validator.log
+          retention-days: 7
+
+      - name: Stop Local Validator
+        if: always()
+        run: bash scripts/stop-local-validator.sh .github/e2e-ledger
+
+  # ============================================================================
+  # Job 3: Full User Flow E2E Test with Local Validator
+  # ============================================================================
+  test-e2e-full-flow-local:
+    runs-on: ubuntu-latest
+    needs: [build-program]
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+      NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+      NEXT_PUBLIC_CLUSTER: "localnet"
+      NEXT_PUBLIC_NETWORK: "localnet"
+      NEXT_PUBLIC_TEST_MODE: "true"
+      USE_LOCAL_VALIDATOR: "true"
+      FLOW_SLOW_MO: "100"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Program Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: program-binary
+          path: sc-solana/target/deploy/
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./web
+        run: npm install --prefer-offline --no-audit --no-fund
+
+      - name: Install Solana CLI
+        run: |
+          set -ex
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+      - name: Install Playwright Browsers
+        working-directory: ./web
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Local Validator
+        run: |
+          mkdir -p .github/e2e-ledger
+          bash scripts/start-local-validator.sh .github/e2e-ledger 8899 8900 \
+            sc-solana/target/deploy/sc_solana.so \
+            "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+
+      - name: Build Next.js for E2E
+        working-directory: ./web
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+          NEXT_PUBLIC_CLUSTER: "localnet"
+          NEXT_PUBLIC_NETWORK: "localnet"
+          NEXT_PUBLIC_TEST_MODE: "true"
+        run: npm run build
+
+      - name: Run Full User Flow E2E Test
+        working-directory: ./web
+        run: npx playwright test full-flow.spec.ts --reporter=html --project=full-flow
+        timeout-minutes: 15
+
+      - name: Upload Full Flow Video
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-full-flow-local-video
+          path: web/e2e/videos/flow/
+          retention-days: 30
+
+      - name: Upload Full Flow Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-full-flow-local-screenshots
+          path: web/e2e/screenshots/flow/
+          retention-days: 30
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-full-flow-local
+          path: web/playwright-report/
+          retention-days: 30
+
+      - name: Stop Local Validator
+        if: always()
+        run: bash scripts/stop-local-validator.sh .github/e2e-ledger
+
+  # ============================================================================
+  # Job 4: Summary
+  # ============================================================================
+  summary:
+    runs-on: ubuntu-latest
+    needs: [test-e2e-local, test-e2e-full-flow-local]
+    if: always()
+    steps:
+      - name: Check All Jobs Status
+        run: |
+          echo "=== Local Validator E2E Summary ==="
+          echo "E2E Local: ${{ needs.test-e2e-local.result }}"
+          echo "E2E Full Flow Local: ${{ needs.test-e2e-full-flow-local.result }}"
+          
+          FAILED=0
+          if [ "${{ needs.test-e2e-local.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.test-e2e-full-flow-local.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          
+          echo ""
+          echo "Failed jobs: $FAILED"
+          
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::$FAILED job(s) failed"
+            exit 1
+          else
+            echo "All local validator E2E tests passed!"
+          fi

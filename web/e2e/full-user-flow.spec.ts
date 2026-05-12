@@ -1,6 +1,6 @@
 /**
  * Full User Flow E2E Tests
- * 
+ *
  * Comprehensive tests simulating complete user flows including:
  * - Homepage navigation
  * - Wallet connection (mocked)
@@ -8,9 +8,11 @@
  * - Netbook registration
  * - Role management
  * - Solana blockchain integration
+ *
+ * Uses wallet-middleware to inject mock Phantom wallet automatically.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../e2e/fixtures/wallet-middleware";
 import { mockWalletConnection } from "./helpers/test-utils";
 
 test.describe("Full User Flow - Complete Lifecycle", () => {

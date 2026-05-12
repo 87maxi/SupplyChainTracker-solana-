@@ -1,10 +1,11 @@
 /**
  * Homepage End-to-End Tests
- * 
+ *
  * Tests for the main landing page functionality.
+ * Uses wallet-middleware to inject mock Phantom wallet automatically.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../e2e/fixtures/wallet-middleware";
 import {
   waitForPageLoad,
   assertUrlPath,

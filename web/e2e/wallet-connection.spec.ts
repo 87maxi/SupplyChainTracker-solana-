@@ -1,10 +1,11 @@
 /**
  * Wallet Connection E2E Tests
- * 
+ *
  * Tests for wallet connection flow and Solana web3 integration.
+ * Uses wallet-middleware to inject mock Phantom wallet automatically.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../e2e/fixtures/wallet-middleware";
 import {
   waitForPageLoad,
   waitForElementVisible,

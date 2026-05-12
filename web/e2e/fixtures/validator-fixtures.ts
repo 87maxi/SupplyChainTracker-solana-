@@ -17,6 +17,8 @@
  *   });
  */
 
+/* eslint-disable react-hooks/rules-of-hooks, no-empty-pattern */
+
 import { test as base } from "@playwright/test";
 import {
   IntegrationService,

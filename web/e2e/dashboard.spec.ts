@@ -1,10 +1,11 @@
 /**
  * Dashboard E2E Tests
- * 
+ *
  * Tests for the dashboard page functionality and Solana integration.
+ * Uses wallet-middleware to inject mock Phantom wallet automatically.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../e2e/fixtures/wallet-middleware";
 import {
   waitForPageLoad,
   assertUrlPath,

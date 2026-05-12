@@ -1,10 +1,11 @@
 /**
  * Role Management E2E Tests
- * 
+ *
  * Tests for role management UI components and interactions.
+ * Uses wallet-middleware to inject mock Phantom wallet automatically.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../e2e/fixtures/wallet-middleware";
 import {
   waitForPageLoad,
   assertUrlPath,

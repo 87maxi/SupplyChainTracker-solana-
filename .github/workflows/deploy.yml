@@ -52,10 +52,9 @@ jobs:
         run: cd web && npm test -- --forceExit --detectOpenHandles
 
       - name: Install Solana CLI
-        uses: anza-xyz/solana-cli-action@v3
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
-          arch: x86_64
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
       - name: Verify Solana CLI
         run: solana -V

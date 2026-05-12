@@ -256,6 +256,14 @@ jobs:
           path: web/test-results/
           retention-days: 30
 
+      - name: Upload E2E Videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-videos
+          path: web/test-results/**/*.webm
+          retention-days: 30
+
   # ============================================================================
   # Job 8: Integration E2E Tests (Real Solana Test Validator)
   # ============================================================================
@@ -290,10 +298,11 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Install Solana CLI
-        uses: anza-xyz/solana-cli-action@v3
-        with:
-          solana-cli-version: ${{ env.SOLANA_VERSION }}
-          arch: x86_64
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+      - name: Verify Solana CLI
+        run: solana -V
 
       - name: Build Solana Program
         working-directory: ./sc-solana

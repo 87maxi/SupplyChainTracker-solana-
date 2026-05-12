@@ -50,8 +50,8 @@ export default defineConfig({
     /* Take screenshots - always on CI for visual reports, only-on-failure locally */
     screenshot: process.env.CI ? "on" : "only-on-failure",
     
-    /* Video recording on failure */
-    video: "retain-on-failure",
+    /* Video recording - always on CI for full process visibility, on-failure locally */
+    video: process.env.CI ? "on" : "retain-on-failure",
     
     /* Capture network requests */
     actionTimeout: 10000,

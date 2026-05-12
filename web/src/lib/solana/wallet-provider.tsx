@@ -42,10 +42,24 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 function getClusterNetwork(): WalletAdapterNetwork {
   const cluster = process.env.NEXT_PUBLIC_CLUSTER;
   if (!cluster) {
+    // En modo test (localnet), usar devnet como fallback para evitar errores
+    if (process.env.NEXT_PUBLIC_TEST_MODE === 'true') {
+      console.warn(
+        '[Wallet Provider] NEXT_PUBLIC_CLUSTER no definido, usando devnet como fallback para modo test.'
+      );
+      return WalletAdapterNetwork.Devnet;
+    }
     throw new Error(
       'NEXT_PUBLIC_CLUSTER no está definido. ' +
       'Agrega NEXT_PUBLIC_CLUSTER=devnet|mainnet|testnet a tu archivo .env.local.'
     );
+  }
+  // Aceptar 'localnet' como cluster válido para testing local
+  if (cluster === 'localnet') {
+    console.warn(
+      '[Wallet Provider] Cluster localnet detectado. Usando NEXT_PUBLIC_RPC_URL para conexión.'
+    );
+    return WalletAdapterNetwork.Devnet; // Fallback para evitar errores de tipo
   }
   if (cluster !== 'devnet' && cluster !== 'mainnet' && cluster !== 'testnet') {
     console.warn(

@@ -8,7 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  SOLANA_VERSION: 2.1.21
+  SOLANA_VERSION: 2.1.18
   ANCHOR_VERSION: 0.32.1
   NODE_VERSION: 20
   # Real program ID - matches declare_id!() in lib.rs and Anchor.toml

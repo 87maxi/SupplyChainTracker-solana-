@@ -36,6 +36,12 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   
+  /* Enable video recording for all tests - captures full flow */
+  video: 'retain-on-failure',
+  
+  /* Enable trace for debugging */
+  trace: 'retain-on-failure',
+  
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: "html",
   
@@ -63,6 +69,16 @@ export default defineConfig({
   
   /* Configure projects for major browsers */
   projects: [
+    /* Full Flow project - sequential execution with video */
+    {
+      name: "full-flow",
+      use: {
+        ...devices["Desktop Chrome"],
+        video: 'on',
+        trace: 'on',
+        slowMo: 50,
+      },
+    },
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },

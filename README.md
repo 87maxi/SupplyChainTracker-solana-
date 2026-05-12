@@ -946,6 +946,9 @@ anchor test -- --test tests/lifecycle.ts --grep "test_netbook_space"
 
 | File | Description | Type |
 |------|-------------|------|
+| `programs/sc-solana/tests/mollusk-tests.rs` | PDA derivation, discriminators, error codes | Mollusk (in-process SVM) |
+| `programs/sc-solana/tests/mollusk-lifecycle.rs` | Full lifecycle state machine, roles, encoding | Mollusk (in-process SVM) |
+| `programs/sc-solana/tests/compute-units.rs` | Compute unit measurement per instruction | Mollusk (CU profiling) |
 | `tests/lifecycle.ts` | Full netbook lifecycle test | Integration |
 | `tests/batch-registration.ts` | Batch registration tests | Integration |
 | `tests/pda-derivation.ts` | PDA derivation verification | Integration |
@@ -956,6 +959,19 @@ anchor test -- --test tests/lifecycle.ts --grep "test_netbook_space"
 | `tests/overflow-protection.ts` | Overflow protection tests | Integration |
 | `tests/integration-full-lifecycle.ts` | Full lifecycle integration | Integration |
 | `tests/unit-tests.ts` | Unit test equivalents | Unit |
+
+> **Note**: Mollusk tests (`cargo test --test mollusk-*`) run in-process with the Solana runtime simulation and do not require a validator. These are the primary tests used in CI for fast, reliable program validation. Integration tests (`anchor test`) require a running validator and are disabled in CI due to toolchain compatibility.
+
+#### Compute Unit Reporting
+
+Compute unit analysis is available in [`docs/compute-units-report.md`](docs/compute-units-report.md) with:
+
+- Per-instruction CU estimates (all instructions < 2% of 1.47M limit)
+- Full lifecycle CU consumption (~64,700 CU across 4 transactions)
+- Batch size recommendations (max 15 netbooks per transaction)
+- Account size and rent exemption estimates
+
+Frontend CU tracking service: [`web/src/services/ComputeUnitReporter.ts`](web/src/services/ComputeUnitReporter.ts)
 
 ### Frontend Tests
 
@@ -1045,17 +1061,68 @@ anchor deploy --program-keypair target/deploy/sc_solana-keypair.json
 ### CI/CD
 
 ```bash
-# GitHub Actions workflows
-# .github/workflows/ci.yml       - Continuous Integration
-# .github/workflows/deploy.yml   - Deployment pipeline
-
-# CI runs on push/PR:
-# 1. cargo build
-# 2. cargo test
-# 3. anchor build
-# 4. yarn install (web)
-# 5. yarn test (web)
+# GitHub Actions workflow: .github/workflows/ci.yml
+# Runs on push to main/develop and pull requests to main
+# Concurrency: cancels stale runs on same branch/PR
 ```
+
+#### CI Job Pipeline
+
+```
+rust-lint ─────────────────────────────────┐
+                                           │
+build-program ─────────────────────────────┤
+                                           │
+test-mollusk ──> compute-report ───────────┤
+                                           │
+type-check ────────────────────────────────┤
+                                           │
+frontend-lint ─────────────────────────────┤
+                                           │
+test-unit ──> build-frontend ──────────────┤
+                                            ├──> summary (validates all jobs)
+test-unit ──> test-e2e (UI-only) ──────────┘
+```
+
+#### Job Descriptions
+
+| Job | Description | Dependencies |
+|-----|-------------|-------------|
+| `rust-lint` | Rust format + clippy checks | None |
+| `build-program` | `cargo check --all-targets` | None |
+| `test-mollusk` | Rust in-process SVM tests (no validator) | None |
+| `compute-report` | Compute unit measurement tests | test-mollusk |
+| `type-check` | TypeScript type checking | None |
+| `frontend-lint` | ESLint strict mode | None |
+| `test-unit` | Jest unit tests | None |
+| `build-frontend` | Next.js production build | type-check, frontend-lint, test-unit |
+| `test-e2e` | Playwright UI tests (mocked wallet, no blockchain) | type-check, frontend-lint, test-unit |
+| `summary` | Validates all jobs passed | All jobs |
+
+#### Key Design Decisions
+
+- **E2E tests are UI-only**: No Solana validator is started. Tests use mocked wallet connections and test the frontend rendering, navigation, and user interactions.
+- **Mollusk tests replace integration tests**: Rust in-process SVM tests provide fast, reliable program logic validation without needing a running validator.
+- **Compute unit reporting**: Dedicated job measures CU consumption for all program instructions to ensure transactions stay within the 1.47M CU limit.
+- **Playwright browser caching**: Browsers are cached across runs to reduce install time by ~60 seconds.
+- **Stale run cancellation**: Pushing new commits to the same branch cancels in-progress CI runs to save resources.
+
+#### Running Tests Locally
+
+```bash
+# Solana program tests (mollusk - no validator needed)
+cd sc-solana/programs/sc-solana
+cargo test --test mollusk-tests
+cargo test --test mollusk-lifecycle
+cargo test --test compute-units
+
+# Frontend unit tests
+cd web
+yarn test
+
+# Frontend E2E tests (UI-only, no blockchain)
+cd web
+yarn exec playwright test --project=chromium
 
 ---
 

@@ -299,10 +299,14 @@ jobs:
 
       - name: Install Solana CLI
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          set -ex
+          curl -sSfL "https://release.anza.xyz/v${{ env.SOLANA_VERSION }}/solana-release-x86_64-unknown-linux-gnu.tar.bz2" | tar -xj -C ~ --strip-components=1
+          echo "$HOME/bin" >> $GITHUB_PATH
       - name: Verify Solana CLI
-        run: solana -V
+        run: |
+          set -ex
+          which solana
+          solana -V
 
       - name: Build Solana Program
         working-directory: ./sc-solana

@@ -101,6 +101,7 @@ export default defineConfig({
       NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com",
       NEXT_PUBLIC_CLUSTER: "devnet",
       NEXT_PUBLIC_NETWORK: "devnet",
+      NEXT_PUBLIC_TEST_MODE: "true",
     },
   },
   

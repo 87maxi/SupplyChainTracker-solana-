@@ -18,6 +18,7 @@ import {
 } from '@solana/wallet-adapter-wallets';
 import { ReactNode, useCallback, useMemo } from 'react';
 import { clusterApiUrl } from '@solana/web3.js';
+import { MockWalletAdapter } from './mock-wallet-adapter';
 
 // Default styles that can be overridden by your app
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -65,19 +66,29 @@ export function SolanaWalletProvider({ children }: { children: ReactNode }) {
     console.error(`[Wallet Error] ${message}`, adapter);
   }, []);
 
+  // Detectar modo test para usar MockWalletAdapter
+  const isTestMode = process.env.NEXT_PUBLIC_TEST_MODE === 'true';
+
   const wallets = useMemo(
-    () => [
-      // Explicitly configured wallets
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-      new LedgerWalletAdapter(),
-      new TrustWalletAdapter(),
-      new TorusWalletAdapter(),
-      new CloverWalletAdapter(),
-      new SafePalWalletAdapter(),
-      // Note: Backpack and other Wallet Standard wallets are auto-detected
-      // by the wallet adapter without needing explicit configuration
-    ],
+    () => {
+      if (isTestMode) {
+        // En modo test, usar MockWalletAdapter (siempre conectado, sin extensión)
+        return [new MockWalletAdapter()];
+      }
+      // En producción/development, usar adapters reales
+      return [
+        // Explicitly configured wallets
+        new PhantomWalletAdapter(),
+        new SolflareWalletAdapter(),
+        new LedgerWalletAdapter(),
+        new TrustWalletAdapter(),
+        new TorusWalletAdapter(),
+        new CloverWalletAdapter(),
+        new SafePalWalletAdapter(),
+        // Note: Backpack and other Wallet Standard wallets are auto-detected
+        // by the wallet adapter without needing explicit configuration
+      ];
+    },
     [network]
   );
 

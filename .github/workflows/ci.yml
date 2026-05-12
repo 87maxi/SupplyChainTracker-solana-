@@ -224,6 +224,7 @@ jobs:
       NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
       NEXT_PUBLIC_CLUSTER: "localnet"
       NEXT_PUBLIC_NETWORK: "localnet"
+      NEXT_PUBLIC_TEST_MODE: "true"
     steps:
       - uses: actions/checkout@v4
 
@@ -257,6 +258,7 @@ jobs:
           NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
           NEXT_PUBLIC_CLUSTER: "localnet"
           NEXT_PUBLIC_NETWORK: "localnet"
+          NEXT_PUBLIC_TEST_MODE: "true"
         run: npm run build
 
       # Playwright webServer config handles server lifecycle automatically.

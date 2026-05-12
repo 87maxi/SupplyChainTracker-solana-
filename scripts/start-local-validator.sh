@@ -16,8 +16,13 @@ echo "   RPC Port: $RPC_PORT"
 echo "   WS Port: $WS_PORT"
 echo "   Program: $PROGRAM_ID"
 
-# Clean up existing ledger
-rm -rf "$LEDGER_DIR"
+# Clean up existing ledger (only if it exists)
+if [ -d "$LEDGER_DIR" ]; then
+    rm -rf "$LEDGER_DIR"
+fi
+
+# Create ledger directory if it doesn't exist
+mkdir -p "$LEDGER_DIR"
 
 # Build program if .so file doesn't exist
 if [ ! -f "$PROGRAM_PATH" ]; then
@@ -40,7 +45,11 @@ solana-test-validator \
 
 VALIDATOR_PID=$!
 
+# Wait a moment for the ledger directory to be created by the validator
+sleep 2
+
 # Save PID for cleanup
+mkdir -p "$LEDGER_DIR"
 echo "$VALIDATOR_PID" > "$LEDGER_DIR/.validator-pid"
 
 # Wait for validator to start

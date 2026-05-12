@@ -1,11 +1,11 @@
 // Get a map of role names to their hashes from the contract
 // Updated RoleMap to include full role names as keys
 export type RoleMap = {
-  FABRICANTE: `0x${string}`;
-  AUDITOR_HW: `0x${string}`;
-  TECNICO_SW: `0x${string}`;
-  ESCUELA: `0x${string}`;
-  ADMIN: `0x${string}`;
+  FABRICANTE_ROLE: `0x${string}`;
+  AUDITOR_HW_ROLE: `0x${string}`;
+  TECNICO_SW_ROLE: `0x${string}`;
+  ESCUELA_ROLE: `0x${string}`;
+  ADMIN_ROLE: `0x${string}`;
 };
 
 // Importar los hashes de roles directamente de las constantes
@@ -13,11 +13,11 @@ import { ROLE_HASHES } from '@/lib/constants/roles';
 
 // Initialize role hashes directly from constants at module load time
 const directRoleHashes: RoleMap = {
-  FABRICANTE: (ROLE_HASHES.FABRICANTE || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
-  AUDITOR_HW: (ROLE_HASHES.AUDITOR_HW || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
-  TECNICO_SW: (ROLE_HASHES.TECNICO_SW || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
-  ESCUELA: (ROLE_HASHES.ESCUELA || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
-  ADMIN: (ROLE_HASHES.ADMIN || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
+  FABRICANTE_ROLE: (ROLE_HASHES.FABRICANTE_ROLE || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
+  AUDITOR_HW_ROLE: (ROLE_HASHES.AUDITOR_HW_ROLE || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
+  TECNICO_SW_ROLE: (ROLE_HASHES.TECNICO_SW_ROLE || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
+  ESCUELA_ROLE: (ROLE_HASHES.ESCUELA_ROLE || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
+  ADMIN_ROLE: (ROLE_HASHES.ADMIN_ROLE || "0x0000000000000000000000000000000000000000000000000000000000000000") as `0x${string}`,
 };
 
 // Validate the directRoleHashes at module load time
@@ -48,25 +48,12 @@ export const getRoleHashes = async (): Promise<RoleMap> => {
     
     // Validate each role hash with detailed logging
     const validateHash = (hash: string | undefined, roleName: keyof typeof ROLE_HASHES) => {
-      console.log(`Validating hash for ${roleName}:`, hash);
-      
       if (!hash) {
-        throw new Error(`${roleName} hash is not defined`);
+        throw new Error(`${roleName} hash is undefined`);
       }
       
-      if (typeof hash !== 'string') {
-        throw new Error(`${roleName} hash is not a string: ${typeof hash}`);
-      }
-      
-      if (!hash.startsWith('0x')) {
-        throw new Error(`${roleName} hash does not start with 0x: ${hash}`);
-      }
-      
-      if (hash.length !== 66) {
-        throw new Error(`${roleName} hash is not 66 characters long: ${hash.length} characters`);
-      }
-      
-      if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) {
+      // Validate that it's a valid 32-byte hex string (66 characters including 0x prefix)
+      if (typeof hash !== 'string' || !hash.startsWith('0x') || hash.length !== 66) {
         throw new Error(`${roleName} hash is not a valid 32-byte hex string: ${hash}`);
       }
       
@@ -75,11 +62,11 @@ export const getRoleHashes = async (): Promise<RoleMap> => {
 
     // Crear el objeto result con los hashes de roles directamente de las constantes
     const result: RoleMap = {
-      FABRICANTE: validateHash(ROLE_HASHES.FABRICANTE, 'FABRICANTE'),
-      AUDITOR_HW: validateHash(ROLE_HASHES.AUDITOR_HW, 'AUDITOR_HW'),
-      TECNICO_SW: validateHash(ROLE_HASHES.TECNICO_SW, 'TECNICO_SW'),
-      ESCUELA: validateHash(ROLE_HASHES.ESCUELA, 'ESCUELA'),
-      ADMIN: validateHash(ROLE_HASHES.ADMIN, 'ADMIN'),
+      FABRICANTE_ROLE: validateHash(ROLE_HASHES.FABRICANTE_ROLE, 'FABRICANTE_ROLE'),
+      AUDITOR_HW_ROLE: validateHash(ROLE_HASHES.AUDITOR_HW_ROLE, 'AUDITOR_HW_ROLE'),
+      TECNICO_SW_ROLE: validateHash(ROLE_HASHES.TECNICO_SW_ROLE, 'TECNICO_SW_ROLE'),
+      ESCUELA_ROLE: validateHash(ROLE_HASHES.ESCUELA_ROLE, 'ESCUELA_ROLE'),
+      ADMIN_ROLE: validateHash(ROLE_HASHES.ADMIN_ROLE, 'ADMIN_ROLE'),
     };
     
     console.log('Role hashes retrieved and validated:', result);
@@ -90,12 +77,39 @@ export const getRoleHashes = async (): Promise<RoleMap> => {
     // Este caso no debería ocurrir ya que no estamos haciendo llamadas al contrato
     // Pero por seguridad, retornamos los hashes de las constantes
     cachedRoleHashes = {
-      FABRICANTE: ROLE_HASHES.FABRICANTE,
-      AUDITOR_HW: ROLE_HASHES.AUDITOR_HW,
-      TECNICO_SW: ROLE_HASHES.TECNICO_SW,
-      ESCUELA: ROLE_HASHES.ESCUELA,
-      ADMIN: ROLE_HASHES.ADMIN,
+      FABRICANTE_ROLE: ROLE_HASHES.FABRICANTE_ROLE,
+      AUDITOR_HW_ROLE: ROLE_HASHES.AUDITOR_HW_ROLE,
+      TECNICO_SW_ROLE: ROLE_HASHES.TECNICO_SW_ROLE,
+      ESCUELA_ROLE: ROLE_HASHES.ESCUELA_ROLE,
+      ADMIN_ROLE: ROLE_HASHES.ADMIN_ROLE,
     };
     return cachedRoleHashes;
   }
+};
+
+// Función para obtener el hash de un rol específico
+export const getRoleHash = (roleName: keyof RoleMap): `0x${string}` => {
+  const roleHashes = getRoleHashes();
+  return (roleHashes as any)[roleName];
+};
+
+// Función para obtener el nombre de rol a partir del hash
+export const getRoleNameFromHash = (hash: `0x${string}`): keyof RoleMap | null => {
+  // Buscar el rol por hash en las constantes
+  for (const [roleName, roleHash] of Object.entries(ROLE_HASHES)) {
+    if (roleHash === hash) {
+      return roleName as keyof RoleMap;
+    }
+  }
+  return null;
+};
+
+// Función para verificar si un rol es válido
+export const isValidRole = (roleName: string): roleName is keyof RoleMap => {
+  return Object.keys(ROLE_HASHES).includes(roleName);
+};
+
+// Función para obtener todos los roles válidos
+export const getAllRoles = (): Array<keyof RoleMap> => {
+  return Object.keys(ROLE_HASHES) as Array<keyof RoleMap>;
 };

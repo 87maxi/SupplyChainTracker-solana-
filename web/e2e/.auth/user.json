@@ -1,0 +1,33 @@
+{
+  "cookies": [
+    {
+      "name": "mock-wallet-connected",
+      "value": "true",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3001",
+      "localStorage": [
+        {
+          "name": "mock-wallet-adapter-connected",
+          "value": "true"
+        },
+        {
+          "name": "mock-wallet-address",
+          "value": "MockWalletAddress1111111111111111111111111111111"
+        },
+        {
+          "name": "mock-wallet-publicKey",
+          "value": "MockPublicKey11111111111111111111111111111111111"
+        }
+      ]
+    }
+  ]
+}

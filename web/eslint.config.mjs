@@ -100,7 +100,7 @@ export default [
       ...reactHooks.configs.recommended.rules,
       "react/react-in-jsx-scope": "off",
       "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
+      "react-hooks/exhaustive-deps": "error",
       // Disable immutability rule - too many false positives for legitimate patterns
       "react-hooks/immutability": "off",
 
@@ -110,15 +110,14 @@ export default [
       "import/no-duplicates": "error",
       
       // Errores de lógica base
-      "no-undef": "off",
-      // Disable unused vars warnings - too many false positives in legacy code
-      // Will be enabled incrementally as code is cleaned up
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": "off",
-      // Disable exhaustive-deps - many legitimate cases with async callbacks
-      "react-hooks/exhaustive-deps": "off",
-      // Disable no-explicit-any - too many false positives for external types (Solana SDK, IDL types, etc.)
-      "@typescript-eslint/no-explicit-any": "off",
+      "no-undef": "error",
+      // Enable unused vars warnings to improve code quality
+      "no-unused-vars": "error",
+      "@typescript-eslint/no-unused-vars": "error",
+      // Enable exhaustive-deps to prevent React hook issues
+      "react-hooks/exhaustive-deps": "error",
+      // Enable no-explicit-any to prevent type safety issues
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
 ];

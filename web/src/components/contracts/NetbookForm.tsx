@@ -34,8 +34,6 @@ const netbookFormSchema = z.object({
 // Define los tipos para el formulario
 type NetbookFormValues = z.infer<typeof netbookFormSchema>;
 
-type NetbookInput = z.infer<typeof netbookSchema>;
-
 // Propiedades del componente
 interface NetbookFormProps {
   isOpen: boolean;
@@ -52,7 +50,7 @@ export function NetbookForm({
   const { registerNetbook } = useSupplyChainService();
   const refetchDashboardData = useCallback(() => Promise.resolve(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
   // Inicializa el formulario con react-hook-form y zod
   const form = useForm<NetbookFormValues>({
@@ -78,16 +76,9 @@ export function NetbookForm({
   // Maneja el envío del formulario
   const onSubmit = async (data: NetbookFormValues) => {
     setIsSubmitting(true);
-    setSubmitStatus('idle');
+    setSubmitMessage(null);
 
     try {
-      const netbooks = data.netbooks.map((n, i) => ({
-        tokenId: i + 1,
-        serialNumber: n.serialNumber,
-        model: n.initialModelSpecs,
-        manufacturer: 'FABRICANTE',
-      }));
-
       // Note: registerNetbook is used instead of registerNetbooksBatch from legacy Ethereum version
       for (const netbook of data.netbooks) {
         await registerNetbook({
@@ -103,7 +94,7 @@ export function NetbookForm({
         variant: 'default',
       });
 
-      setSubmitStatus('success');
+      setSubmitMessage(`Netbooks registradas correctamente: ${fields.length} registradas`);
       await refetchDashboardData();
 
       if (onComplete) {
@@ -120,7 +111,7 @@ export function NetbookForm({
         description: error.message || 'Error al registrar las netbooks. Por favor intenta nuevamente.',
         variant: 'destructive',
       });
-      setSubmitStatus('error');
+      setSubmitMessage(`Error: ${error.message || 'Error al registrar las netbooks'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -130,7 +121,7 @@ export function NetbookForm({
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       reset();
-      setSubmitStatus('idle');
+      setSubmitMessage(null);
     }
     onOpenChange(open);
   };
@@ -243,6 +234,11 @@ export function NetbookForm({
           </div>
 
           <DialogFooter>
+            {submitMessage && (
+              <div className={`mb-2 p-2 rounded ${submitMessage.startsWith('Error:') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                {submitMessage}
+              </div>
+            )}
             <Button
               type="button"
               variant="outline"

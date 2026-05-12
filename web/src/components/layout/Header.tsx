@@ -1,13 +1,12 @@
 // web/src/components/layout/Header.tsx
 "use client";
 
+import { useState } from 'react';
 import { WalletConnectButton } from '@/components/WalletConnectButton';
 import { Navigation } from './Navigation';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-// Legacy: RoleRequestModal was removed. Use RoleRequestService directly.
-import { useState, useEffect } from 'react';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { User, Wallet } from 'lucide-react';
 import Link from 'next/link';
@@ -15,13 +14,12 @@ import Link from 'next/link';
 export const Header = () => {
   const { activeRoleNames, isLoading: rolesLoading } = useUserRoles();
   const { isConnected } = useWeb3();
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   // Initialize mounted directly to avoid set-state-in-effect
   const [mounted] = useState(() => typeof window !== 'undefined');
 
   // Función para formatear el nombre del rol para mostrar en la UI
   const formatRoleNameForDisplay = (roleName: string) => {
-    if (roleName === "DEFAULT_ADMIN_ROLE") return "Admin";
+    if (roleName === "ADMIN_ROLE") return "Admin";
     return roleName.replace(/_ROLE/g, '').replace(/_/g, ' ').toLowerCase()
       .split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
@@ -29,7 +27,7 @@ export const Header = () => {
   // Determinar el color del badge según el rol
   const getRoleBadgeVariant = (roleName: string) => {
     switch (roleName) {
-      case "DEFAULT_ADMIN_ROLE": return "destructive" as const;
+      case "ADMIN_ROLE": return "destructive" as const;
       case "FABRICANTE_ROLE": return "default" as const;
       case "AUDITOR_HW_ROLE": return "success" as const;
       case "TECNICO_SW_ROLE": return "warning" as const;
@@ -62,7 +60,6 @@ export const Header = () => {
                 <Button
                   variant="gradient"
                   size="sm"
-                  onClick={() => setIsRequestModalOpen(true)}
                   className="hidden sm:flex"
                 >
                   <User className="h-4 w-4 mr-1" />
@@ -75,7 +72,7 @@ export const Header = () => {
                 <div className="hidden lg:flex items-center space-x-2">
                   {/* Mostrar solo el rol principal según prioridad */}
                   {(() => {
-                    const primaryRole = activeRoleNames.find(r => r === 'DEFAULT_ADMIN_ROLE') ||
+                    const primaryRole = activeRoleNames.find(r => r === 'ADMIN_ROLE') ||
                       activeRoleNames.find(r => r === 'FABRICANTE_ROLE') ||
                       activeRoleNames.find(r => r === 'AUDITOR_HW_ROLE') ||
                       activeRoleNames.find(r => r === 'TECNICO_SW_ROLE') ||
@@ -110,8 +107,6 @@ export const Header = () => {
           <WalletConnectButton />
         </div>
       </div>
-
-      {/* Modal de solicitud de rol - REMOVED: RoleRequestModal component was deleted during Ethereum to Solana migration. Use RoleRequestService directly if needed. */}
     </header>
   );
 };

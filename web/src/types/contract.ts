@@ -7,8 +7,8 @@ export type ContractRoles =
   | 'ESCUELA_ROLE';
 
 export type ContractRoleName =
-  | 'FABRICANTE'
-  | 'AUDITOR_HW'
-  | 'TECNICO_SW'
-  | 'ESCUELA'
-  | 'ADMIN';
+  | 'FABRICANTE_ROLE'
+  | 'AUDITOR_HW_ROLE'
+  | 'TECNICO_SW_ROLE'
+  | 'ESCUELA_ROLE'
+  | 'ADMIN_ROLE';

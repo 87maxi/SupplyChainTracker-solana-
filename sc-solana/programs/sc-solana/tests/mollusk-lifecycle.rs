@@ -88,15 +88,15 @@ fn encode_string(s: &str) -> Vec<u8> {
 
 // ==================== Discriminators ====================
 
-/// Generate instruction discriminator using simple hash for test verification
+/// Generate instruction discriminator using FNV-1a 64-bit hash for test verification
 fn get_discriminator(name: &str) -> [u8; 8] {
     let mut disc = [0u8; 8];
     let key = format!("global:{}", name);
     let bytes = key.as_bytes();
-    let mut hash: u32 = 2166136261; // FNV offset basis
+    let mut hash: u64 = 14695981039346656037; // FNV-1a 64-bit offset basis (14695981039346656037)
     for &byte in bytes {
-        hash = hash.wrapping_mul(16777619); // FNV prime
-        hash ^= byte as u32;
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(1099511628211); // FNV-1a 64-bit prime (1099511628211)
     }
     disc.copy_from_slice(&hash.to_le_bytes());
     disc

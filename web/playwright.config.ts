@@ -3,6 +3,12 @@
  * 
  * Configuration for end-to-end testing of the SupplyChainTracker frontend
  * using Playwright browser automation.
+ * 
+ * Key Features:
+ * - Single browser instance for full-flow tests (continuous session)
+ * - Sequential execution for full-flow to maintain browser state
+ * - Video recording for debugging and visual verification
+ * - Mock wallet injection for testing without real wallet
  */
 
 import { defineConfig, devices } from "@playwright/test";
@@ -36,11 +42,8 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   
-  /* Enable video recording for all tests - captures full flow */
-  video: 'retain-on-failure',
-  
-  /* Enable trace for debugging */
-  trace: 'retain-on-failure',
+  /* Preserve output for debugging - keeps videos/screenshots even on success */
+  preserveOutput: 'always',
   
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: "html",
@@ -48,19 +51,13 @@ export default defineConfig({
   /* Global setup for wallet mock injection */
   globalSetup: "./e2e/fixtures/global-setup.ts",
   
+  /* Global teardown to clean up browser resources */
+  globalTeardown: "./e2e/fixtures/global-teardown.ts",
+  
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001",
-    
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: "on-first-retry",
-    
-    /* Take screenshots - always on CI for visual reports, only-on-failure locally */
-    screenshot: process.env.CI ? "on" : "only-on-failure",
-    
-    /* Video recording - always on CI for full process visibility, on-failure locally */
-    video: process.env.CI ? "on" : "retain-on-failure",
     
     /* Capture network requests */
     actionTimeout: 10000,
@@ -69,37 +66,90 @@ export default defineConfig({
   
   /* Configure projects for major browsers */
   projects: [
-    /* Full Flow project - sequential execution with video */
+    /* 
+     * Full Flow Sequential project - SINGLE BROWSER INSTANCE
+     * This project runs ALL tests in a single browser session for continuous flow.
+     * Key settings:
+     * - fullyParallel: false (sequential execution within project)
+     * - storageState: preserves browser cookies/localStorage between tests
+     * - video: 'on' (always record for full flow review)
+     * - trace: 'on' (always capture traces)
+     */
     {
-      name: "full-flow",
+      name: "full-flow-sequential",
+      testMatch: /full-flow\.spec\.ts/,
+      fullyParallel: false, // Disable parallel within this project
+      workers: 1, // CRITICAL: Force single worker to use one browser instance for entire flow
       use: {
         ...devices["Desktop Chrome"],
         video: 'on',
         trace: 'on',
-        slowMo: 50,
+        screenshot: 'on',
+        // Storage state file to persist browser state between tests
+        // This ensures the same browser instance maintains cookies, localStorage, etc.
+        storageState: 'e2e/.auth/user.json',
+        // Launch browser in headed mode for visual verification
+        // headless: false will show the browser window
+        launchOptions: {
+          headless: false,
+          slowMo: 100, // Slow down actions for visual verification
+        },
+      },
+    },
+    
+    /* Full Flow project - for compatibility with existing test references */
+    {
+      name: "full-flow",
+      testMatch: /full-flow\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        video: 'on',
+        trace: 'on',
+        storageState: 'e2e/.auth/user.json',
+      },
+    },
+    
+    /* Standard browser projects for unit-style E2E tests */
+    {
+      name: "chromium",
+      use: { 
+        ...devices["Desktop Chrome"],
+        video: 'retain-on-failure',
+        trace: 'on-first-retry',
+        screenshot: process.env.CI ? "on" : "only-on-failure",
       },
     },
     {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
       name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
+      use: { 
+        ...devices["Desktop Firefox"],
+        video: 'retain-on-failure',
+        trace: 'on-first-retry',
+      },
     },
     {
       name: "webkit",
-      use: { ...devices["Desktop Safari"] },
+      use: { 
+        ...devices["Desktop Safari"],
+        video: 'retain-on-failure',
+        trace: 'on-first-retry',
+      },
     },
     
     /* Test against mobile viewports. */
     {
       name: "Mobile Chrome",
-      use: { ...devices["Pixel 5"] },
+      use: { 
+        ...devices["Pixel 5"],
+        video: 'retain-on-failure',
+      },
     },
     {
       name: "Mobile Safari",
-      use: { ...devices["iPhone 12"] },
+      use: { 
+        ...devices["iPhone 12"],
+        video: 'retain-on-failure',
+      },
     },
   ],
   

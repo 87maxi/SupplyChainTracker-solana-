@@ -6,7 +6,8 @@ set -e
 
 LEDGER_DIR="${1:-.anchor/e2e-ledger}"
 RPC_PORT="${2:-8899}"
-WS_PORT="${3:-8900}"
+# WebSocket port is automatically RPC_PORT + 1 in solana-test-validator
+WS_PORT=$((RPC_PORT + 1))
 PROGRAM_PATH="${4:-sc-solana/target/deploy/sc_solana.so}"
 PROGRAM_ID="${5:-$(grep 'sc_solana =' sc-solana/Anchor.toml | cut -d'"' -f2)}"
 
@@ -33,11 +34,12 @@ if [ ! -f "$PROGRAM_PATH" ]; then
 fi
 
 # Start solana-test-validator
+# Note: solana-test-validator v3.1.13 does NOT support --ws-port flag
+# WebSocket port is automatically calculated as RPC_PORT + 1
 echo "⚙️  Starting solana-test-validator..."
 solana-test-validator \
     --ledger "$LEDGER_DIR" \
     --rpc-port "$RPC_PORT" \
-    --ws-port "$WS_PORT" \
     --bpf-program "$PROGRAM_ID" "$PROGRAM_PATH" \
     --reset \
     --compute-unit-limit 600000 \

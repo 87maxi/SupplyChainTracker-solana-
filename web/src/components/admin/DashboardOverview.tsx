@@ -116,11 +116,11 @@ export function DashboardOverview({ stats: initialStats }: { stats: DashboardSta
 
       const [adminMembers, fabricanteMembers, auditorHwMembers, tecnicoSwMembers, escuelaMembers] =
         await Promise.all([
-          getRoleMembers(roleHashes.ADMIN).catch(() => []),
-          getRoleMembers(roleHashes.FABRICANTE).catch(() => []),
-          getRoleMembers(roleHashes.AUDITOR_HW).catch(() => []),
-          getRoleMembers(roleHashes.TECNICO_SW).catch(() => []),
-          getRoleMembers(roleHashes.ESCUELA).catch(() => [])
+          getRoleMembers(roleHashes.ADMIN_ROLE).catch(() => []),
+          getRoleMembers(roleHashes.FABRICANTE_ROLE).catch(() => []),
+          getRoleMembers(roleHashes.AUDITOR_HW_ROLE).catch(() => []),
+          getRoleMembers(roleHashes.TECNICO_SW_ROLE).catch(() => []),
+          getRoleMembers(roleHashes.ESCUELA_ROLE).catch(() => [])
         ]);
 
       const allUserRoles: UserRoleData[] = [];

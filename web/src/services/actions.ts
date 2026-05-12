@@ -13,16 +13,16 @@ export async function getDashboardData() {
     const serialNumbers = await getAllSerialNumbers();
 
     // Get role hashes from our utility
-    const { FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA } = await import('@/lib/roleUtils').then(
+    const roleHashes = await import('@/lib/roleUtils').then(
       ({ getRoleHashes }) => getRoleHashes()
     );
 
     // Get role members
     const [fabricanteCount, auditorHwCount, tecnicoSwCount, escuelaCount] = await Promise.all([
-      getRoleMemberCount(FABRICANTE),
-      getRoleMemberCount(AUDITOR_HW),
-      getRoleMemberCount(TECNICO_SW),
-      getRoleMemberCount(ESCUELA)
+      getRoleMemberCount(roleHashes.FABRICANTE_ROLE),
+      getRoleMemberCount(roleHashes.AUDITOR_HW_ROLE),
+      getRoleMemberCount(roleHashes.TECNICO_SW_ROLE),
+      getRoleMemberCount(roleHashes.ESCUELA_ROLE)
     ]);
 
     // Get netbook counts by state

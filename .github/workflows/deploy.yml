@@ -84,6 +84,7 @@ jobs:
         env:
           NEXT_PUBLIC_PROGRAM_ID: ${{ env.NEXT_PUBLIC_PROGRAM_ID }}
           NEXT_PUBLIC_RPC_URL: ${{ env.NEXT_PUBLIC_RPC_URL_DEVNET }}
+          NEXT_PUBLIC_CLUSTER: "devnet"
 
       - name: Set Frontend URL
         id: set-frontend-url
@@ -141,21 +142,37 @@ jobs:
         run: npm install -g vercel
 
       - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=${{ github.event.inputs.environment == 'mainnet-beta' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ]; then
+            vercel pull --yes --environment=${{ github.event.inputs.environment == 'mainnet-beta' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            echo "VERCEL_TOKEN not configured, skipping vercel pull"
+          fi
 
       - name: Build Project Artifacts
         run: |
           cd web
           npm install
-          vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ]; then
+            vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            npm run build
+          fi
         env:
           NEXT_PUBLIC_PROGRAM_ID: ${{ env.NEXT_PUBLIC_PROGRAM_ID }}
           NEXT_PUBLIC_RPC_URL: ${{ github.event.inputs.environment == 'mainnet-beta' && env.NEXT_PUBLIC_RPC_URL_MAINNET || env.NEXT_PUBLIC_RPC_URL_DEVNET }}
+          NEXT_PUBLIC_CLUSTER: ${{ github.event.inputs.environment == 'mainnet-beta' && 'mainnet-beta' || 'devnet' }}
 
       - name: Deploy Project Artifacts to Vercel
         run: |
           cd web
-          vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ]; then
+            vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            echo "VERCEL_TOKEN not configured, skipping vercel deploy"
+            echo "Build output available in web/.next/"
+          fi
         env:
           NEXT_PUBLIC_PROGRAM_ID: ${{ env.NEXT_PUBLIC_PROGRAM_ID }}
           NEXT_PUBLIC_RPC_URL: ${{ github.event.inputs.environment == 'mainnet-beta' && env.NEXT_PUBLIC_RPC_URL_MAINNET || env.NEXT_PUBLIC_RPC_URL_DEVNET }}
+          NEXT_PUBLIC_CLUSTER: ${{ github.event.inputs.environment == 'mainnet-beta' && 'mainnet-beta' || 'devnet' }}

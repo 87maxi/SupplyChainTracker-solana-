@@ -211,9 +211,34 @@ jobs:
         run: npm run build
 
   # ============================================================================
+<<<<<<< HEAD
   # Job 7: Runbook-Based Program Tests (Replaces E2E for Smart Contract Verification)
   # Uses Mollusk in-process SVM testing + runbook syntax validation
   # No validator required - more reliable than E2E browser tests
+=======
+  # Job 7: Playwright E2E Tests (UI-only, no blockchain)
+  #
+  # ARCHITECTURE NOTE: These are UI-only tests with mocked wallet connections.
+  # They test page navigation, form validation, and responsive design.
+  # They do NOT interact with the blockchain directly.
+  #
+  # WHY NO VALIDATOR NEEDED:
+  # - Tests use MockWalletAdapter (web/src/lib/solana/mock-wallet-adapter.ts)
+  # - MockWalletAdapter extends BaseWalletAdapter - no browser extension required
+  # - All wallet operations are mocked in-memory
+  # - Next.js builds fine without RPC connectivity (uses env vars for config)
+  #
+  # SOLANA 2.x TOOLCHAIN ISSUE (Resolved):
+  # - Original error: "failed to parse manifest at toml_datetime-1.1.1+spec-1.1.0/Cargo.toml"
+  # - Root cause: Solana 2.1.18's cargo build-sbf uses embedded Cargo 1.79.0
+  # - Cargo 1.79.0 cannot parse edition="2024" or spec-1.1.0 version format
+  # - Solution: Split tests into UI E2E (no validator) + Mollusk (in-process SVM)
+  #
+  # INTEGRATION TESTS STATUS:
+  # - Disabled in test-integration job (lines 379-470)
+  # - Requires anchor build which pulls toml_parser with edition2024
+  # - Re-enable once Anchor/Solana toolchain compatibility is resolved
+>>>>>>> bff1aa190dc8616ad5f200b77569d4016a400cdf
   # ============================================================================
   test-runbooks:
     runs-on: ubuntu-latest
@@ -231,7 +256,103 @@ jobs:
           path: ~/.cargo/registry
           key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
 
+<<<<<<< HEAD
       - name: Cache Cargo build
+=======
+      - name: Install Playwright Browsers
+        working-directory: ./web
+        run: npx playwright install --with-deps chromium
+
+      - name: Build Next.js for E2E (production server required)
+        working-directory: ./web
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+          NEXT_PUBLIC_CLUSTER: "localnet"
+          NEXT_PUBLIC_NETWORK: "localnet"
+          NEXT_PUBLIC_TEST_MODE: "true"
+        run: npm run build
+
+      # Playwright webServer config handles server lifecycle automatically.
+      # In CI: uses 'npm start' (production server, requires build)
+      # Locally: uses 'npm run dev' (development server with hot-reload)
+      # No manual server startup needed - webServer starts, waits for health-check,
+      # runs tests, and shuts down the server automatically.
+      - name: Run Playwright E2E Tests (Chromium only)
+        working-directory: ./web
+        run: npx playwright test --reporter=html --project=chromium
+        timeout-minutes: 10
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 30
+
+      - name: Upload E2E Screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: web/test-results/
+          retention-days: 30
+
+  # ============================================================================
+  # Job 7b: Full User Flow E2E Test (Continuous Video Session)
+  #
+  # ARCHITECTURE NOTE: This is a single-transaction E2E test that simulates
+  # a complete user journey through the application in one continuous browser
+  # session. Unlike regular E2E tests that run in parallel, this test uses
+  # Playwright's "full-flow" project configuration to maintain state across
+  # multiple test files.
+  #
+  # WHY CONTINUOUS SESSION:
+  # - Captures user journey as a single video (no cuts between tests)
+  # - Maintains wallet connection state across test files
+  # - Simulates real-world user behavior more accurately
+  # - Useful for regression testing and visual verification
+  #
+  # CONFIGURATION (from playwright.config.ts):
+  # - Uses 'full-flow' project with single browser context
+  # - Video recording enabled for entire session
+  # - FLOW_SLOW_MO=100ms for better video quality
+  #
+  # TEST COVERAGE:
+  # - Homepage navigation
+  # - Wallet connection (MockWalletAdapter)
+  # - Netbook registration
+  # - Dashboard interaction
+  # - Role management
+  # ============================================================================
+  test-e2e-full-flow:
+    runs-on: ubuntu-latest
+    needs: [type-check, frontend-lint, test-unit]
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+      NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+      NEXT_PUBLIC_CLUSTER: "localnet"
+      NEXT_PUBLIC_NETWORK: "localnet"
+      NEXT_PUBLIC_TEST_MODE: "true"
+      FLOW_SLOW_MO: "100"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./web
+        run: npm install --prefer-offline --no-audit --no-fund
+
+      - name: Cache Playwright Browsers
+>>>>>>> bff1aa190dc8616ad5f200b77569d4016a400cdf
         uses: actions/cache@v4
         with:
           path: sc-solana/target
@@ -373,8 +494,31 @@ jobs:
   #         retention-days: 7
 
   # ============================================================================
-  # Job 8: Compute Unit Report (analyzes program compute efficiency)
-  # Depends on test-mollusk to ensure program logic is validated first.
+  # Job 9: Compute Unit Report (analyzes program compute efficiency)
+  #
+  # ARCHITECTURE NOTE: This job runs the compute unit measurement tests
+  # that analyze the Solana program's resource consumption for each instruction.
+  # These tests use the Mollusk framework to run in-process SVM execution,
+  # measuring exact CU (Compute Unit) costs without needing a validator.
+  #
+  # TEST FILE: sc-solana/programs/sc-solana/tests/compute-units.rs
+  # - Measures CU for all program instructions (register, assign, audit, etc.)
+  # - Includes batch operation estimates
+  # - Calculates full lifecycle costs
+  # - Generates docs/compute-units-report.md as artifact
+  #
+  # DEPENDENCY CHAIN:
+  # test-mollusk → compute-report
+  # (Must validate program logic before measuring efficiency)
+  #
+  # OUTPUT:
+  # - Uploads docs/compute-units-report.md as CI artifact
+  # - Report includes CU estimates, risk assessment, recommendations
+  # - Already exists with comprehensive data (101 lines)
+  #
+  # RE-ENABLED STATUS:
+  # - Uses cargo test (not anchor test) - no toolchain issues
+  # - Runs with --nocapture to output CU measurements to console
   # ============================================================================
   compute-report:
     runs-on: ubuntu-latest
@@ -410,7 +554,39 @@ jobs:
           retention-days: 30
 
   # ============================================================================
-  # Job 9: Summary (runs after all tests)
+  # Job 10: Summary (runs after all tests)
+  #
+  # ARCHITECTURE NOTE: This job provides a final status summary of all CI jobs.
+  # It runs regardless of individual job outcomes (if: always()) to ensure
+  # the CI pipeline always produces a clear pass/fail result.
+  #
+  # JOB DEPENDENCY GRAPH:
+  #
+  # Phase 1 - Code Quality:
+  #   rust-lint → build-frontend → test-e2e → summary
+  #   type-check ──────────────────────────────────┘
+  #   frontend-lint ───────────────────────────────┘
+  #   test-unit ───────────────────────────────────┘
+  #
+  # Phase 2 - Program Validation:
+  #   build-program ──┐
+  #   test-mollusk ───┼── compute-report ──┐
+  #                   │                    │
+  #                   └────────────────────┼── summary
+  #
+  # Phase 3 - E2E Testing:
+  #   test-e2e ────────────────────────────┘
+  #   test-e2e-full-flow ──────────────────┘
+  #
+  # WHY 10 DEPENDENCIES:
+  # - All 10 critical jobs must pass for CI to succeed
+  # - Integration tests are DISABLED (see Job 8 comment)
+  # - Failure count logic tracks all 10 jobs
+  #
+  # FAILURE HANDLING:
+  # - Uses GitHub Actions error annotation (::error::)
+  # - Exits with code 1 to mark workflow as failed
+  # - Summary output visible in workflow logs
   # ============================================================================
   summary:
     runs-on: ubuntu-latest

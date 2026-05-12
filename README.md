@@ -140,13 +140,13 @@ El programa utiliza 5 tipos de cuentas de estado (todas PDA-based):
 
 ```mermaid
 graph TD
-    Config["SupplyChainConfig<br/>seeds=[b`config`]<br/>289 bytes"] -->|seeds=[b`serial_hashes`, config.key()]| SHRegistry["SerialHashRegistry<br/>32,017 bytes"]
+    Config["SupplyChainConfig<br/>seeds=[config]<br/>289 bytes"] -->|"seeds=[serial_hashes, config]"| SHRegistry["SerialHashRegistry<br/>32017 bytes"]
 
-    Config -->|seeds=[b`admin`, config.key()]| AdminPDA["Admin PDA<br/>(UncheckedAccount)"]
+    Config -->|"seeds=[admin, config]"| AdminPDA["Admin PDA<br/>UncheckedAccount"]
 
-    Serial["Netbook<br/>seeds=[b`netbook`, serial]<br/>~1,147 bytes"] -.->|Related to| Config
-    RoleHolder["RoleHolder<br/>seeds=[b`role_holder`, role, account]<br/>160 bytes"] -.->|Managed by| Config
-    RoleRequest["RoleRequest<br/>seeds=[b`role_request`, user, role]<br/>variable"] -.->|Tracked by| Config
+    Serial["Netbook<br/>seeds=[netbook, serial]<br/>~1147 bytes"] -.->|"related"| Config
+    RoleHolder["RoleHolder<br/>seeds=[role_holder, role, acct]<br/>160 bytes"] -.->|"managed"| Config
+    RoleRequest["RoleRequest<br/>seeds=[role_request, user, role]<br/>variable"] -.->|"tracked"| Config
 
     classDef main fill:#f97316,stroke:#c2410c,color:#fff
     class Config main

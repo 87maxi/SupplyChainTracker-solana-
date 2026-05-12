@@ -253,7 +253,7 @@ jobs:
       - name: Build Solana Program (.so)
         run: |
           cd sc-solana
-          cargo build-bpf --manifest-path programs/sc-solana/Cargo.toml
+          cargo build-sbf --manifest-path programs/sc-solana/Cargo.toml
           ls -lh target/deploy/sc_solana.so || echo "No .so found"
 
       - name: Start Solana Test Validator

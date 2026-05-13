@@ -2,29 +2,32 @@
 
 type EventCallback<T = unknown> = (data?: T) => void;
 
-interface EventMap {
-    ROLE_UPDATED: void;
+export interface EventMap {
+    ROLE_UPDATED: { action: string; address?: string; role?: string };
     REQUESTS_UPDATED: void;
+    REFRESH_DATA: void;
 }
+
+export type EventName = keyof EventMap;
 
 class EventBus {
     private listeners: Record<string, Set<EventCallback>> = {};
 
-    on<K extends keyof EventMap>(event: K, callback: EventCallback<EventMap[K]>) {
+    on(event: EventName | string, callback: EventCallback) {
         if (!this.listeners[event]) {
             this.listeners[event] = new Set();
         }
-        this.listeners[event].add(callback as EventCallback);
-        return () => this.off(event, callback as EventCallback);
+        this.listeners[event].add(callback);
+        return () => this.off(event, callback);
     }
 
-    off<K extends keyof EventMap>(event: K, callback: EventCallback<EventMap[K]>) {
+    off(event: EventName | string, callback: EventCallback) {
         if (this.listeners[event]) {
-            this.listeners[event].delete(callback as EventCallback);
+            this.listeners[event].delete(callback);
         }
     }
 
-    emit<K extends keyof EventMap>(event: K, data?: EventMap[K]) {
+    emit<T = unknown>(event: EventName | string, data?: T) {
         if (this.listeners[event]) {
             this.listeners[event].forEach(callback => callback(data));
         }

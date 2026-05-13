@@ -375,7 +375,7 @@ export function PendingRoleRequests() {
       </div>
 
       {/* Gráfico de análisis */}
-      <AnalyticsChart />
+      <AnalyticsChart data={[]} />
 
       {/* Tabla de solicitudes */}
       <Card>

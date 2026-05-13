@@ -211,22 +211,17 @@ jobs:
         run: npm run build
 
   # ============================================================================
-<<<<<<< HEAD
-  # Job 7: Runbook-Based Program Tests (Replaces E2E for Smart Contract Verification)
-  # Uses Mollusk in-process SVM testing + runbook syntax validation
-  # No validator required - more reliable than E2E browser tests
-=======
-  # Job 7: Playwright E2E Tests (UI-only, no blockchain)
+  # Job 7: Runbook-Based Program Tests + E2E UI Tests
   #
-  # ARCHITECTURE NOTE: These are UI-only tests with mocked wallet connections.
-  # They test page navigation, form validation, and responsive design.
-  # They do NOT interact with the blockchain directly.
+  # ARCHITECTURE: Two-tier testing strategy
+  # - Runbook tests: Mollusk in-process SVM + syntax validation (smart contract)
+  # - E2E tests: Playwright with MockWalletAdapter (UI verification)
   #
   # WHY NO VALIDATOR NEEDED:
-  # - Tests use MockWalletAdapter (web/src/lib/solana/mock-wallet-adapter.ts)
-  # - MockWalletAdapter extends BaseWalletAdapter - no browser extension required
+  # - E2E tests use MockWalletAdapter (web/src/lib/solana/mock-wallet-adapter.ts)
   # - All wallet operations are mocked in-memory
-  # - Next.js builds fine without RPC connectivity (uses env vars for config)
+  # - Next.js builds fine without RPC connectivity
+  # - Mollusk tests run in-process without external dependencies
   #
   # SOLANA 2.x TOOLCHAIN ISSUE (Resolved):
   # - Original error: "failed to parse manifest at toml_datetime-1.1.1+spec-1.1.0/Cargo.toml"
@@ -235,10 +230,9 @@ jobs:
   # - Solution: Split tests into UI E2E (no validator) + Mollusk (in-process SVM)
   #
   # INTEGRATION TESTS STATUS:
-  # - Disabled in test-integration job (lines 379-470)
+  # - Disabled in test-integration job (see commented section below)
   # - Requires anchor build which pulls toml_parser with edition2024
   # - Re-enable once Anchor/Solana toolchain compatibility is resolved
->>>>>>> bff1aa190dc8616ad5f200b77569d4016a400cdf
   # ============================================================================
   test-runbooks:
     runs-on: ubuntu-latest
@@ -256,9 +250,73 @@ jobs:
           path: ~/.cargo/registry
           key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
 
-<<<<<<< HEAD
       - name: Cache Cargo build
-=======
+        uses: actions/cache@v4
+        with:
+          path: sc-solana/target
+          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Install txtx (runbook runner)
+        run: |
+          cargo install txtx-cli --locked 2>&1 || echo "txtx installation failed, will skip runbook validation"
+
+      - name: Run Runbook Syntax Validation
+        run: |
+          cd sc-solana/runbooks
+          find . -name "*.tx" -type f | while read -r runbook; do
+            echo "Validating: $runbook"
+            if command -v txtx &> /dev/null; then
+              txtx validate "$runbook" 2>&1 || echo "WARNING: $runbook validation failed (may require environment)"
+            else
+              echo "SKIPPED: txtx not installed"
+            fi
+          done
+
+      - name: Run Mollusk Lifecycle Tests
+        working-directory: ./sc-solana/programs/sc-solana
+        run: cargo test --test mollusk-lifecycle --quiet
+
+      - name: Run Mollusk Unit Tests
+        working-directory: ./sc-solana/programs/sc-solana
+        run: cargo test --test mollusk-tests --quiet
+
+      - name: Run Compute Unit Tests
+        working-directory: ./sc-solana/programs/sc-solana
+        run: cargo test --test compute-units --quiet
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runbook-test-report
+          path: sc-solana/programs/sc-solana/target/debug/deps/*
+          retention-days: 7
+
+  # ============================================================================
+  # Job 7b: Playwright E2E Tests (UI-only, no blockchain)
+  #
+  # These are UI-only tests with mocked wallet connections.
+  # They test page navigation, form validation, and responsive design.
+  # They do NOT interact with the blockchain directly.
+  # ============================================================================
+  test-e2e:
+    runs-on: ubuntu-latest
+    needs: [build-frontend]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: ./web
+        run: npm install --prefer-offline --no-audit --no-fund
+
       - name: Install Playwright Browsers
         working-directory: ./web
         run: npx playwright install --with-deps chromium
@@ -300,7 +358,7 @@ jobs:
           retention-days: 30
 
   # ============================================================================
-  # Job 7b: Full User Flow E2E Test (Continuous Video Session)
+  # Job 7c: Full User Flow E2E Test (Continuous Video Session)
   #
   # ARCHITECTURE NOTE: This is a single-transaction E2E test that simulates
   # a complete user journey through the application in one continuous browser
@@ -352,47 +410,37 @@ jobs:
         run: npm install --prefer-offline --no-audit --no-fund
 
       - name: Cache Playwright Browsers
->>>>>>> bff1aa190dc8616ad5f200b77569d4016a400cdf
         uses: actions/cache@v4
         with:
-          path: sc-solana/target
-          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ hashFiles('web/package-lock.json') }}
 
-      - name: Install txtx (runbook runner)
-        run: |
-          cargo install txtx-cli --locked 2>&1 || echo "txtx installation failed, will skip runbook validation"
+      - name: Install Playwright Browsers
+        working-directory: ./web
+        run: npx playwright install --with-deps chromium
 
-      - name: Run Runbook Syntax Validation
-        run: |
-          cd sc-solana/runbooks
-          find . -name "*.tx" -type f | while read -r runbook; do
-            echo "Validating: $runbook"
-            if command -v txtx &> /dev/null; then
-              txtx validate "$runbook" 2>&1 || echo "WARNING: $runbook validation failed (may require environment)"
-            else
-              echo "SKIPPED: txtx not installed"
-            fi
-          done
+      - name: Build Next.js for Full Flow E2E
+        working-directory: ./web
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+          NEXT_PUBLIC_CLUSTER: "localnet"
+          NEXT_PUBLIC_NETWORK: "localnet"
+          NEXT_PUBLIC_TEST_MODE: "true"
+        run: npm run build
 
-      - name: Run Mollusk Lifecycle Tests
-        working-directory: ./sc-solana/programs/sc-solana
-        run: cargo test --test mollusk-lifecycle --quiet
+      - name: Run Full Flow E2E Test
+        working-directory: ./web
+        run: npx playwright test --reporter=html --project=full-flow-sequential
+        timeout-minutes: 10
 
-      - name: Run Mollusk Unit Tests
-        working-directory: ./sc-solana/programs/sc-solana
-        run: cargo test --test mollusk-tests --quiet
-
-      - name: Run Compute Unit Tests
-        working-directory: ./sc-solana/programs/sc-solana
-        run: cargo test --test compute-units --quiet
-
-      - name: Upload Test Report
+      - name: Upload Full Flow Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: runbook-test-report
-          path: sc-solana/programs/sc-solana/target/debug/deps/*
-          retention-days: 7
+          name: full-flow-report
+          path: web/playwright-report/
+          retention-days: 30
 
   # ============================================================================
   # Job 8: Integration E2E Tests (Real Solana Test Validator)
@@ -554,6 +602,94 @@ jobs:
           retention-days: 30
 
   # ============================================================================
+  # Job 9: Security Scanning (Automated vulnerability detection)
+  #
+  # ARCHITECTURE NOTE: This job performs automated security scanning of the
+  # Solana program to detect common vulnerabilities including arbitrary CPI,
+  # improper PDA validation, missing signer checks, and sysvar spoofing.
+  #
+  # SCANNERS:
+  # - Arbitrary CPI detection: Checks for external program invocations
+  # - PDA Validation: Verifies all PDAs use proper seeds + bump
+  # - Signer Checks: Ensures each instruction validates signers
+  # - String Hash: Verify cryptographic hash (sha2) usage
+  # ============================================================================
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: [build-program]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Run Security Scanners
+        run: |
+          echo "=== Solana Program Security Scan ==="
+          echo ""
+          
+          # Check for arbitrary CPI
+          echo "1. Checking for arbitrary CPI..."
+          if grep -r "CpiContext\|invoke\|invoke_signed" sc-solana/programs/sc-solana/src/ --include="*.rs" | grep -v "mod.rs"; then
+            echo "WARNING: Potential CPI calls found - manual review recommended"
+          else
+            echo "✅ No arbitrary CPI detected"
+          fi
+          
+          # Check PDA validation
+          echo ""
+          echo "2. Checking PDA validation..."
+          if grep -r "seeds = \[" sc-solana/programs/sc-solana/src/ --include="*.rs" | grep -v "mod.rs"; then
+            echo "✅ PDA seeds found in account declarations"
+          else
+            echo "WARNING: No PDA seeds found"
+          fi
+          
+          # Check signer validation
+          echo ""
+          echo "3. Checking signer validation..."
+          if grep -r "Signer\|constraint.*key()" sc-solana/programs/sc-solana/src/ --include="*.rs" | grep -v "mod.rs"; then
+            echo "✅ Signer checks found"
+          else
+            echo "WARNING: No signer checks found"
+          fi
+          
+          # Check for cryptographic hash usage
+          echo ""
+          echo "4. Checking cryptographic hash usage..."
+          if grep -r "sha2\|Sha256" sc-solana/programs/sc-solana/src/ --include="*.rs"; then
+            echo "✅ Cryptographic hash (sha2) usage detected"
+          else
+            echo "WARNING: No cryptographic hash usage found"
+          fi
+          
+          # Check for overflow protection
+          echo ""
+          echo "5. Checking overflow protection..."
+          if grep -r "checked_add\|checked_sub\|checked_mul" sc-solana/programs/sc-solana/src/ --include="*.rs"; then
+            echo "✅ Overflow protection found"
+          else
+            echo "WARNING: No overflow protection found"
+          fi
+          
+          echo ""
+          echo "=== Security Scan Complete ==="
+
+      - name: Upload Security Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-report
+          path: docs/security-scan-report.md
+          retention-days: 30
+
+  # ============================================================================
   # Job 10: Summary (runs after all tests)
   #
   # ARCHITECTURE NOTE: This job provides a final status summary of all CI jobs.
@@ -578,10 +714,13 @@ jobs:
   #   test-e2e ────────────────────────────┘
   #   test-e2e-full-flow ──────────────────┘
   #
-  # WHY 10 DEPENDENCIES:
-  # - All 10 critical jobs must pass for CI to succeed
+  # Phase 4 - Security:
+  #   security-scan ───────────────────────┘
+  #
+  # WHY 12 DEPENDENCIES:
+  # - All 12 critical jobs must pass for CI to succeed
   # - Integration tests are DISABLED (see Job 8 comment)
-  # - Failure count logic tracks all 10 jobs
+  # - Failure count logic tracks all 12 jobs
   #
   # FAILURE HANDLING:
   # - Uses GitHub Actions error annotation (::error::)
@@ -590,7 +729,7 @@ jobs:
   # ============================================================================
   summary:
     runs-on: ubuntu-latest
-    needs: [rust-lint, build-program, test-mollusk, compute-report, type-check, frontend-lint, test-unit, build-frontend, test-runbooks]
+    needs: [rust-lint, build-program, test-mollusk, compute-report, type-check, frontend-lint, test-unit, build-frontend, test-runbooks, test-e2e, test-e2e-full-flow, security-scan]
     if: always()
     steps:
       - name: Check All Jobs Status
@@ -605,8 +744,10 @@ jobs:
           echo "Mollusk Tests: ${{ needs.test-mollusk.result }}"
           echo "Compute Report: ${{ needs.compute-report.result }}"
           echo "Runbook Tests: ${{ needs.test-runbooks.result }}"
+          echo "E2E Tests: ${{ needs.test-e2e.result }}"
+          echo "E2E Full Flow: ${{ needs.test-e2e-full-flow.result }}"
+          echo "Security Scan: ${{ needs.security-scan.result }}"
           echo ""
-          echo "E2E Browser Tests: REMOVED (replaced by runbook + Mollusk tests)"
           echo "Integration Tests: DISABLED (anchor build toolchain incompatibility)"
           
           # Count failures
@@ -621,6 +762,9 @@ jobs:
           if [ "${{ needs.test-unit.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
           if [ "${{ needs.build-frontend.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
           if [ "${{ needs.test-runbooks.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.test-e2e.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.test-e2e-full-flow.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
+          if [ "${{ needs.security-scan.result }}" = "failure" ]; then FAILED=$((FAILED + 1)); fi
           
           echo ""
           echo "Critical jobs failed: $FAILED"

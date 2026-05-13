@@ -21,6 +21,7 @@ custom-panic = []
 
 [dependencies]
 anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
+sha2 = "0.10"
 
 # Mollusk test dependencies (in-process SVM test harness by Anza)
 [dev-dependencies]

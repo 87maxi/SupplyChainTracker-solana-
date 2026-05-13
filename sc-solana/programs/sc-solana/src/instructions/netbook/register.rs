@@ -3,6 +3,14 @@
 use crate::events::NetbookRegistered;
 use crate::state::{Netbook, NetbookState, SerialHashRegistry, SupplyChainConfig};
 use anchor_lang::prelude::*;
+use sha2::{Digest, Sha256};
+
+/// Compute a cryptographic SHA-256 hash of the serial number
+fn compute_serial_hash(serial_number: &str) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(serial_number.as_bytes());
+    hasher.finalize().into()
+}
 
 /// Register a single netbook with PDA based on token_id
 /// Uses config.next_token_id as part of PDA seed to ensure unique PDAs per netbook
@@ -54,17 +62,8 @@ pub fn register_netbook(
         return Err(crate::SupplyChainError::StringTooLong.into());
     }
 
-    // Compute serial hash and check for duplicates
-    let mut serial_hash = [0u8; 32];
-    let serial_bytes = serial_number.as_bytes();
-    if serial_bytes.len() <= 32 {
-        for (i, byte) in serial_bytes.iter().enumerate() {
-            serial_hash[i] = *byte;
-        }
-    } else {
-        serial_hash[..16].copy_from_slice(&serial_bytes[..16]);
-        serial_hash[16..].copy_from_slice(&serial_bytes[serial_bytes.len() - 16..]);
-    }
+    // Compute cryptographic serial hash and check for duplicates
+    let serial_hash = compute_serial_hash(&serial_number);
 
     if serial_registry.is_serial_registered(&serial_hash) {
         return Err(crate::SupplyChainError::DuplicateSerial.into());
@@ -73,10 +72,16 @@ pub fn register_netbook(
     // Store serial hash
     serial_registry.store_serial_hash(&serial_hash)?;
 
-    // Get next token ID and increment counter
+    // Get next token ID with overflow protection
     let token_id = config.next_token_id;
-    config.next_token_id += 1;
-    config.total_netbooks += 1;
+    config.next_token_id = config
+        .next_token_id
+        .checked_add(1)
+        .ok_or(crate::SupplyChainError::InvalidInput)?;
+    config.total_netbooks = config
+        .total_netbooks
+        .checked_add(1)
+        .ok_or(crate::SupplyChainError::InvalidInput)?;
 
     // Initialize netbook account
     let netbook = &mut ctx.accounts.netbook;

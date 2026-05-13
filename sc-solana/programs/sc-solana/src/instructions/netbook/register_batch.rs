@@ -1,8 +1,16 @@
 //! RegisterNetbooksBatch instruction context
 
 use crate::events::NetbooksRegistered;
-use crate::state::{SerialHashRegistry, SupplyChainConfig};
+use crate::state::{SerialHashRegistry, SupplyChainConfig, MAX_BATCH_SIZE};
 use anchor_lang::prelude::*;
+use sha2::{Digest, Sha256};
+
+/// Compute a cryptographic SHA-256 hash of the serial number
+fn compute_serial_hash(serial_number: &str) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(serial_number.as_bytes());
+    hasher.finalize().into()
+}
 
 /// Batch register netbooks (creates individual PDAs via individual calls)
 #[derive(Accounts)]
@@ -37,7 +45,7 @@ pub fn register_netbooks_batch(
     }
 
     let count = serial_numbers.len() as u64;
-    if count == 0 || count > 10 {
+    if count == 0 || count > MAX_BATCH_SIZE as u64 {
         return Err(crate::SupplyChainError::InvalidInput.into());
     }
 
@@ -65,17 +73,8 @@ pub fn register_netbooks_batch(
             return Err(crate::SupplyChainError::StringTooLong.into());
         }
 
-        // Check for duplicate serial number
-        let mut serial_hash = [0u8; 32];
-        let serial_bytes = serial.as_bytes();
-        if serial_bytes.len() <= 32 {
-            for (i, byte) in serial_bytes.iter().enumerate() {
-                serial_hash[i] = *byte;
-            }
-        } else {
-            serial_hash[..16].copy_from_slice(&serial_bytes[..16]);
-            serial_hash[16..].copy_from_slice(&serial_bytes[serial_bytes.len() - 16..]);
-        }
+        // Check for duplicate serial number using cryptographic hash
+        let serial_hash = compute_serial_hash(serial);
 
         if serial_registry.is_serial_registered(&serial_hash) {
             return Err(crate::SupplyChainError::DuplicateSerial.into());
@@ -85,22 +84,19 @@ pub fn register_netbooks_batch(
     // Store batch serial hashes for duplicate detection
     for i in 0..count {
         let serial = &serial_numbers[i as usize];
-        let mut serial_hash = [0u8; 32];
-        let serial_bytes = serial.as_bytes();
-        if serial_bytes.len() <= 32 {
-            for (i, byte) in serial_bytes.iter().enumerate() {
-                serial_hash[i] = *byte;
-            }
-        } else {
-            serial_hash[..16].copy_from_slice(&serial_bytes[..16]);
-            serial_hash[16..].copy_from_slice(&serial_bytes[serial_bytes.len() - 16..]);
-        }
+        let serial_hash = compute_serial_hash(serial);
         serial_registry.store_serial_hash(&serial_hash)?;
     }
 
-    // Update config counters
-    config.next_token_id += count;
-    config.total_netbooks += count;
+    // Update config counters with overflow protection
+    config.next_token_id = config
+        .next_token_id
+        .checked_add(count)
+        .ok_or(crate::SupplyChainError::InvalidInput)?;
+    config.total_netbooks = config
+        .total_netbooks
+        .checked_add(count)
+        .ok_or(crate::SupplyChainError::InvalidInput)?;
 
     emit!(NetbooksRegistered {
         count,

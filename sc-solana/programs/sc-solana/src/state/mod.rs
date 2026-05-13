@@ -14,8 +14,10 @@ pub use role_request::RoleRequest;
 pub use serial_hash_registry::SerialHashRegistry;
 
 // Constants
-pub const MAX_SERIAL_HASHES: usize = 10;
+pub const MAX_SERIAL_HASHES: usize = 1000;
 pub const MAX_ROLE_HOLDERS: usize = 100;
+/// Maximum batch size for register_netbooks_batch to protect compute units
+pub const MAX_BATCH_SIZE: usize = 10;
 
 // Enums
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

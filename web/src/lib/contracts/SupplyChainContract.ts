@@ -6,7 +6,7 @@
  * Migrado de Ethereum/Viem a Solana/Anchor
  */
 
-import { AnchorProvider, Program, BN } from '@coral-xyz/anchor';
+import { AnchorProvider, Program, BN } from '@anchor-lang/core';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getProgram, PROGRAM_ID } from '@/lib/contracts/solana-program';
 import { connection } from '@/lib/solana/connection';

@@ -1,4 +1,8 @@
 //! SerialHashRegistry account for duplicate detection
+//!
+//! NOTE: MAX_SERIAL_HASHES reduced from 1000 to 100 to fit within SBF stack limits (4KB).
+//! The Anchor deserialization copies the entire account onto the program stack.
+//! For production with 1000+ serials, migrate to zero_copy with flattened [u8; 32000] array.
 
 use super::MAX_SERIAL_HASHES;
 use crate::errors::SupplyChainError;
@@ -19,7 +23,7 @@ impl SerialHashRegistry {
         + 1   // config_bump
         + 8   // serial_hash_count
         + 32 * MAX_SERIAL_HASHES; // registered_serial_hashes
-                                  // Total: 8 + 1 + 8 + 32000 = 32017 bytes
+                                  // Total: 8 + 1 + 8 + 3200 = 3217 bytes (fits SBF stack)
 }
 
 impl SerialHashRegistry {

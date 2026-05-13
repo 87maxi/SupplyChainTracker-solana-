@@ -3,7 +3,7 @@
 // This file provides backward compatibility by delegating to UnifiedSupplyChainService
 
 import { PublicKey } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import { BN } from '@anchor-lang/core';
 import { UnifiedSupplyChainService } from './UnifiedSupplyChainService';
 
 // ==================== Legacy Type Exports ====================

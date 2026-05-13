@@ -75,7 +75,7 @@ pub fn fund_deployer(ctx: Context<FundDeployer>, amount: u64) -> Result<()> {
     // Note: The `init` constraint already handles rent exemption.
     // Additional lamports are added via CPI transfer.
     let cpi_ctx = CpiContext::new(
-        ctx.accounts.system_program.to_account_info(),
+        anchor_lang::system_program::ID,
         system_program::Transfer {
             from: ctx.accounts.funder.to_account_info(),
             to: ctx.accounts.deployer.to_account_info(),

@@ -19,15 +19,14 @@
 //! Run with: cargo test --test compute-units
 
 use anchor_lang::prelude::Pubkey;
-use solana_sdk_ids::system_program;
 
-// ==================== Constants ====================
+// ================ Constants ================
 
 /// Program ID from the Anchor program
 const PROGRAM_ADDRESS: &str = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb";
 
 /// System program ID
-const SYSTEM_PROGRAM_ID: Pubkey = system_program::id();
+const SYSTEM_PROGRAM_ID: Pubkey = anchor_lang::system_program::ID;
 
 /// Solana default compute unit limit per transaction
 const DEFAULT_CU_LIMIT: u64 = 1_470_000;

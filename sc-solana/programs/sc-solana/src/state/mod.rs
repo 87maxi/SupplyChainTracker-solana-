@@ -14,7 +14,10 @@ pub use role_request::RoleRequest;
 pub use serial_hash_registry::SerialHashRegistry;
 
 // Constants
-pub const MAX_SERIAL_HASHES: usize = 1000;
+/// Reduced from 1000 to 100 to fit within SBF stack limits (4KB).
+/// Anchor deserializes entire account onto stack. For 1000+ serials,
+/// migrate to zero_copy with flattened [u8; 32000] array.
+pub const MAX_SERIAL_HASHES: usize = 100;
 pub const MAX_ROLE_HOLDERS: usize = 100;
 /// Maximum batch size for register_netbooks_batch to protect compute units
 pub const MAX_BATCH_SIZE: usize = 10;

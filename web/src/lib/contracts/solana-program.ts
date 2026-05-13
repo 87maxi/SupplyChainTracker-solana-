@@ -1,7 +1,7 @@
 // web/src/lib/contracts/solana-program.ts
 // Anchor program interaction layer for SupplyChainTracker on Solana
 
-import { Program, AnchorProvider, type Idl } from '@coral-xyz/anchor';
+import { Program, AnchorProvider, type Idl } from '@anchor-lang/core';
 import { Connection, PublicKey, SystemProgram, Transaction, VersionedTransaction, type Commitment } from '@solana/web3.js';
 import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { useMemo } from 'react';

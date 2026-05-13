@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { AnchorProvider, BN } from '@coral-xyz/anchor';
+import { AnchorProvider, BN } from '@anchor-lang/core';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { UnifiedSupplyChainService, TransactionResult, NetbookReport } from '@/services/UnifiedSupplyChainService';

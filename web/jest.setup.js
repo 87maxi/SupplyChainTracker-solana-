@@ -70,7 +70,7 @@ jest.mock('@solana/web3.js', () => ({
 }));
 
 // Mock para Anchor
-jest.mock('@coral-xyz/anchor', () => ({
+jest.mock('@anchor-lang/core', () => ({
   Program: jest.fn().mockImplementation(() => ({
     methods: {
       registerNetbook: jest.fn().mockReturnThis(),

@@ -1,7 +1,7 @@
 "use client";
 
-import { useWallet, useWalletSession, useWalletActions } from "@solana/react-hooks";
-import { useMemo, useState, useEffect } from "react";
+import { useWallet, useWalletSession, useWalletActions, useWalletConnection } from "@solana/react-hooks";
+import { useCallback, useMemo, useState } from "react";
 
 /**
  * Safe wallet hook that handles missing provider during SSR.
@@ -12,21 +12,32 @@ import { useMemo, useState, useEffect } from "react";
  *   const { wallet, connected, isWalletAvailable } = useSafeWallet();
  */
 export function useSafeWallet() {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const [isHydrated] = useState(() => typeof document !== "undefined");
 
   const wallet = useWallet();
   const session = useWalletSession();
   const walletActions = useWalletActions();
+  const { connectors, connect: connectWalletFn } = useWalletConnection();
 
   const isConnected = wallet.status === "connected";
   const isConnecting = wallet.status === "connecting";
 
+  // Stable connect function using useCallback
+  const connect = useCallback(
+    async (connectorId?: string) => {
+      if (connectorId) {
+        // Connect to specific wallet by connector ID
+        await connectWalletFn(connectorId, { autoConnect: true });
+      } else if (connectors.length > 0) {
+        // Connect to first available wallet (Phantom, Solflare, etc.)
+        await connectWalletFn(connectors[0].id, { autoConnect: true });
+      }
+    },
+    [connectWalletFn, connectors],
+  );
+
   return useMemo(() => {
-    if (!isClient) {
+    if (!isHydrated) {
       return {
         wallet: null,
         connected: false,
@@ -53,25 +64,19 @@ export function useSafeWallet() {
       signTransaction: session?.signTransaction ?? null,
       signAllTransactions: null,
       disconnect: walletActions?.disconnectWallet ?? (async () => {}),
-      connect: async (connectorId?: string) => {
-        if (walletActions?.connectWallet) {
-          await walletActions.connectWallet(
-            connectorId ?? "wallet-standard:phantom",
-            { autoConnect: true }
-          );
-        }
-      },
+      connect,
       select: async () => {},
       isWalletAvailable: true,
       walletActions,
       session,
     };
   }, [
-    isClient,
+    isHydrated,
     wallet,
     isConnected,
     isConnecting,
     session,
     walletActions,
+    connect,
   ]);
 }

@@ -4,7 +4,7 @@ import {
   useWallet,
   useWalletSession,
   useWalletActions,
-  useConnectWallet,
+  useWalletConnection,
   useDisconnectWallet,
   useSendTransaction,
 } from "@solana/react-hooks";
@@ -21,7 +21,7 @@ export function useSolanaWeb3() {
   const wallet = useWallet();
   const session = useWalletSession();
   const walletActions = useWalletActions();
-  const connectWalletFn = useConnectWallet();
+  const { connectors, connect: connectWalletFn } = useWalletConnection();
   const disconnectWalletFn = useDisconnectWallet();
   const { send, isSending, signature: sendSignature, error: sendError } =
     useSendTransaction();
@@ -71,9 +71,17 @@ export function useSolanaWeb3() {
     };
   };
 
-  const connectWallet = async () => {
+  const connectWallet = async (connectorId?: string) => {
     try {
-      await connectWalletFn("wallet-standard:phantom", { autoConnect: true });
+      if (connectorId) {
+        // Connect to specific wallet by connector ID
+        await connectWalletFn(connectorId, { autoConnect: true });
+      } else if (connectors.length > 0) {
+        // Connect to first available wallet (Phantom, Solflare, etc.)
+        await connectWalletFn(connectors[0].id, { autoConnect: true });
+      } else {
+        throw new Error("No wallet connectors discovered");
+      }
     } catch (error) {
       console.error("Error connecting wallet:", error);
       throw error;

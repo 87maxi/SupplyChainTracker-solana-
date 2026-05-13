@@ -7,15 +7,14 @@
 //! Run with: cargo test --test mollusk-tests
 
 use anchor_lang::prelude::Pubkey;
-use solana_sdk_ids::system_program;
 
-// ==================== Constants ====================
+// ================ Constants ================
 
 /// Program ID from the Anchor program
 const PROGRAM_ADDRESS: &str = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb";
 
 /// System program ID
-const SYSTEM_PROGRAM_ID: Pubkey = system_program::id();
+const SYSTEM_PROGRAM_ID: Pubkey = anchor_lang::system_program::ID;
 
 // ==================== Helper Functions ====================
 

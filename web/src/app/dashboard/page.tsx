@@ -47,7 +47,7 @@ import { TrackingCard } from './components/TrackingCard';
 import { useSolanaEventContext } from '@/lib/solana/event-provider';
 
 // Summary Card Component
-function SummaryCard({ title, count, description, icon: Icon, color }: { title: string, count: number, description: string, icon: any, color: string }) {
+function SummaryCard({ title, count, description, icon: Icon, color }: { title: string, count: number, description: string, icon: React.ElementType, color: string }) {
   return (
     <Card className="relative overflow-hidden group">
       <div className={cn("absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity", color)}>

@@ -47,8 +47,12 @@ export default function RootLayout({
             <Toaster />
             <NotificationContainer />
           </div>
-          <DiagnosticRunner />
-          <DebugComponent />
+          {process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' && (
+            <>
+              <DiagnosticRunner />
+              <DebugComponent />
+            </>
+          )}
         </SolanaWalletClientProvider>
       </body>
     </html>

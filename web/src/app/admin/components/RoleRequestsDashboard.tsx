@@ -37,7 +37,7 @@ interface UserRoleData {
 
 
 // Summary Card Component
-function SummaryCard({ title, count, description, icon: Icon, color }: { title: string, count: number, description: string, icon: any, color: string }) {
+function SummaryCard({ title, count, description, icon: Icon, color }: { title: string, count: number, description: string, icon: React.ElementType, color: string }) {
   return (
     <Card className="relative overflow-hidden group">
       <div className={cn("absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity", color)}>
@@ -202,10 +202,10 @@ export default function RoleRequestsDashboard({ stats: initialStats }: RoleReque
         fabricanteCount, auditorHwCount, tecnicoSwCount, escuelaCount,
         fabricadas, hwAprobadas, swValidadas, distribuidas
       ] = await Promise.all([
-        getRoleMemberCount(roleHashes.FABRICANTE).catch(() => 0),
-        getRoleMemberCount(roleHashes.AUDITOR_HW).catch(() => 0),
-        getRoleMemberCount(roleHashes.TECNICO_SW).catch(() => 0),
-        getRoleMemberCount(roleHashes.ESCUELA).catch(() => 0),
+        getRoleMemberCount(roleHashes.FABRICANTE_ROLE).catch(() => 0),
+        getRoleMemberCount(roleHashes.AUDITOR_HW_ROLE).catch(() => 0),
+        getRoleMemberCount(roleHashes.TECNICO_SW_ROLE).catch(() => 0),
+        getRoleMemberCount(roleHashes.ESCUELA_ROLE).catch(() => 0),
         getNetbooksByState(State.FABRICADA).catch(() => []),
         getNetbooksByState(State.HW_APROBADO).catch(() => []),
         getNetbooksByState(State.SW_VALIDADO).catch(() => []),
@@ -286,10 +286,10 @@ export default function RoleRequestsDashboard({ stats: initialStats }: RoleReque
         swValidadas,
         distribuidas
       ] = await Promise.all([
-        getRoleMemberCount(roleHashes.FABRICANTE).catch(() => 0),
-        getRoleMemberCount(roleHashes.AUDITOR_HW).catch(() => 0),
-        getRoleMemberCount(roleHashes.TECNICO_SW).catch(() => 0),
-        getRoleMemberCount(roleHashes.ESCUELA).catch(() => 0),
+        getRoleMemberCount(roleHashes.FABRICANTE_ROLE).catch(() => 0),
+        getRoleMemberCount(roleHashes.AUDITOR_HW_ROLE).catch(() => 0),
+        getRoleMemberCount(roleHashes.TECNICO_SW_ROLE).catch(() => 0),
+        getRoleMemberCount(roleHashes.ESCUELA_ROLE).catch(() => 0),
         getNetbooksByState(State.FABRICADA).catch(() => []),
         getNetbooksByState(State.HW_APROBADO).catch(() => []),
         getNetbooksByState(State.SW_VALIDADO).catch(() => []),

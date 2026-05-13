@@ -3,8 +3,8 @@
 // Maps role keys (FABRICANTE, AUDITOR_HW, etc.) to their full role names
 import { getRoleHashes } from './roleUtils';
 
-type RoleKey = 'FABRICANTE_ROLE' | 'AUDITOR_HW_ROLE' | 'TECNICO_SW_ROLE' | 'ESCUELA_ROLE' | 'ADMIN_ROLE';
-type RoleName = 'FABRICANTE_ROLE' | 'AUDITOR_HW_ROLE' | 'TECNICO_SW_ROLE' | 'ESCUELA_ROLE' | 'ADMIN_ROLE';
+export type RoleKey = 'FABRICANTE_ROLE' | 'AUDITOR_HW_ROLE' | 'TECNICO_SW_ROLE' | 'ESCUELA_ROLE' | 'ADMIN_ROLE';
+export type RoleName = 'FABRICANTE_ROLE' | 'AUDITOR_HW_ROLE' | 'TECNICO_SW_ROLE' | 'ESCUELA_ROLE' | 'ADMIN_ROLE';
 
 // Verifica si un string es un hash de 32 bytes (66 caracteres)
 function isHash(value: string): boolean {

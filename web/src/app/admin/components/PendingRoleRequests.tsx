@@ -5,23 +5,24 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  AlertTriangle, 
-  RefreshCw, 
+import {
+  AlertTriangle,
+  RefreshCw,
   Settings2,
   Network,
   TrendingUp,
   CheckCircle,
-  XCircle,
   Clock,
   ShieldCheck
 } from 'lucide-react';
 import { AnalyticsChart } from '@/components/charts/AnalyticsChart';
-import { getRoleRequests } from '@/services/RoleRequestService';
 import { getRoleHashes } from '@/lib/roleUtils';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useWeb3 } from '@/hooks/useWeb3';
+import { RoleRequest } from '@/types/role-request';
+import { eventBus, EVENTS } from '@/lib/events';
+import { getRoleMembers, getRoleMemberCount } from '@/lib/api/serverRpc';
 
 // Definición de tipos
 type RoleMember = {
@@ -29,6 +30,14 @@ type RoleMember = {
   role: string;
   timestamp: number;
 };
+
+interface UserRoleData {
+  role: string;
+  address: string;
+  since: string;
+  status: 'active' | 'inactive';
+  id?: string;
+}
 
 type RoleRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -46,12 +55,12 @@ enum NetbookStatus {
 }
 
 // Componente de tarjeta de resumen
-function SummaryCard({ title, count, description, icon: Icon, color }: { 
-  title: string, 
-  count: number, 
-  description: string, 
-  icon: any, 
-  color: string 
+function SummaryCard({ title, count, description, icon: Icon, color }: {
+  title: string,
+  count: number,
+  description: string,
+  icon: React.ElementType,
+  color: string
 }) {
   return (
     <Card className="hover:shadow-lg transition-shadow duration-300">
@@ -74,16 +83,16 @@ export function PendingRoleRequests() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [roleRequests, setRoleRequests] = useState<RoleRequest[]>([]);
-  const [roleMembers, setRoleMembers] = useState<Record<string, RoleMember[]>>({});
+  const [roleMembers, setRoleMembers] = useState<Record<string, string[]>>({});
   const [showRoleManager, setShowRoleManager] = useState(false);
   const [userRoles, setUserRoles] = useState<UserRoleData[]>([]);
-  const [cache, setCache] = useState<Record<string, { data: any; timestamp: number }>>({});
+  const [cache, setCache] = useState<Record<string, { data: unknown; timestamp: number }>>({});
 
   // Función para obtener datos con cache
   const getCachedData = async <T,>(key: string, fetcher: () => Promise<T>): Promise<T> => {
     const cached = cache[key];
     if (cached && Date.now() - cached.timestamp < CACHE_CONFIG.ttl) {
-      return cached.data;
+      return cached.data as T;
     }
 
     try {

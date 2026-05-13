@@ -14,8 +14,8 @@ const nextConfig = {
   
   // Configure TypeScript compiler options
   typescript: {
-    // Ignore TypeScript errors during build
-    ignoreBuildErrors: true,
+    // Enforce TypeScript errors during build for better code quality
+    ignoreBuildErrors: false,
   },
 };
 

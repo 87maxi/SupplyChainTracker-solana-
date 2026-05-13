@@ -392,7 +392,7 @@ export class UnifiedSupplyChainService {
         studentIdHash: Buffer.from(netbook.studentIdHash).toString('hex'),
         distributionTimestamp: netbook.distributionTimestamp.toString(),
         currentState: netbook.state,
-        tokenId: netbook.tokenId.toBigInt(),
+        tokenId: BigInt(netbook.tokenId.toString()),
       };
 
       CacheService.set(cacheKey, report, { tags: [CACHE_TAGS.NETBOOK] });
@@ -456,7 +456,7 @@ export class UnifiedSupplyChainService {
   async getNextTokenId(): Promise<bigint> {
     const config = await this.queryConfig();
     if (!config) return BigInt(0);
-    return config.nextTokenId.toBigInt();
+    return BigInt(config.nextTokenId.toString());
   }
 
   // ==================== Role Functions ====================
@@ -584,7 +584,7 @@ export class UnifiedSupplyChainService {
       // Invalidate caches
       CacheService.invalidateByTag(CACHE_TAGS.NETBOOK, CACHE_TAGS.NETBOOKS_LIST, CACHE_TAGS.CONFIG);
 
-      return { signature: tx, tokenId: nextTokenId.toBigInt() };
+      return { signature: tx, tokenId: BigInt(nextTokenId.toString()) };
     } catch (error) {
       console.error('Error in registerNetbook:', error);
       throw error;

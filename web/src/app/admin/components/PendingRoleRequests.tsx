@@ -18,15 +18,10 @@ import {
 } from 'lucide-react';
 import { AnalyticsChart } from '@/components/charts/AnalyticsChart';
 import { getRoleRequests } from '@/services/RoleRequestService';
-import { roleMapper } from '@/lib/roleMapping';
 import { getRoleHashes } from '@/lib/roleUtils';
-import { eventBus, EVENTS } from '@/lib/events';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useWeb3 } from '@/hooks/useWeb3';
-import { RoleRequest } from '@/hooks/useRoleRequests';
-import { UserRoleData } from '@/hooks/useRoleRequests';
-import { RoleMap } from '@/lib/roleUtils';
 
 // Definición de tipos
 type RoleMember = {

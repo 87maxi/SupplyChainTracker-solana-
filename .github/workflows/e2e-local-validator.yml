@@ -97,7 +97,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: ./web
-        run: npm install --prefer-offline --no-audit --no-fund --legacy-peer-deps
+        run: npm install --prefer-offline --no-audit --no-fund
 
       - name: Install Solana CLI
         run: |
@@ -200,7 +200,7 @@ jobs:
 
       - name: Install Frontend Dependencies
         working-directory: ./web
-        run: npm install --prefer-offline --no-audit --no-fund --legacy-peer-deps
+        run: npm install --prefer-offline --no-audit --no-fund
 
       - name: Install Solana CLI
         run: |

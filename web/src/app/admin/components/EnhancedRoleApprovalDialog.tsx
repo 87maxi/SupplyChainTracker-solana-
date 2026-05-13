@@ -4,7 +4,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle, AlertTriangle, Clock, ShieldCheck, XCircle, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { truncateAddress } from '@/lib/utils';
 import { useState } from 'react';

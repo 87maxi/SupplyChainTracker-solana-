@@ -13,8 +13,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { truncateAddress } from '@/lib/utils';
 import { Copy, Search, RefreshCw, Trash2 } from 'lucide-react';
 import { eventBus, EVENTS } from '@/lib/events';
-import { ContractRoles } from '@/types/contract';
-import { roleMapper } from '@/lib/roleMapping';
 
 const availableRoles = [
     { value: 'ALL', label: 'Todos los Roles' },

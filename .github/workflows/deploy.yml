@@ -44,7 +44,7 @@ jobs:
         # Reads rust-toolchain.toml automatically for version pinning
 
       - name: Install Frontend Dependencies
-        run: cd web && npm install --prefer-offline
+        run: cd web && npm install --prefer-offline --legacy-peer-deps
 
       - name: TypeScript Type Check (web)
         run: cd web && npx tsc --noEmit
@@ -78,7 +78,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install Frontend Dependencies
-        run: cd web && npm install --prefer-offline
+        run: cd web && npm install --prefer-offline --legacy-peer-deps
 
       - name: Build Next.js Frontend
         run: cd web && npm run build

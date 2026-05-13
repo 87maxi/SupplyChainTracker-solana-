@@ -2,7 +2,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Factory, Monitor, GraduationCap, Gavel, ShieldCheck, Clock, TrendingUp, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Users, Factory, Monitor, GraduationCap, Gavel, ShieldCheck, Clock, AlertTriangle } from 'lucide-react';
 import { AllRolesSummary } from '@/types/supply-chain-types';
 import { cn } from '@/lib/utils';
 

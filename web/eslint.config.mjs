@@ -165,8 +165,9 @@ export default [
       // Errores de lógica base
       "no-undef": "error",
       // Enable unused vars warnings to improve code quality
-      "no-unused-vars": "warn",
-      "@typescript-eslint/no-unused-vars": "warn",
+      // Allow underscore-prefixed args (like _force) to suppress warnings
+      "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
       // Enable exhaustive-deps to prevent React hook issues
       "react-hooks/exhaustive-deps": "warn",
       // Enable no-explicit-any to prevent type safety issues

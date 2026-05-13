@@ -91,8 +91,8 @@ export default defineConfig({
         // Launch browser in headed mode for visual verification
         // headless: false will show the browser window
         launchOptions: {
-          headless: false,
-          slowMo: 100, // Slow down actions for visual verification
+          headless: !!process.env.CI, // Headless in CI, headed for local debugging
+          slowMo: process.env.CI ? 0 : 100, // Slow down only for local debugging
         },
       },
     },

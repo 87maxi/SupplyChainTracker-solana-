@@ -122,14 +122,19 @@ jobs:
         working-directory: ./web
         env:
           NODE_ENV: production
-          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
-          NEXT_PUBLIC_CLUSTER: "localnet"
-          NEXT_PUBLIC_NETWORK: "localnet"
-          NEXT_PUBLIC_TEST_MODE: "true"
-        run: npm run build
+        run: |
+          cp .env.ci .env.local
+          npm run build
 
       - name: Run E2E Tests with Local Validator
         working-directory: ./web
+        env:
+          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+          NEXT_PUBLIC_CLUSTER: "localnet"
+          NEXT_PUBLIC_NETWORK: "localnet"
+          NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+          NEXT_PUBLIC_TEST_MODE: "true"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3001"
         run: npx playwright test --reporter=html --project=chromium
         timeout-minutes: 15
 
@@ -217,14 +222,19 @@ jobs:
         working-directory: ./web
         env:
           NODE_ENV: production
-          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
-          NEXT_PUBLIC_CLUSTER: "localnet"
-          NEXT_PUBLIC_NETWORK: "localnet"
-          NEXT_PUBLIC_TEST_MODE: "true"
-        run: npm run build
+        run: |
+          cp .env.ci .env.local
+          npm run build
 
       - name: Run Full User Flow E2E Test
         working-directory: ./web
+        env:
+          NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
+          NEXT_PUBLIC_CLUSTER: "localnet"
+          NEXT_PUBLIC_NETWORK: "localnet"
+          NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+          NEXT_PUBLIC_TEST_MODE: "true"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3001"
         run: npx playwright test full-flow.spec.ts --reporter=html --project=full-flow
         timeout-minutes: 15
 

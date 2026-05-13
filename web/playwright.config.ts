@@ -163,11 +163,12 @@ export default defineConfig({
     timeout: 60000,
     env: {
       PORT: "3001",
-      NEXT_PUBLIC_PROGRAM_ID: "11111111111111111111111111111112",
-      NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com",
-      NEXT_PUBLIC_CLUSTER: "devnet",
-      NEXT_PUBLIC_NETWORK: "devnet",
-      NEXT_PUBLIC_TEST_MODE: "true",
+      // Use local validator in CI/E2E, fallback to devnet for local dev
+      NEXT_PUBLIC_PROGRAM_ID: process.env.NEXT_PUBLIC_PROGRAM_ID || "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb",
+      NEXT_PUBLIC_RPC_URL: process.env.NEXT_PUBLIC_RPC_URL || "http://localhost:8899",
+      NEXT_PUBLIC_CLUSTER: process.env.NEXT_PUBLIC_CLUSTER || "localnet",
+      NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK || "localnet",
+      NEXT_PUBLIC_TEST_MODE: process.env.NEXT_PUBLIC_TEST_MODE || "true",
     },
   },
   

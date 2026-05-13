@@ -33,13 +33,16 @@ if [ ! -f "$PROGRAM_PATH" ]; then
     cd ..
 fi
 
-# Start solana-test-validator
+# Start solana-test-validator with faucet for airdrops
 # Note: solana-test-validator v3.1.13 does NOT support --ws-port flag
 # WebSocket port is automatically calculated as RPC_PORT + 1
+FAUCET_PORT="${3:-9900}"
 echo "⚙️  Starting solana-test-validator..."
+echo "   Faucet Port: $FAUCET_PORT"
 solana-test-validator \
     --ledger "$LEDGER_DIR" \
     --rpc-port "$RPC_PORT" \
+    --faucet-port "$FAUCET_PORT" \
     --bpf-program "$PROGRAM_ID" "$PROGRAM_PATH" \
     --reset \
     --compute-unit-limit 600000 \

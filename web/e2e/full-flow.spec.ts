@@ -76,16 +76,10 @@ test.describe('Full User Flow - Continuous Session', () => {
     // PASO 2: Verificar que la app carga correctamente
     // ============================================
     await test.step('Verify app loads correctly', async () => {
-<<<<<<< HEAD
       // Verificar que el título principal de la página aparece
       // Usar locator específico para evitar strict mode violation (hay 2 h1 en la página)
       // El h1 principal es el de mayor tamaño (text-5xl)
       await expect(page.locator('h1.text-5xl')).toBeVisible({ timeout: 10000 });
-=======
-      // Verificar que el título principal de la app aparece (evitar strict mode violation)
-      // Hay 2 h1 en la página: uno en el logo y otro en el hero section
-      await expect(page.getByRole('heading', { name: 'Trazabilidad Inmutable para' })).toBeVisible({ timeout: 10000 });
->>>>>>> bff1aa190dc8616ad5f200b77569d4016a400cdf
       await takeScreenshot(page, '02-app-loaded');
     });
 
@@ -94,7 +88,6 @@ test.describe('Full User Flow - Continuous Session', () => {
     // ============================================
     await test.step('Verify wallet connection status', async () => {
       // Con MockWalletAdapter, la wallet debería estar conectada automáticamente
-<<<<<<< HEAD
       // Verificar que el botón de wallet existe (WalletMultiButton o estado conectado)
       // El botón puede ser WalletMultiButton (cuando no conectado) o el estado conectado con dirección
       const walletButton = page.locator('button').first();
@@ -106,18 +99,6 @@ test.describe('Full User Flow - Continuous Session', () => {
       const walletElements = page.locator('button, [class*="wallet"], [class*="connect"]');
       const walletCount = await walletElements.count();
       console.log(`Wallet elements found: ${walletCount}`);
-=======
-      // WalletMultiButton muestra "Connect Wallet" cuando no conectada, o la dirección cuando conectada
-      // Usar un selector más flexible que coincida con el botón real
-      const walletButton = page.locator('button').filter({ hasText: /Connect|Wallet|0x|Mock/ }).first();
-      
-      // Verificar que el botón existe (timeout más largo para esperar React hydrate)
-      await expect(walletButton).toBeVisible({ timeout: 15000 });
-      
-      // Si está conectada, mostrará la dirección; si no, mostrará "Connect Wallet"
-      const buttonText = await walletButton.textContent();
-      console.log(`Wallet button text: ${buttonText}`);
->>>>>>> bff1aa190dc8616ad5f200b77569d4016a400cdf
       
       await takeScreenshot(page, '03-wallet-status');
     });

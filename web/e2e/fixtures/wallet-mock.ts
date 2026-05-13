@@ -1,28 +1,10 @@
 /**
  * ⚠️ DEPRECATED: Wallet Mock for Playwright E2E Tests
  *
- * THIS FILE IS DEPRECATED. Please use MockWalletAdapter instead:
- * @see web/src/lib/solana/mock-wallet-adapter.ts
- *
- * This mock implements the Phantom wallet interface that @solana/wallet-adapter expects.
- *
- * ## Why deprecated?
- *
  * This file injects a basic Phantom wallet interface via window.solana/window.phantom.
- * However, PhantomWalletAdapter has internal validation that doesn't detect this mock correctly.
+ * Kept for backward compatibility with E2E test fixtures.
  *
- * The new MockWalletAdapter extends BaseWalletAdapter and properly implements the full
- * WalletAdapter interface, including event emission for connection/disconnection.
- *
- * ## Migration
- *
- * If you're using this file, update your code to use MockWalletAdapter:
- * ```typescript
- * import { MockWalletAdapter } from '@/lib/solana/mock-wallet-adapter';
- * // MockWalletAdapter is auto-registered when NEXT_PUBLIC_TEST_MODE=true
- * ```
- *
- * @deprecated Use web/src/lib/solana/mock-wallet-adapter.ts instead
+ * @deprecated Use the modern wallet API via global-setup.ts instead
  */
 
 import { Page } from "@playwright/test";

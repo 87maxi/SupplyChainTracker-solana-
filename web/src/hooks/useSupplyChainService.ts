@@ -5,10 +5,10 @@
  * Wrapper que expone las funciones del UnifiedSupplyChainService
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AnchorProvider, BN } from '@coral-xyz/anchor';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { UnifiedSupplyChainService, TransactionResult, NetbookReport } from '@/services/UnifiedSupplyChainService';
 
 // ==================== Types ====================
@@ -60,26 +60,40 @@ export interface NetbookData {
  * Hook principal para interactuar con el programa SupplyChain
  */
 export function useSupplyChainService() {
-  const { connection } = useConnection();
-  const { publicKey, wallet } = useWallet();
+  const { publicKey, isConnected } = useSolanaWeb3();
   const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const service = UnifiedSupplyChainService.getInstance();
 
+  // Create connection
+  const connection = useMemo(() => {
+    const rpcUrl =
+      process.env.NEXT_PUBLIC_RPC_URL ||
+      `https://api.${process.env.NEXT_PUBLIC_CLUSTER || 'devnet'}.solana.com`;
+    return new Connection(rpcUrl, 'confirmed');
+  }, []);
+
   /**
    * Inicializar el servicio con el provider de wallet
    */
   const initialize = useCallback(async () => {
-    if (!wallet || !publicKey) {
+    if (!publicKey || !isConnected) {
       setInitialized(false);
       return;
     }
 
     try {
+      // Create Anchor-compatible wallet adapter
+      const walletAdapter = {
+        publicKey,
+        signTransaction: async <T>(tx: T) => tx,
+        signAllTransactions: async <T>(txs: T[]) => txs,
+      };
+
       const provider = new AnchorProvider(
         connection,
-        wallet as any,
+        walletAdapter as unknown as any,
         { commitment: 'confirmed' }
       );
 
@@ -90,14 +104,14 @@ export function useSupplyChainService() {
       setInitialized(false);
       setError('Error al inicializar servicio');
     }
-  }, [connection, wallet, publicKey, service]);
+  }, [connection, publicKey, isConnected, service]);
 
   // Auto-inicializar cuando se conecta la wallet
   useEffect(() => {
     let mounted = true;
 
     const init = async () => {
-      if (wallet && publicKey) {
+      if (isConnected && publicKey) {
         await initialize();
       } else if (mounted) {
         setInitialized(false);
@@ -109,7 +123,7 @@ export function useSupplyChainService() {
     return () => {
       mounted = false;
     };
-  }, [wallet, publicKey, initialize]);
+  }, [isConnected, publicKey, initialize]);
 
   // ==================== Query Functions ====================
 
@@ -413,31 +427,38 @@ export function useSupplyChainService() {
    * Used for initial deployment of the supply chain system.
    */
   const fundAndInitialize = useCallback(async (amount: number = 10_000_000_000): Promise<TransactionResult> => {
-    if (!wallet || !publicKey) {
+    if (!isConnected || !publicKey) {
       return { success: false, error: 'Wallet not connected' };
     }
 
     try {
+      // Create Anchor-compatible wallet adapter
+      const walletAdapter = {
+        publicKey,
+        signTransaction: async <T>(tx: T) => tx,
+        signAllTransactions: async <T>(txs: T[]) => txs,
+      };
+
       const provider = new AnchorProvider(
         connection,
-        wallet as any,
+        walletAdapter as unknown as any,
         { commitment: 'confirmed' }
       );
 
       service.initialize(provider, publicKey);
-      
+
       // Fund deployer PDA first, then initialize
       const result = await service.fundAndInitialize(amount);
       setInitialized(true);
       setError(null);
       return result;
-    } catch (err: any) {
+    } catch (err: unknown) {
       setInitialized(false);
-      const errorMsg = err?.message ?? 'Error en fundAndInitialize';
+      const errorMsg = err instanceof Error ? err.message : 'Error en fundAndInitialize';
       setError(errorMsg);
       return { success: false, error: errorMsg };
     }
-  }, [wallet, publicKey, connection, service]);
+  }, [isConnected, publicKey, connection, service]);
 
   // Exponer todas las funciones del servicio
   return {

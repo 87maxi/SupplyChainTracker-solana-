@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { WalletConnectButton } from '@/components/WalletConnectButton';
 import { useEffect, useState } from 'react';
 
 import {
@@ -60,7 +60,7 @@ export default function Home() {
               <div className="h-12 w-48" />
             ) : !isConnected ? (
               <div className="scale-110">
-                <WalletMultiButton className="bg-primary text-primary-foreground hover:bg-primary/90" />
+                <WalletConnectButton />
               </div>
             ) : (
               <Button asChild size="lg" variant="gradient" className="h-12 px-8 text-lg font-semibold">

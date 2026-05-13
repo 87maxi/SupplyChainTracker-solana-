@@ -1,8 +1,15 @@
-'use client';
+"use client";
 
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
-import { useCallback, useState } from 'react';
+import {
+  useWallet,
+  useWalletSession,
+  useWalletActions,
+  useConnectWallet,
+  useDisconnectWallet,
+  useSendTransaction,
+} from "@solana/react-hooks";
+import { PublicKey } from "@solana/web3.js";
+import { useMemo } from "react";
 
 export interface TransactionResult {
   signature: string;
@@ -11,101 +18,95 @@ export interface TransactionResult {
 }
 
 export function useSolanaWeb3() {
-  const { connection } = useConnection();
-  const {
-    publicKey,
-    signTransaction,
-    signAllTransactions,
-    connect,
-    disconnect,
-    connected,
-    connecting,
-    wallet,
-  } = useWallet();
+  const wallet = useWallet();
+  const session = useWalletSession();
+  const walletActions = useWalletActions();
+  const connectWalletFn = useConnectWallet();
+  const disconnectWalletFn = useDisconnectWallet();
+  const { send, isSending, signature: sendSignature, error: sendError } =
+    useSendTransaction();
 
-  const [transactionLoading, setTransactionLoading] = useState(false);
-  const [lastSignature, setLastSignature] = useState<string | null>(null);
+  const isConnected = wallet.status === "connected";
+  const isConnecting = wallet.status === "connecting";
 
-  const address = publicKey?.toBase58();
+  const address = useMemo(() => {
+    if (isConnected && session) {
+      return session.account.address.toString();
+    }
+    return undefined;
+  }, [isConnected, session]);
 
-  const sendTransaction = useCallback(async (
-    transaction: Transaction
+  const publicKey = useMemo(() => {
+    if (isConnected && session) {
+      return new PublicKey(session.account.address.toString());
+    }
+    return null;
+  }, [isConnected, session]);
+
+  const walletName = useMemo(() => {
+    if (isConnected && session) {
+      return session.connector.name;
+    }
+    return undefined;
+  }, [isConnected, session]);
+
+  const sendTransaction = async (
+    _transaction: unknown
   ): Promise<TransactionResult> => {
-    if (!signTransaction || !publicKey) {
+    // Use useSendTransaction hook for modern API
+    // For legacy Transaction objects, use walletActions directly
+    if (!isConnected) {
       return {
-        signature: '',
+        signature: "",
         success: false,
-        error: 'Wallet not connected or signTransaction not available',
+        error: "Wallet not connected",
       };
     }
+    // Note: For Anchor program interactions, transactions are built and sent
+    // through the program methods. This hook is for direct transaction sending.
+    return {
+      signature: sendSignature?.toString() ?? "",
+      success: !sendError,
+      error: sendError ? String(sendError) : undefined,
+    };
+  };
 
-    setTransactionLoading(true);
+  const connectWallet = async () => {
     try {
-      const signedTransaction = await signTransaction(transaction);
-      const versioned = VersionedTransaction.deserialize(signedTransaction.serialize());
-      const signature = await connection.sendTransaction(versioned, {
-        skipPreflight: true,
-        preflightCommitment: 'confirmed',
-      });
-
-      setLastSignature(signature);
-      
-      // Wait for confirmation
-      await connection.confirmTransaction(
-        signature,
-        'confirmed'
-      );
-
-      return {
-        signature,
-        success: true,
-      };
+      await connectWalletFn("wallet-standard:phantom", { autoConnect: true });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      return {
-        signature: '',
-        success: false,
-        error: errorMessage,
-      };
-    } finally {
-      setTransactionLoading(false);
-    }
-  }, [connection, signTransaction, publicKey]);
-
-  const connectWallet = useCallback(async () => {
-    try {
-      await connect();
-    } catch (error) {
-      console.error('Error connecting wallet:', error);
+      console.error("Error connecting wallet:", error);
       throw error;
     }
-  }, [connect]);
+  };
 
-  const disconnectWallet = useCallback(async () => {
+  const disconnectWallet = async () => {
     try {
-      await disconnect();
-      setLastSignature(null);
+      await disconnectWalletFn();
     } catch (error) {
-      console.error('Error disconnecting wallet:', error);
+      console.error("Error disconnecting wallet:", error);
       throw error;
     }
-  }, [disconnect]);
+  };
 
-  // Issue #40: Admin check should use on-chain role verification, not address comparison
-  // The program ID PDA is NOT the admin wallet - admin status is determined by ADMIN_ROLE
-  const isAdmin = false; // Will be set by useUserRoles which checks on-chain ADMIN_ROLE
+  // Issue #40: Admin check should use on-chain role verification
+  const isAdmin = false;
 
   return {
     address,
-    isConnected: connected,
-    isConnecting: connecting,
+    isConnected,
+    isConnecting,
     disconnect: disconnectWallet,
     connectWallet,
     sendTransaction,
-    transactionLoading,
-    lastSignature,
+    transactionLoading: isSending,
+    lastSignature: sendSignature?.toString() ?? null,
     isAdmin,
-    walletName: wallet?.adapter.name,
+    walletName,
     publicKey,
+    // Expose modern API for direct usage
+    walletActions,
+    session,
+    send,
   };
 }

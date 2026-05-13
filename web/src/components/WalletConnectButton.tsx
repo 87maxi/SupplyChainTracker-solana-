@@ -1,12 +1,12 @@
 "use client";
 
-import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { useSolanaWeb3 } from "@/hooks/useSolanaWeb3";
+import { Button } from "@/components/ui/button";
+import { LogOut, Wallet } from "lucide-react";
 
 export function WalletConnectButton() {
-  const { isConnected, address, disconnect, walletName } = useSolanaWeb3();
+  const { isConnected, address, disconnect, walletName, connectWallet } =
+    useSolanaWeb3();
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
@@ -15,7 +15,13 @@ export function WalletConnectButton() {
   if (!isConnected) {
     return (
       <div className="flex items-center gap-2">
-        <WalletMultiButton className="bg-blue-600 hover:bg-blue-700 text-white rounded-md" />
+        <Button
+          onClick={() => connectWallet()}
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+        >
+          <Wallet className="h-4 w-4 mr-2" />
+          Connect Wallet
+        </Button>
       </div>
     );
   }

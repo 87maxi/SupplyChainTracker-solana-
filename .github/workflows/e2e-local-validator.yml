@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   NODE_VERSION: 20
   SOLANA_VERSION: 3.1.13
   ANCHOR_VERSION: 0.32.1

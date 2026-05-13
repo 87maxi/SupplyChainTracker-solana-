@@ -136,8 +136,8 @@ async function globalSetup(config: FullConfig) {
   
   // Crear un browser context persistente para todos los tests
   const browser = await chromium.launch({
-    headless: false, // Mostrar browser para debugging
-    slowMo: 100, // Ralentizar acciones para visualización
+    headless: !!process.env.CI, // Headless in CI, headed for local debugging
+    slowMo: process.env.CI ? 0 : 100, // Slow down only for local debugging
   });
   
   const context = await browser.newContext({

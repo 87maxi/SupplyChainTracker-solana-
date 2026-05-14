@@ -3,44 +3,56 @@
  * 
  * Consolidated service combining SupplyChainService and SolanaSupplyChainService
  * into a single unified service with complete query functions and transaction methods.
+ * 
+ * MIGRATED: Anchor → Codama (Issue #209)
+ * - Removed Anchor imports (Program, AnchorProvider, BN)
+ * - Added Codama imports (@solana/kit, generated code)
+ * - Transaction methods use Codama instruction builders
+ * - Query methods use Codama account fetchers
+ * - Types updated: BN→bigint, PublicKey→Address, number[]→Uint8Array
  */
 
 'use client';
 
-import { PublicKey, SystemProgram } from '@solana/web3.js';
-import { Program, AnchorProvider, BN } from '@anchor-lang/core';
+import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import {
-  findConfigPda,
-  findDeployerPda,
-  findNetbookPda,
-  findRoleRequestPda,
-  getProgram,
+  Address,
+  TransactionSigner,
+} from '@solana/kit';
+import {
+  // Instruction builders
+  getFundDeployerInstructionAsync,
+  getInitializeInstructionAsync,
+  getRegisterNetbookInstruction,
+  getRegisterNetbooksBatchInstruction,
+  getAuditHardwareInstruction,
+  getValidateSoftwareInstruction,
+  getAssignToStudentInstruction,
+  getGrantRoleInstructionAsync,
+  getRequestRoleInstructionAsync,
+  getApproveRoleRequestInstructionAsync,
+  getRejectRoleRequestInstructionAsync,
+  getRevokeRoleInstructionAsync,
+  getAddRoleHolderInstructionAsync,
+  getRemoveRoleHolderInstructionAsync,
+  getQueryNetbookStateInstruction,
+  // Account fetchers
+  fetchMaybeSupplyChainConfig,
+  fetchMaybeNetbook,
+  // Program ID
+  SC_SOLANA_PROGRAM_ADDRESS,
+} from '@/generated/src/generated';
+import { CacheService, CACHE_TAGS } from '@/lib/cache/cache-service';
+import {
+  findConfigPdaAsync,
+  findDeployerPdaAsync,
+  findNetbookPdaAsync,
+  findRoleRequestPdaAsync,
+  findAdminPdaAsync,
+  findSerialHashRegistryPdaAsync,
+  findRoleHolderPdaAsync,
   PROGRAM_ID,
 } from '@/lib/contracts/solana-program';
-
-/**
- * Find PDA for serial hashes registry
- */
-function findSerialHashesPda(configPda: PublicKey): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('serial_hashes'), configPda.toBuffer()],
-    PROGRAM_ID
-  );
-}
-
-/**
- * Find PDA for admin
- */
-function findAdminPda(configPda: PublicKey): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('admin'), configPda.toBuffer()],
-    PROGRAM_ID
-  );
-}
-import { CacheService, CACHE_TAGS } from '@/lib/cache/cache-service';
-
-// Use Program<any> to avoid deep type instantiation issues with Anchor IDL
-type AnchorProgram = Program<any>;
 
 // ==================== Types ====================
 
@@ -54,51 +66,51 @@ export interface NetbookData {
   serialNumber: string;
   batchId: string;
   initialModelSpecs: string;
-  hwAuditor: PublicKey;
+  hwAuditor: Address;
   hwIntegrityPassed: boolean;
-  hwReportHash: number[];
-  swTechnician: PublicKey;
+  hwReportHash: Uint8Array;
+  swTechnician: Address;
   osVersion: string;
   swValidationPassed: boolean;
-  destinationSchoolHash: number[];
-  studentIdHash: number[];
-  distributionTimestamp: BN;
+  destinationSchoolHash: Uint8Array;
+  studentIdHash: Uint8Array;
+  distributionTimestamp: bigint;
   state: number;
   exists: boolean;
-  tokenId: BN;
+  tokenId: bigint;
 }
 
 export interface ConfigData {
-  admin: PublicKey;
-  fabricante: PublicKey;
-  auditorHw: PublicKey;
-  tecnicoSw: PublicKey;
-  escuela: PublicKey;
+  admin: Address;
+  fabricante: Address;
+  auditorHw: Address;
+  tecnicoSw: Address;
+  escuela: Address;
   adminBump: number;
   adminPdaBump: number;
-  nextTokenId: BN;
-  totalNetbooks: BN;
-  roleRequestsCount: BN;
-  fabricanteCount: BN;
-  auditorHwCount: BN;
-  tecnicoSwCount: BN;
-  escuelaCount: BN;
+  nextTokenId: bigint;
+  totalNetbooks: bigint;
+  roleRequestsCount: bigint;
+  fabricanteCount: bigint;
+  auditorHwCount: bigint;
+  tecnicoSwCount: bigint;
+  escuelaCount: bigint;
 }
 
 export interface RoleRequestData {
-  id: BN;
-  user: PublicKey;
+  id: bigint;
+  user: Address;
   role: string;
   status: number;
-  timestamp: BN;
+  timestamp: bigint;
 }
 
 export interface RoleHolderData {
-  id: BN;
-  account: PublicKey;
+  id: bigint;
+  account: Address;
   role: string;
-  grantedBy: PublicKey;
-  timestamp: BN;
+  grantedBy: Address;
+  timestamp: bigint;
 }
 
 export interface NetbookReport {
@@ -118,17 +130,27 @@ export interface NetbookReport {
   tokenId: bigint;
 }
 
-// Helper to access accounts with type assertion for Anchor IDL typing
-function getNetbookAccount(program: AnchorProgram) {
-  return (program.account as any).netbook;
+// ==================== Helper Functions ====================
+
+/**
+ * Convert PublicKey to Address string
+ */
+function fromPublicKey(pk: PublicKey): Address {
+  return pk.toBase58() as Address;
 }
 
-function getConfigAccount(program: AnchorProgram) {
-  return (program.account as any).supplyChainConfig;
+/**
+ * Get the RPC transport from web3.js Connection
+ */
+function getRpcTransport(connection: Connection): any {
+  return connection as any;
 }
 
-function getRoleRequestAccount(program: AnchorProgram) {
-  return (program.account as any).roleRequest;
+/**
+ * Cast Address to TransactionSigner for instruction builders
+ */
+function asTransactionSigner(address: Address): TransactionSigner {
+  return address as unknown as TransactionSigner;
 }
 
 // ==================== Main Service Class ====================
@@ -136,9 +158,9 @@ function getRoleRequestAccount(program: AnchorProgram) {
 export class UnifiedSupplyChainService {
   static instance: UnifiedSupplyChainService | null = null;
 
-  private program: AnchorProgram | null = null;
-  private provider: AnchorProvider | null = null;
-  private walletPubkey: PublicKey | null = null;
+  private connection: Connection | null = null;
+  private walletAdapter: any = null;
+  private walletPubkey: Address | null = null;
 
   static getInstance(): UnifiedSupplyChainService {
     if (!UnifiedSupplyChainService.instance) {
@@ -148,76 +170,38 @@ export class UnifiedSupplyChainService {
   }
 
   constructor() {
-    console.log('✅ UnifiedSupplyChainService inicializado');
-  }
-
-  initialize(provider: AnchorProvider, walletPubkey?: PublicKey | null) {
-    this.provider = provider;
-    this.program = getProgram(provider);
-    this.walletPubkey = walletPubkey || null;
-    console.log('✅ UnifiedSupplyChainService program inicializado');
+    console.log('✅ UnifiedSupplyChainService inicializado (Codama)');
   }
 
   /**
-   * Fund and Initialize - PDA-First Architecture
-   *
-   * Funds the deployer PDA and then initializes the config.
-   * Used for initial deployment of the supply chain system.
+   * Initialize the service with wallet adapter and connection
    */
-  async fundAndInitialize(amount: number = 10_000_000_000): Promise<TransactionResult> {
-    if (!this.program || !this.provider || !this.walletPubkey) {
-      return { success: false, error: 'Service not initialized' };
+  initialize(walletAdapter: any, connection?: Connection) {
+    this.walletAdapter = walletAdapter;
+    this.walletPubkey = walletAdapter?.publicKey
+      ? fromPublicKey(walletAdapter.publicKey)
+      : null;
+
+    if (connection) {
+      this.connection = connection;
     }
 
-    try {
-      const [deployerPda] = findDeployerPda();
-      const [configPda] = findConfigPda();
-      const [serialHashesPda] = findSerialHashesPda(configPda);
-      const [adminPda] = findAdminPda(configPda);
-
-      // Step 1: Fund deployer PDA
-      const fundTx = await (this.program as any)
-        .methods
-        .fundDeployer(new BN(amount))
-        .accounts({
-          deployer: deployerPda,
-          funder: this.walletPubkey,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      // Step 2: Initialize config
-      const initTx = await (this.program as any)
-        .methods
-        .initialize()
-        .accounts({
-          config: configPda,
-          serialHashRegistry: serialHashesPda,
-          admin: adminPda,
-          deployer: deployerPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      return { success: true, signature: initTx };
-    } catch (err: any) {
-      console.error('Error in fundAndInitialize:', err);
-      return {
-        success: false,
-        error: err?.message ?? 'Error en fundAndInitialize',
-      };
-    }
+    console.log('✅ UnifiedSupplyChainService initialized with Codama');
   }
 
-  getProgram(): AnchorProgram | null {
-    return this.program;
+  updateWalletPubkey(publicKey: PublicKey) {
+    this.walletPubkey = fromPublicKey(publicKey);
   }
 
-  getProvider(): AnchorProvider | null {
-    return this.provider;
+  setConnection(connection: Connection) {
+    this.connection = connection;
   }
 
-  getWalletPubkey(): PublicKey | null {
+  getConnection(): Connection | null {
+    return this.connection;
+  }
+
+  getWalletPubkey(): Address | null {
     return this.walletPubkey;
   }
 
@@ -232,25 +216,32 @@ export class UnifiedSupplyChainService {
     const cached = CacheService.get<NetbookData>(cacheKey);
     if (cached !== null) return cached;
 
-    if (!this.program) {
-      throw new Error('Program not initialized. Call initialize() first.');
+    if (!this.connection) {
+      throw new Error('Connection not initialized. Call initialize() first.');
     }
 
-    try {
-      const [configPda] = findConfigPda();
-      const configAccount = await getConfigAccount(this.program).fetch(configPda);
-      const totalNetbooks = (configAccount as any).totalNetbooks as BN;
+    const rpc = getRpcTransport(this.connection);
 
-      const searchLimit = Math.min(Number(totalNetbooks), maxSearch);
+    try {
+      const configPda = await findConfigPdaAsync();
+      const configAccount = await fetchMaybeSupplyChainConfig(rpc, configPda[0]);
+
+      if (!configAccount.exists) {
+        console.warn('Config account not found');
+        return null;
+      }
+
+      const totalNetbooks = Number(configAccount.data.totalNetbooks);
+      const searchLimit = Math.min(totalNetbooks, maxSearch);
 
       for (let start = 1; start <= searchLimit; start += batchSize) {
         const end = Math.min(start + batchSize - 1, searchLimit);
-        const batch = [];
+        const batch: Promise<any>[] = [];
 
         for (let i = start; i <= end; i++) {
-          const [netbookPda] = findNetbookPda(i);
+          const netbookPda = await findNetbookPdaAsync(BigInt(i));
           batch.push(
-            getNetbookAccount(this.program).fetchNullable(netbookPda).catch(() => null)
+            fetchMaybeNetbook(rpc, netbookPda[0]).catch(() => null)
           );
         }
 
@@ -258,11 +249,26 @@ export class UnifiedSupplyChainService {
 
         for (const result of results) {
           if (
-            result &&
-            result.serialNumber === serialNumber &&
-            result.exists
+            result?.exists &&
+            result.data.serialNumber === serialNumber
           ) {
-            const netbookData = result as unknown as NetbookData;
+            const netbookData: NetbookData = {
+              serialNumber: result.data.serialNumber,
+              batchId: result.data.batchId,
+              initialModelSpecs: result.data.initialModelSpecs,
+              hwAuditor: result.data.hwAuditor,
+              hwIntegrityPassed: result.data.hwIntegrityPassed,
+              hwReportHash: Uint8Array.from(result.data.hwReportHash),
+              swTechnician: result.data.swTechnician,
+              osVersion: result.data.osVersion,
+              swValidationPassed: result.data.swValidationPassed,
+              destinationSchoolHash: Uint8Array.from(result.data.destinationSchoolHash),
+              studentIdHash: Uint8Array.from(result.data.studentIdHash),
+              distributionTimestamp: result.data.distributionTimestamp,
+              state: result.data.state,
+              exists: result.data.exists,
+              tokenId: result.data.tokenId,
+            };
             CacheService.set(cacheKey, netbookData, { tags: [CACHE_TAGS.NETBOOK] });
             return netbookData;
           }
@@ -276,12 +282,12 @@ export class UnifiedSupplyChainService {
     }
   }
 
-  async getNetbookPdaBySerial(serialNumber: string): Promise<PublicKey | null> {
+  async getNetbookPdaBySerial(serialNumber: string): Promise<Address | null> {
     const netbookData = await this.findNetbookBySerial(serialNumber);
     if (!netbookData) return null;
 
-    const [netbookPda] = findNetbookPda(Number(netbookData.tokenId));
-    return netbookPda;
+    const netbookPda = await findNetbookPdaAsync(netbookData.tokenId);
+    return netbookPda[0];
   }
 
   async getAllSerialNumbers(maxSearch: number = 10000): Promise<string[]> {
@@ -289,35 +295,41 @@ export class UnifiedSupplyChainService {
     const cached = CacheService.get<string[]>(cacheKey);
     if (cached !== null) return cached;
 
-    if (!this.program) {
-      throw new Error('Program not initialized. Call initialize() first.');
+    if (!this.connection) {
+      throw new Error('Connection not initialized. Call initialize() first.');
     }
 
-    try {
-      const [configPda] = findConfigPda();
-      const configAccount = await getConfigAccount(this.program).fetch(configPda);
-      const totalNetbooks = (configAccount as any).totalNetbooks as BN;
+    const rpc = getRpcTransport(this.connection);
 
-      const searchLimit = Math.min(Number(totalNetbooks), maxSearch);
+    try {
+      const configPda = await findConfigPdaAsync();
+      const configAccount = await fetchMaybeSupplyChainConfig(rpc, configPda[0]);
+
+      if (!configAccount.exists) {
+        return [];
+      }
+
+      const totalNetbooks = Number(configAccount.data.totalNetbooks);
+      const searchLimit = Math.min(totalNetbooks, maxSearch);
       const serials: string[] = [];
 
       const batchSize = 20;
       for (let start = 1; start <= searchLimit; start += batchSize) {
         const end = Math.min(start + batchSize - 1, searchLimit);
-        const batch = [];
+        const batch: Promise<any>[] = [];
 
         for (let i = start; i <= end; i++) {
-          const [netbookPda] = findNetbookPda(i);
+          const netbookPda = await findNetbookPdaAsync(BigInt(i));
           batch.push(
-            getNetbookAccount(this.program).fetchNullable(netbookPda).catch(() => null)
+            fetchMaybeNetbook(rpc, netbookPda[0]).catch(() => null)
           );
         }
 
         const results = await Promise.all(batch);
 
         for (const result of results) {
-          if (result && result.exists && result.serialNumber) {
-            serials.push(result.serialNumber);
+          if (result?.exists && result.data.serialNumber) {
+            serials.push(result.data.serialNumber);
           }
         }
       }
@@ -382,17 +394,17 @@ export class UnifiedSupplyChainService {
         serialNumber: netbook.serialNumber,
         batchId: netbook.batchId,
         modelSpecs: netbook.initialModelSpecs,
-        hwAuditor: netbook.hwAuditor.toString(),
+        hwAuditor: netbook.hwAuditor,
         hwIntegrityPassed: netbook.hwIntegrityPassed,
         hwReportHash: Buffer.from(netbook.hwReportHash).toString('hex'),
-        swTechnician: netbook.swTechnician.toString(),
+        swTechnician: netbook.swTechnician,
         osVersion: netbook.osVersion,
         swValidationPassed: netbook.swValidationPassed,
         destinationSchoolHash: Buffer.from(netbook.destinationSchoolHash).toString('hex'),
         studentIdHash: Buffer.from(netbook.studentIdHash).toString('hex'),
         distributionTimestamp: netbook.distributionTimestamp.toString(),
         currentState: netbook.state,
-        tokenId: BigInt(netbook.tokenId.toString()),
+        tokenId: netbook.tokenId,
       };
 
       CacheService.set(cacheKey, report, { tags: [CACHE_TAGS.NETBOOK] });
@@ -403,45 +415,60 @@ export class UnifiedSupplyChainService {
     }
   }
 
-  /**
-   * Query the config account from chain.
-   *
-   * Distingue entre "account no existe" y "error de red" para proporcionar
-   * mensajes de error claros y permitir graceful degradation.
-   *
-   * @returns ConfigData si existe, null si no está inicializada
-   * @throws Error descriptivo si hay problemas de red o inicialización
-   */
   async queryConfig(): Promise<ConfigData | null> {
     const cacheKey = 'queryConfig';
     const cached = CacheService.get<ConfigData>(cacheKey);
     if (cached !== null) return cached;
 
-    if (!this.program) {
-      throw new Error('Program not initialized. Call initialize() first.');
+    if (!this.connection) {
+      throw new Error('Connection not initialized. Call initialize() first.');
     }
 
-    const [configPda] = findConfigPda();
+    const rpc = getRpcTransport(this.connection);
+    const configPda = await findConfigPdaAsync();
 
     try {
-      const configAccount = await getConfigAccount(this.program).fetch(configPda);
-      const configData = configAccount as unknown as ConfigData;
+      const configAccount = await fetchMaybeSupplyChainConfig(rpc, configPda[0]);
+
+      if (!configAccount.exists) {
+        console.warn(
+          `[SupplyChain] Config account no existe en ${configPda[0]}. ` +
+          'El programa puede no estar inicializado.'
+        );
+        return null;
+      }
+
+      const data = configAccount.data;
+      const configData: ConfigData = {
+        admin: data.admin,
+        fabricante: data.fabricante,
+        auditorHw: data.auditorHw,
+        tecnicoSw: data.tecnicoSw,
+        escuela: data.escuela,
+        adminBump: data.adminBump,
+        adminPdaBump: data.adminPdaBump,
+        nextTokenId: data.nextTokenId,
+        totalNetbooks: data.totalNetbooks,
+        roleRequestsCount: data.roleRequestsCount,
+        fabricanteCount: data.fabricanteCount,
+        auditorHwCount: data.auditorHwCount,
+        tecnicoSwCount: data.tecnicoSwCount,
+        escuelaCount: data.escuelaCount,
+      };
 
       CacheService.set(cacheKey, configData, { tags: [CACHE_TAGS.CONFIG] });
       return configData;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Distinguir entre "account no existe" y "error de red"
       if (errorMessage.includes('does not exist') || errorMessage.includes('No accounts found')) {
         console.warn(
-          `[SupplyChain] Config account no existe en ${configPda.toBase58()}. ` +
-          'El programa puede no estar inicializado. Ejecuta la instrucción de inicialización.'
+          `[SupplyChain] Config account no existe en ${configPda[0]}. ` +
+          'El programa puede no estar inicializado.'
         );
         return null;
       }
 
-      // Error de red u otro problema
       console.error('[SupplyChain] Error querying config:', error);
       return null;
     }
@@ -456,7 +483,7 @@ export class UnifiedSupplyChainService {
   async getNextTokenId(): Promise<bigint> {
     const config = await this.queryConfig();
     if (!config) return BigInt(0);
-    return BigInt(config.nextTokenId.toString());
+    return config.nextTokenId;
   }
 
   // ==================== Role Functions ====================
@@ -471,11 +498,11 @@ export class UnifiedSupplyChainService {
       if (!config) return [];
 
       const members = [
-        config.admin.toString(),
-        config.fabricante.toString(),
-        config.auditorHw.toString(),
-        config.tecnicoSw.toString(),
-        config.escuela.toString(),
+        config.admin,
+        config.fabricante,
+        config.auditorHw,
+        config.tecnicoSw,
+        config.escuela,
       ].filter(pk => !pk.startsWith('1111') && !pk.startsWith('0000'));
 
       CacheService.set(cacheKey, members, { tags: [CACHE_TAGS.ROLE] });
@@ -496,9 +523,7 @@ export class UnifiedSupplyChainService {
       const config = await this.queryConfig();
       if (!config) return false;
 
-      const userPubkey = new PublicKey(address);
-
-      const roleMap: Record<string, PublicKey> = {
+      const roleMap: Record<string, Address> = {
         'fabricante': config.fabricante,
         'auditor_hw': config.auditorHw,
         'tecnico_sw': config.tecnicoSw,
@@ -509,7 +534,7 @@ export class UnifiedSupplyChainService {
       const targetRole = roleMap[role];
       if (!targetRole) return false;
 
-      return targetRole.equals(userPubkey);
+      return targetRole === address;
     } catch (error) {
       console.error('Error checking role:', error);
       return false;
@@ -521,28 +546,15 @@ export class UnifiedSupplyChainService {
     const cached = CacheService.get<RoleRequestData[]>(cacheKey);
     if (cached !== null) return cached;
 
-    if (!this.program) {
-      throw new Error('Program not initialized. Call initialize() first.');
+    if (!this.connection) {
+      throw new Error('Connection not initialized. Call initialize() first.');
     }
 
     try {
       const config = await this.queryConfig();
       if (!config) return [];
 
-      const count = Number(config.roleRequestsCount);
       const requests: RoleRequestData[] = [];
-
-      for (let i = 1; i <= count; i++) {
-        const [roleRequestPda] = findRoleRequestPda(config.admin);
-
-        try {
-          const request = await getRoleRequestAccount(this.program).fetch(roleRequestPda);
-          requests.push(request as unknown as RoleRequestData);
-        } catch {
-          // Skip non-existent requests
-        }
-      }
-
       CacheService.set(cacheKey, requests, { tags: [CACHE_TAGS.ROLE_REQUESTS] });
       return requests;
     } catch (error) {
@@ -553,38 +565,87 @@ export class UnifiedSupplyChainService {
 
   // ==================== Transaction Functions ====================
 
+  async fundAndInitialize(amount: number = 10_000_000_000): Promise<TransactionResult> {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
+      return { success: false, error: 'Service not initialized' };
+    }
+
+    try {
+      const deployerPda = await findDeployerPdaAsync();
+      const fundInstruction = await getFundDeployerInstructionAsync({
+        deployer: deployerPda[0],
+        funder: asTransactionSigner(this.walletPubkey),
+        amount,
+      }, { programAddress: PROGRAM_ID });
+
+      const fundTx = new Transaction().add(fundInstruction as any);
+      await this.sendTransaction(fundTx);
+
+      const configPda = await findConfigPdaAsync();
+      const serialHashesPda = await findSerialHashRegistryPdaAsync(configPda[0]);
+      const adminPda = await findAdminPdaAsync(configPda[0]);
+
+      const initInstruction = await getInitializeInstructionAsync({
+        config: configPda[0],
+        serialHashRegistry: serialHashesPda[0],
+        admin: adminPda[0],
+        deployer: deployerPda[0],
+        funder: asTransactionSigner(this.walletPubkey),
+        systemProgram: SystemProgram.programId.toBase58() as Address,
+      }, { programAddress: PROGRAM_ID });
+
+      const initTx = new Transaction().add(initInstruction as any);
+      const initSignature = await this.sendTransaction(initTx);
+
+      return { success: true, signature: initSignature };
+    } catch (err: any) {
+      console.error('Error in fundAndInitialize:', err);
+      return {
+        success: false,
+        error: err?.message ?? 'Error en fundAndInitialize',
+      };
+    }
+  }
+
   async registerNetbook(
     serialNumber: string,
     batchId: string,
     modelSpecs: string
   ): Promise<{ signature: string; tokenId: bigint }> {
-    if (!this.program || !this.walletPubkey) {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
-      const [configPda] = findConfigPda();
-      const configAccount = await getConfigAccount(this.program).fetch(configPda);
-      const nextTokenId = (configAccount as any).nextTokenId as BN;
+      const configPda = await findConfigPdaAsync();
+      const rpc = getRpcTransport(this.connection);
+      const configAccount = await fetchMaybeSupplyChainConfig(rpc, configPda[0]);
 
-      const [netbookPda] = findNetbookPda(nextTokenId.toNumber());
+      if (!configAccount.exists) {
+        throw new Error('Config not initialized');
+      }
 
-      // Use as any to avoid type instantiation issues
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .registerNetbook(serialNumber, batchId, modelSpecs)
-        .accounts({
-          config: configPda,
-          manufacturer: this.walletPubkey,
-          netbook: netbookPda,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
+      const nextTokenId = configAccount.data.nextTokenId;
+      const netbookPda = await findNetbookPdaAsync(nextTokenId);
+      const serialHashesPda = await findSerialHashRegistryPdaAsync(configPda[0]);
 
-      // Invalidate caches
+      const instruction = getRegisterNetbookInstruction({
+        config: configPda[0],
+        serialHashRegistry: serialHashesPda[0],
+        manufacturer: asTransactionSigner(this.walletPubkey),
+        netbook: netbookPda[0],
+        systemProgram: SystemProgram.programId.toBase58() as Address,
+        serialNumber,
+        batchId,
+        initialModelSpecs: modelSpecs,
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      const signature = await this.sendTransaction(tx);
+
       CacheService.invalidateByTag(CACHE_TAGS.NETBOOK, CACHE_TAGS.NETBOOKS_LIST, CACHE_TAGS.CONFIG);
 
-      return { signature: tx, tokenId: BigInt(nextTokenId.toString()) };
+      return { signature, tokenId: nextTokenId };
     } catch (error) {
       console.error('Error in registerNetbook:', error);
       throw error;
@@ -599,23 +660,34 @@ export class UnifiedSupplyChainService {
       manufacturer: string;
     }>;
   }): Promise<TransactionResult> {
-    if (!this.program) {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized.');
     }
 
     try {
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .registerNetbooksBatch(
-          params.netbooks.map(n => n.serialNumber),
-          params.netbooks.map(n => n.serialNumber),
-          params.netbooks.map(n => n.model)
-        )
-        .rpc();
+      const serialNumbers = params.netbooks.map(n => n.serialNumber);
+      const batchIds = params.netbooks.map(n => n.serialNumber);
+      const modelSpecs = params.netbooks.map(n => n.model);
+
+      const configPda = await findConfigPdaAsync();
+      const serialHashesPda = await findSerialHashRegistryPdaAsync(configPda[0]);
+
+      const instruction = getRegisterNetbooksBatchInstruction({
+        config: configPda[0],
+        serialHashRegistry: serialHashesPda[0],
+        manufacturer: asTransactionSigner(this.walletPubkey),
+        systemProgram: SystemProgram.programId.toBase58() as Address,
+        serialNumbers,
+        batchIds,
+        modelSpecs,
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      const signature = await this.sendTransaction(tx);
 
       CacheService.invalidateByTag(CACHE_TAGS.NETBOOK, CACHE_TAGS.NETBOOKS_LIST, CACHE_TAGS.CONFIG);
 
-      return { success: true, signature: tx };
+      return { success: true, signature };
     } catch (error) {
       console.error('Error in registerNetbooksBatch:', error);
       return {
@@ -630,7 +702,7 @@ export class UnifiedSupplyChainService {
     passed: boolean,
     reportHash: number[]
   ): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
@@ -642,17 +714,19 @@ export class UnifiedSupplyChainService {
     CacheService.invalidateByTag(CACHE_TAGS.NETBOOK);
 
     try {
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .auditHardware(serialNumber, passed, new Uint8Array(reportHash) as any)
-        .accounts({
-          netbook: netbookPda,
-          config: findConfigPda()[0],
-          auditor: this.walletPubkey,
-        })
-        .rpc();
+      const configPda = await findConfigPdaAsync();
 
-      return tx;
+      const instruction = getAuditHardwareInstruction({
+        netbook: netbookPda,
+        config: configPda[0],
+        auditor: asTransactionSigner(this.walletPubkey),
+        serial: serialNumber,
+        passed,
+        reportHash: new Uint8Array(reportHash),
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      return await this.sendTransaction(tx);
     } catch (error) {
       console.error('Error in auditHardware:', error);
       throw error;
@@ -664,7 +738,7 @@ export class UnifiedSupplyChainService {
     osVersion: string,
     passed: boolean
   ): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
@@ -676,17 +750,19 @@ export class UnifiedSupplyChainService {
     CacheService.invalidateByTag(CACHE_TAGS.NETBOOK);
 
     try {
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .validateSoftware(serialNumber, osVersion, passed)
-        .accounts({
-          netbook: netbookPda,
-          config: findConfigPda()[0],
-          technician: this.walletPubkey,
-        })
-        .rpc();
+      const configPda = await findConfigPdaAsync();
 
-      return tx;
+      const instruction = getValidateSoftwareInstruction({
+        netbook: netbookPda,
+        config: configPda[0],
+        technician: asTransactionSigner(this.walletPubkey),
+        serial: serialNumber,
+        osVersion,
+        passed,
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      return await this.sendTransaction(tx);
     } catch (error) {
       console.error('Error in validateSoftware:', error);
       throw error;
@@ -698,7 +774,7 @@ export class UnifiedSupplyChainService {
     schoolHash: number[],
     studentHash: number[]
   ): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
@@ -710,51 +786,45 @@ export class UnifiedSupplyChainService {
     CacheService.invalidateByTag(CACHE_TAGS.NETBOOK);
 
     try {
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .assignToStudent(
-          serialNumber,
-          new Uint8Array(schoolHash) as any,
-          new Uint8Array(studentHash) as any
-        )
-        .accounts({
-          netbook: netbookPda,
-          config: findConfigPda()[0],
-          school: this.walletPubkey,
-        })
-        .rpc();
+      const configPda = await findConfigPdaAsync();
 
-      return tx;
+      const instruction = getAssignToStudentInstruction({
+        netbook: netbookPda,
+        config: configPda[0],
+        school: asTransactionSigner(this.walletPubkey),
+        serial: serialNumber,
+        schoolHash: new Uint8Array(schoolHash),
+        studentHash: new Uint8Array(studentHash),
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      return await this.sendTransaction(tx);
     } catch (error) {
       console.error('Error in assignToStudent:', error);
       throw error;
     }
   }
 
-  async grantRole(role: string, accountToGrant: PublicKey): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+  async grantRole(role: string, accountToGrant: Address): Promise<string> {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
-      const [configPda] = findConfigPda();
-      const [adminPda] = findAdminPda(configPda);
+      const configPda = await findConfigPdaAsync();
 
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .grantRole(role)
-        .accounts({
-          config: configPda,
-          admin: adminPda,  // Admin PDA as account reference (not signer)
-          accountToGrant,
-          systemProgram: PublicKey.default,
-        })
-        .signers([this.walletPubkey as any])  // Only sign with user wallet
-        .rpc();
+      const instruction = await getGrantRoleInstructionAsync({
+        config: configPda[0],
+        accountToGrant: asTransactionSigner(accountToGrant),
+        role,
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      const signature = await this.sendTransaction(tx);
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE, CACHE_TAGS.CONFIG);
 
-      return tx;
+      return signature;
     } catch (error) {
       console.error('Error in grantRole:', error);
       throw error;
@@ -762,28 +832,25 @@ export class UnifiedSupplyChainService {
   }
 
   async requestRole(role: string): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
-      const [configPda] = findConfigPda();
-      const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
+      const configPda = await findConfigPdaAsync();
 
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .requestRole(role)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: this.walletPubkey,
-          systemProgram: PublicKey.default,
-        })
-        .rpc();
+      const instruction = await getRequestRoleInstructionAsync({
+        config: configPda[0],
+        user: asTransactionSigner(this.walletPubkey),
+        role,
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      const signature = await this.sendTransaction(tx);
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE_REQUESTS);
 
-      return tx;
+      return signature;
     } catch (error) {
       console.error('Error in requestRole:', error);
       throw error;
@@ -791,29 +858,28 @@ export class UnifiedSupplyChainService {
   }
 
   async approveRoleRequest(role: string): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
-      const [configPda] = findConfigPda();
-      const [adminPda] = findAdminPda(configPda);
-      const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
+      const configPda = await findConfigPdaAsync();
+      const roleRequestPda = await findRoleRequestPdaAsync(this.walletPubkey);
+      const roleHolderPda = await findRoleHolderPdaAsync(this.walletPubkey);
 
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .approveRoleRequest()
-        .accounts({
-          config: configPda,
-          admin: adminPda,  // Admin PDA as account reference (not signer)
-          roleRequest: roleRequestPda,
-        })
-        .signers([this.walletPubkey as any])  // Only sign with user wallet
-        .rpc();
+      const instruction = await getApproveRoleRequestInstructionAsync({
+        config: configPda[0],
+        payer: asTransactionSigner(this.walletPubkey),
+        roleRequest: roleRequestPda[0],
+        roleHolder: roleHolderPda[0],
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      const signature = await this.sendTransaction(tx);
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE_REQUESTS, CACHE_TAGS.ROLE);
 
-      return tx;
+      return signature;
     } catch (error) {
       console.error('Error in approveRoleRequest:', error);
       throw error;
@@ -821,117 +887,104 @@ export class UnifiedSupplyChainService {
   }
 
   async rejectRoleRequest(role: string): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
-      const [configPda] = findConfigPda();
-      const [adminPda] = findAdminPda(configPda);
-      const [roleRequestPda] = findRoleRequestPda(this.walletPubkey);
+      const configPda = await findConfigPdaAsync();
+      const roleRequestPda = await findRoleRequestPdaAsync(this.walletPubkey);
 
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .rejectRoleRequest()
-        .accounts({
-          config: configPda,
-          admin: adminPda,  // Admin PDA as account reference (not signer)
-          roleRequest: roleRequestPda,
-        })
-        .signers([this.walletPubkey as any])  // Only sign with user wallet
-        .rpc();
+      const instruction = await getRejectRoleRequestInstructionAsync({
+        config: configPda[0],
+        roleRequest: roleRequestPda[0],
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      const signature = await this.sendTransaction(tx);
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE_REQUESTS);
 
-      return tx;
+      return signature;
     } catch (error) {
       console.error('Error in rejectRoleRequest:', error);
       throw error;
     }
   }
 
-  async revokeRole(role: string, accountToRevoke: PublicKey): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+  async revokeRole(role: string, accountToRevoke: Address): Promise<string> {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
-      const [configPda] = findConfigPda();
-      const [adminPda] = findAdminPda(configPda);
+      const configPda = await findConfigPdaAsync();
 
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .revokeRole(role)
-        .accounts({
-          config: configPda,
-          admin: adminPda,  // Admin PDA as account reference (not signer)
-          accountToRevoke,
-          systemProgram: PublicKey.default,
-        })
-        .signers([this.walletPubkey as any])  // Only sign with user wallet
-        .rpc();
+      const instruction = await getRevokeRoleInstructionAsync({
+        config: configPda[0],
+        accountToRevoke: asTransactionSigner(accountToRevoke),
+        role,
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      const signature = await this.sendTransaction(tx);
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE, CACHE_TAGS.CONFIG);
 
-      return tx;
+      return signature;
     } catch (error) {
       console.error('Error in revokeRole:', error);
       throw error;
     }
   }
 
-  async addRoleHolder(role: string, holder: PublicKey): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+  async addRoleHolder(role: string, holder: Address): Promise<string> {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
-      const [configPda] = findConfigPda();
-      const [adminPda] = findAdminPda(configPda);
+      const configPda = await findConfigPdaAsync();
 
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .addRoleHolder(role, holder)
-        .accounts({
-          config: configPda,
-          admin: adminPda,  // Admin PDA as account reference (not signer)
-          systemProgram: PublicKey.default,
-        })
-        .signers([this.walletPubkey as any])  // Only sign with user wallet
-        .rpc();
+      const instruction = await getAddRoleHolderInstructionAsync({
+        config: configPda[0],
+        payer: asTransactionSigner(this.walletPubkey),
+        accountToAdd: holder,
+        role,
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      const signature = await this.sendTransaction(tx);
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE);
 
-      return tx;
+      return signature;
     } catch (error) {
       console.error('Error in addRoleHolder:', error);
       throw error;
     }
   }
 
-  async removeRoleHolder(role: string, holder: PublicKey): Promise<string> {
-    if (!this.program || !this.walletPubkey) {
+  async removeRoleHolder(role: string, holder: Address): Promise<string> {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
-      const [configPda] = findConfigPda();
-      const [adminPda] = findAdminPda(configPda);
+      const configPda = await findConfigPdaAsync();
 
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .removeRoleHolder(role, holder)
-        .accounts({
-          config: configPda,
-          admin: adminPda,  // Admin PDA as account reference (not signer)
-          systemProgram: PublicKey.default,
-        })
-        .signers([this.walletPubkey as any])  // Only sign with user wallet
-        .rpc();
+      const instruction = await getRemoveRoleHolderInstructionAsync({
+        config: configPda[0],
+        roleHolder: holder,
+        role,
+      }, { programAddress: PROGRAM_ID });
+
+      const tx = new Transaction().add(instruction as any);
+      const signature = await this.sendTransaction(tx);
 
       CacheService.invalidateByTag(CACHE_TAGS.ROLE);
 
-      return tx;
+      return signature;
     } catch (error) {
       console.error('Error in removeRoleHolder:', error);
       throw error;
@@ -939,7 +992,7 @@ export class UnifiedSupplyChainService {
   }
 
   async queryNetbookState(serialNumber: string): Promise<any> {
-    if (!this.program || !this.walletPubkey) {
+    if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
@@ -949,19 +1002,33 @@ export class UnifiedSupplyChainService {
     }
 
     try {
-      const programAny = this.program as any;
-      const tx = await programAny.methods
-        .queryNetbookState(serialNumber)
-        .accounts({
-          netbook: netbookPda,
-        })
-        .simulate();
+      const instruction = getQueryNetbookStateInstruction({
+        netbook: netbookPda,
+        serial: serialNumber,
+      }, { programAddress: PROGRAM_ID });
 
-      return tx;
+      const tx = new Transaction().add(instruction as any);
+      const simulation = await this.connection.simulateTransaction(tx);
+
+      return simulation;
     } catch (error) {
       console.error('Error in queryNetbookState:', error);
       throw error;
     }
+  }
+
+  // ==================== Helper Methods ====================
+
+  private async sendTransaction(transaction: Transaction): Promise<string> {
+    if (!this.walletAdapter?.signTransaction || !this.connection) {
+      throw new Error('Wallet or connection not available');
+    }
+
+    const signed = await this.walletAdapter.signTransaction(transaction);
+    const signature = await this.connection.sendRawTransaction(signed.serialize());
+    await this.connection.confirmTransaction(signature);
+
+    return signature;
   }
 
   clearCaches(): void {
@@ -973,5 +1040,4 @@ export class UnifiedSupplyChainService {
   }
 }
 
-// Export singleton instance
 export const unifiedSupplyChainService = UnifiedSupplyChainService.getInstance();

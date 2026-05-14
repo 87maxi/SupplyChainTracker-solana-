@@ -3,7 +3,7 @@
 // This file provides backward compatibility by delegating to UnifiedSupplyChainService
 
 import { PublicKey } from '@solana/web3.js';
-import { BN } from '@anchor-lang/core';
+import { Address } from '@solana/kit';
 import { UnifiedSupplyChainService } from './UnifiedSupplyChainService';
 
 // ==================== Legacy Type Exports ====================
@@ -27,30 +27,30 @@ export interface NetbookData {
   serialNumber: string;
   batchId: string;
   modelSpecs: string;
-  hwAuditor: PublicKey;
+  hwAuditor: Address;
   hwIntegrityPassed: boolean;
-  hwReportHash: number[];
-  swTechnician: PublicKey;
+  hwReportHash: Uint8Array;
+  swTechnician: Address;
   osVersion: string;
   swValidationPassed: boolean;
-  destinationSchoolHash: number[];
-  studentIdHash: number[];
-  distributionTimestamp: BN;
+  destinationSchoolHash: Uint8Array;
+  studentIdHash: Uint8Array;
+  distributionTimestamp: bigint;
   state: number;
   exists: boolean;
-  tokenId: BN;
+  tokenId: bigint;
 }
 
 export interface ConfigData {
-  admin: PublicKey;
-  fabricante: PublicKey;
-  auditorHw: PublicKey;
-  tecnicoSw: PublicKey;
-  escuela: PublicKey;
+  admin: Address;
+  fabricante: Address;
+  auditorHw: Address;
+  tecnicoSw: Address;
+  escuela: Address;
   adminBump: number;
-  nextTokenId: BN;
-  totalNetbooks: BN;
-  roleRequestsCount: BN;
+  nextTokenId: bigint;
+  totalNetbooks: bigint;
+  roleRequestsCount: bigint;
 }
 
 // ==================== Legacy Class (Compatibility Shim) ====================
@@ -158,7 +158,7 @@ export class SolanaSupplyChainService {
     return this.unifiedService.queryConfig();
   }
 
-  async grantRole(role: string, accountToGrant: PublicKey): Promise<TransactionResult> {
+  async grantRole(role: string, accountToGrant: Address): Promise<TransactionResult> {
     try {
       const signature = await this.unifiedService.grantRole(role, accountToGrant);
       return { signature, success: true };
@@ -167,7 +167,7 @@ export class SolanaSupplyChainService {
     }
   }
 
-  async revokeRole(role: string, accountToRevoke: PublicKey): Promise<TransactionResult> {
+  async revokeRole(role: string, accountToRevoke: Address): Promise<TransactionResult> {
     try {
       const signature = await this.unifiedService.revokeRole(role, accountToRevoke);
       return { signature, success: true };
@@ -219,11 +219,11 @@ export class SolanaSupplyChainService {
     return summary;
   }
 
-  async hasRole(role: string, userAddress: PublicKey): Promise<boolean> {
-    return this.unifiedService.hasRole(role, userAddress.toBase58());
+  async hasRole(role: string, userAddress: Address): Promise<boolean> {
+    return this.unifiedService.hasRole(role, userAddress);
   }
 
-  async getAccountBalance(_address: PublicKey): Promise<number> {
+  async getAccountBalance(_address: Address): Promise<number> {
     void _address;
     console.warn('getAccountBalance is not implemented in UnifiedSupplyChainService');
     return 0;
@@ -249,7 +249,7 @@ export class SolanaSupplyChainService {
     return this.unifiedService.getAllSerialNumbers();
   }
 
-  async getRoleRequest(_userAddress: PublicKey): Promise<any> {
+  async getRoleRequest(_userAddress: Address): Promise<any> {
     void _userAddress;
     const requests = await this.unifiedService.getRoleRequests();
     return requests[0] || null;

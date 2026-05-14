@@ -1,38 +1,62 @@
 /**
  * Wrapper para operaciones del programa SupplyChain en Solana
  * Este módulo proporciona funciones de conveniencia para interactuar
- * con el programa Anchor desde los componentes del frontend
- * 
- * Migrado de Ethereum/Viem a Solana/Anchor
+ * con el programa Codama desde los componentes del frontend
+ *
+ * Migrado de Anchor a Codama (Issue #209)
  */
 
-import { AnchorProvider, Program, BN } from '@anchor-lang/core';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { getProgram, PROGRAM_ID } from '@/lib/contracts/solana-program';
+import {
+  type Address,
+  type Rpc,
+  type GetAccountInfoApi,
+  type GetMultipleAccountsApi,
+  type MaybeAccount,
+} from '@solana/kit';
+
+import {
+  fetchMaybeSupplyChainConfig,
+  fetchMaybeNetbook,
+  type SupplyChainConfig,
+  type Netbook,
+} from '@/generated/src/generated/accounts';
+
+import { PROGRAM_ID, findConfigPda, findNetbookPda } from '@/lib/contracts/solana-program';
 import { connection } from '@/lib/solana/connection';
 import { CacheService, CACHE_TAGS } from '@/lib/cache/cache-service';
 
-// ==================== Utilidades ====================
+// ==================== RPC Helper ====================
 
 /**
- * Obtener provider desde wallet y connection
+ * Get the RPC instance from the web3.js connection.
+ * Codama generated account fetchers accept the RPC parameter directly.
+ * The web3.js Connection object is compatible as an RPC transport
+ * because Codama's fetchEncodedAccount uses standard RPC methods.
  */
-export function createProvider(wallet: any, conn?: Connection): AnchorProvider | null {
-  const connectionToUse = conn || connection;
-  if (!wallet) return null;
-  
-  return new AnchorProvider(
-    connectionToUse,
-    wallet as any,
-    { commitment: 'confirmed' }
-  );
+function getRpc(): Rpc<GetAccountInfoApi & GetMultipleAccountsApi> {
+  return connection as unknown as Rpc<GetAccountInfoApi & GetMultipleAccountsApi>;
+}
+
+// ==================== Legacy Provider/Program (Deprecated) ====================
+
+/**
+ * @deprecated Codama does not use AnchorProvider.
+ * This function is retained for backward compatibility but returns null.
+ * Use the Codama client pattern instead.
+ */
+export function createProvider(): null {
+  console.warn('createProvider is deprecated in Codama migration. Use Codama client pattern.');
+  return null;
 }
 
 /**
- * Obtener instancia del programa
+ * @deprecated Codama does not use Program instances.
+ * This function is retained for backward compatibility but returns null.
+ * Use Codama instruction builders from solana-program.ts instead.
  */
-export function getSupplyChainProgram(provider: AnchorProvider): Program<any> {
-  return getProgram(provider);
+export function getSupplyChainProgram(): null {
+  console.warn('getSupplyChainProgram is deprecated in Codama migration.');
+  return null;
 }
 
 // ==================== Query Functions (Real Implementation) ====================
@@ -43,67 +67,50 @@ export function getSupplyChainProgram(provider: AnchorProvider): Program<any> {
  */
 async function findNetbookPdaBySerial(
   serialNumber: string,
-  program: Program<any>,
   maxSearch: number = 1000
-): Promise<{ pda: PublicKey; tokenId: number } | null> {
+): Promise<{ pda: Address; tokenId: number } | null> {
   const cacheKey = `findNetbookPdaBySerial:${serialNumber}`;
   const cached = CacheService.get<{ pda: string; tokenId: number }>(cacheKey);
   if (cached) {
-    return { pda: new PublicKey(cached.pda), tokenId: cached.tokenId };
+    return { pda: cached.pda as Address, tokenId: cached.tokenId };
   }
 
   try {
-    const [configPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('config')],
-      PROGRAM_ID
-    );
+    const [configPda] = await findConfigPda();
+    const rpc = getRpc();
 
-    const accountInfo = await connection.getAccountInfo(configPda);
-    if (!accountInfo) return null;
+    const configAccount = await fetchMaybeSupplyChainConfig(rpc, configPda);
+    if (!configAccount.exists) return null;
 
-    // Parse config to get totalNetbooks
-    const deserialized = program.coder.accounts.decode('supplyChainConfig', accountInfo.data);
-    const totalNetbooks = Number(deserialized.totalNetbooks);
+    // Use typed config data
+    const totalNetbooks = Number(configAccount.data.totalNetbooks);
     const searchLimit = Math.min(totalNetbooks, maxSearch);
 
     // Search in batches
     const batchSize = 10;
     for (let start = 1; start <= searchLimit; start += batchSize) {
       const end = Math.min(start + batchSize - 1, searchLimit);
-      const promises = [];
+      const promises: Promise<{ pda: Address; tokenId: number } | null>[] = [];
 
       for (let i = start; i <= end; i++) {
-        const tokenIdBuffer = Buffer.alloc(8);
-        tokenIdBuffer.writeBigUInt64LE(BigInt(i), 0);
-        
-        const [netbookPda] = PublicKey.findProgramAddressSync(
-          [Buffer.from('netbook'), Buffer.from('netbook'), tokenIdBuffer.slice(0, 7)],
-          PROGRAM_ID
-        );
-
         promises.push(
-          connection.getAccountInfo(netbookPda).then(info => {
-            if (info) {
-              try {
-                const netbook = program.coder.accounts.decode('netbook', info.data);
-                if (netbook.serialNumber === serialNumber) {
-                  return { pda: netbookPda, tokenId: i, netbook };
-                }
-              } catch {
-                // Skip accounts that can't be decoded
-              }
+          (async () => {
+            const [netbookPda] = await findNetbookPda(i);
+            const maybeNetbook = await fetchMaybeNetbook(rpc, netbookPda);
+            if (maybeNetbook.exists && maybeNetbook.data.serialNumber === serialNumber) {
+              return { pda: netbookPda, tokenId: i };
             }
             return null;
-          })
+          })()
         );
       }
 
       const results = await Promise.all(promises);
-      
+
       for (const result of results) {
         if (result) {
-          CacheService.set(cacheKey, { pda: result.pda.toString(), tokenId: result.tokenId }, {
-            tags: [CACHE_TAGS.NETBOOK]
+          CacheService.set(cacheKey, { pda: result.pda, tokenId: result.tokenId }, {
+            tags: [CACHE_TAGS.NETBOOK],
           });
           return result;
         }
@@ -126,17 +133,43 @@ export async function getAllSerialNumbers(maxSearch: number = 10000): Promise<st
   if (cached !== null) return cached;
 
   try {
-    const [configPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('config')],
-      PROGRAM_ID
-    );
+    const [configPda] = await findConfigPda();
+    const rpc = getRpc();
 
-    const accountInfo = await connection.getAccountInfo(configPda);
-    if (!accountInfo) return [];
+    const configAccount = await fetchMaybeSupplyChainConfig(rpc, configPda);
+    if (!configAccount.exists) return [];
 
-    // For now, return empty array - real implementation requires Anchor program
-    // The unified service provides the full implementation
+    const totalNetbooks = Number(configAccount.data.totalNetbooks);
+    const searchLimit = Math.min(totalNetbooks, maxSearch);
     const serials: string[] = [];
+
+    // Fetch netbooks in batches
+    const batchSize = 10;
+    for (let start = 1; start <= searchLimit; start += batchSize) {
+      const end = Math.min(start + batchSize - 1, searchLimit);
+      const promises: Promise<string | null>[] = [];
+
+      for (let i = start; i <= end; i++) {
+        promises.push(
+          (async () => {
+            const [netbookPda] = await findNetbookPda(i);
+            const maybeNetbook = await fetchMaybeNetbook(rpc, netbookPda);
+            if (maybeNetbook.exists) {
+              return maybeNetbook.data.serialNumber;
+            }
+            return null;
+          })()
+        );
+      }
+
+      const results = await Promise.all(promises);
+      for (const serial of results) {
+        if (serial) {
+          serials.push(serial);
+        }
+      }
+    }
+
     CacheService.set(cacheKey, serials, { tags: [CACHE_TAGS.NETBOOKS_LIST] });
     return serials;
   } catch {
@@ -155,14 +188,14 @@ export async function getNetbookState(serial: string): Promise<number> {
   try {
     const report = await getNetbookReport(serial);
     if (report) {
-      const state = report.currentState ?? 0;
+      const state = report.state ?? 0;
       CacheService.set(cacheKey, state, { tags: [CACHE_TAGS.NETBOOK] });
       return state;
     }
   } catch {
     // Fall through to default
   }
-  
+
   return 0; // Estado por defecto: FABRICADA
 }
 
@@ -177,14 +210,14 @@ export async function getNetbooksByState(state: number, maxSearch: number = 1000
   try {
     const allSerials = await getAllSerialNumbers(maxSearch);
     const result: string[] = [];
-    
+
     for (const serial of allSerials) {
       const currentState = await getNetbookState(serial);
       if (currentState === state) {
         result.push(serial);
       }
     }
-    
+
     CacheService.set(cacheKey, result, { tags: [CACHE_TAGS.NETBOOKS_LIST] });
     return result;
   } catch {
@@ -195,20 +228,32 @@ export async function getNetbooksByState(state: number, maxSearch: number = 1000
 /**
  * Obtener reporte detallado de una netbook
  */
-export async function getNetbookReport(serial: string): Promise<any> {
+export async function getNetbookReport(serial: string): Promise<Netbook | null> {
   const cacheKey = `getNetbookReport:${serial}`;
-  const cached = CacheService.get<any>(cacheKey);
+  const cached = CacheService.get<Netbook>(cacheKey);
   if (cached !== null) return cached;
 
-  // This requires the Anchor program to be properly initialized
-  // For standalone usage, we return null - use UnifiedSupplyChainService instead
-  return null;
+  try {
+    const result = await findNetbookPdaBySerial(serial);
+    if (!result) return null;
+
+    const rpc = getRpc();
+    const maybeNetbook = await fetchMaybeNetbook(rpc, result.pda);
+    if (!maybeNetbook.exists) return null;
+
+    CacheService.set(cacheKey, maybeNetbook.data, { tags: [CACHE_TAGS.NETBOOK] });
+    return maybeNetbook.data;
+  } catch (error) {
+    console.error('Error getting netbook report:', error);
+    return null;
+  }
 }
 
 // ==================== Funciones de Roles ====================
 
 /**
  * Obtener todos los miembros de un rol
+ * Uses the Config account which stores the primary role holders.
  */
 export async function getAllMembers(roleHash: string): Promise<string[]> {
   const cacheKey = `getAllMembers:${roleHash}`;
@@ -216,44 +261,30 @@ export async function getAllMembers(roleHash: string): Promise<string[]> {
   if (cached !== null) return cached;
 
   try {
-    const [configPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('config')],
-      PROGRAM_ID
-    );
+    const [configPda] = await findConfigPda();
+    const rpc = getRpc();
 
-    const accountInfo = await connection.getAccountInfo(configPda);
-    if (!accountInfo) return [];
+    const configAccount = await fetchMaybeSupplyChainConfig(rpc, configPda);
+    if (!configAccount.exists) return [];
 
-    // Parse config account to extract role members
-    // The config account layout: admin(32) + fabricante(32) + auditorHw(32) + tecnicoSw(32) + escuela(32) + ...
+    const config = configAccount.data;
     const members: string[] = [];
-    
-    // Extract public keys from the account data
-    const roleKeys = [
-      { start: 0, end: 32, name: 'admin' },
-      { start: 32, end: 64, name: 'fabricante' },
-      { start: 64, end: 96, name: 'auditorHw' },
-      { start: 96, end: 128, name: 'tecnicoSw' },
-      { start: 128, end: 160, name: 'escuela' },
-    ];
 
-    for (const role of roleKeys) {
-      if (accountInfo.data.length >= role.end) {
-        const pubkeyBytes = accountInfo.data.slice(role.start, role.end);
-        // Check if it's not all zeros (empty)
-        const isEmpty = pubkeyBytes.every(b => b === 0);
-        if (!isEmpty) {
-          try {
-            const pubkey = new PublicKey(pubkeyBytes);
-            const addr = pubkey.toString();
-            // Skip system program
-            if (!addr.startsWith('1111')) {
-              members.push(addr);
-            }
-          } catch {
-            // Skip invalid public keys
-          }
-        }
+    // Map role names to config fields
+    const roleFields: Record<string, Address> = {
+      admin: config.admin,
+      fabricante: config.fabricante,
+      auditorHw: config.auditorHw,
+      tecnicoSw: config.tecnicoSw,
+      escuela: config.escuela,
+    };
+
+    // Check if the requested role exists in config
+    if (roleFields[roleHash]) {
+      const addr = roleFields[roleHash];
+      // Skip empty addresses (all zeros or system program)
+      if (addr && !addr.startsWith('1111')) {
+        members.push(addr);
       }
     }
 
@@ -278,33 +309,32 @@ export async function getRoleMemberCount(roleHash: string): Promise<number> {
 export async function hasRole(roleHash: string, address: string): Promise<boolean> {
   try {
     if (!address) return false;
-    
-    const [configPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('config')],
-      PROGRAM_ID
-    );
 
-    const accountInfo = await connection.getAccountInfo(configPda);
-    if (!accountInfo) return false;
+    const [configPda] = await findConfigPda();
+    const rpc = getRpc();
 
-    const userPubkey = new PublicKey(address);
-    const userBuffer = userPubkey.toBuffer();
+    const configAccount = await fetchMaybeSupplyChainConfig(rpc, configPda);
+    if (!configAccount.exists) return false;
+
+    const config = configAccount.data;
 
     // Check against role positions in config account
-    const rolePositions = [
-      { start: 0, name: 'admin' },
-      { start: 32, name: 'fabricante' },
-      { start: 64, name: 'auditorHw' },
-      { start: 96, name: 'tecnicoSw' },
-      { start: 128, name: 'escuela' },
-    ];
+    const roleAddresses: Record<string, Address> = {
+      admin: config.admin,
+      fabricante: config.fabricante,
+      auditorHw: config.auditorHw,
+      tecnicoSw: config.tecnicoSw,
+      escuela: config.escuela,
+    };
 
-    for (const role of rolePositions) {
-      if (accountInfo.data.length >= role.start + 32) {
-        const roleBytes = accountInfo.data.slice(role.start, role.start + 32);
-        const matches = roleBytes.every((byte, i) => byte === userBuffer[i]);
-        if (matches) return true;
-      }
+    // Check if address matches the specific role
+    if (roleAddresses[roleHash] === address) {
+      return true;
+    }
+
+    // Also check all roles for broader matching
+    for (const roleAddr of Object.values(roleAddresses)) {
+      if (roleAddr === address) return true;
     }
 
     return false;
@@ -405,38 +435,20 @@ export async function rejectRoleRequest(role: string): Promise<string> {
 /**
  * Obtener datos de configuración
  */
-export async function getConfigData(): Promise<any> {
+export async function getConfigData(): Promise<SupplyChainConfig | null> {
   const cacheKey = 'getConfigData';
-  const cached = CacheService.get<any>(cacheKey);
+  const cached = CacheService.get<SupplyChainConfig>(cacheKey);
   if (cached !== null) return cached;
 
   try {
-    const [configPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('config')],
-      PROGRAM_ID
-    );
+    const [configPda] = await findConfigPda();
+    const rpc = getRpc();
 
-    const accountInfo = await connection.getAccountInfo(configPda);
-    if (!accountInfo) return null;
+    const configAccount = await fetchMaybeSupplyChainConfig(rpc, configPda);
+    if (!configAccount.exists) return null;
 
-    // Parse config account data
-    // Layout: admin(32) + fabricante(32) + auditorHw(32) + tecnicoSw(32) + escuela(32) + adminBump(1) + nextTokenId(8) + totalNetbooks(8) + roleRequestsCount(8)
-    const data = accountInfo.data;
-    
-    const config = {
-      admin: new PublicKey(data.slice(0, 32)).toString(),
-      fabricante: new PublicKey(data.slice(32, 64)).toString(),
-      auditorHw: new PublicKey(data.slice(64, 96)).toString(),
-      tecnicoSw: new PublicKey(data.slice(96, 128)).toString(),
-      escuela: new PublicKey(data.slice(128, 160)).toString(),
-      adminBump: data[160],
-      nextTokenId: Number(new BN(data.slice(161, 169), 'le').toString()),
-      totalNetbooks: Number(new BN(data.slice(169, 177), 'le').toString()),
-      roleRequestsCount: Number(new BN(data.slice(177, 185), 'le').toString()),
-    };
-
-    CacheService.set(cacheKey, config, { tags: [CACHE_TAGS.CONFIG] });
-    return config;
+    CacheService.set(cacheKey, configAccount.data, { tags: [CACHE_TAGS.CONFIG] });
+    return configAccount.data;
   } catch (error) {
     console.error('Error getting config data:', error);
     return null;
@@ -448,7 +460,8 @@ export async function getConfigData(): Promise<any> {
  */
 export async function getTotalNetbooks(): Promise<number> {
   const config = await getConfigData();
-  return config?.totalNetbooks ?? 0;
+  if (!config) return 0;
+  return Number(config.totalNetbooks);
 }
 
 /**
@@ -456,5 +469,6 @@ export async function getTotalNetbooks(): Promise<number> {
  */
 export async function getNextTokenId(): Promise<number> {
   const config = await getConfigData();
-  return config?.nextTokenId ?? 0;
+  if (!config) return 0;
+  return Number(config.nextTokenId);
 }

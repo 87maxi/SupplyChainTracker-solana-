@@ -6,10 +6,10 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { AnchorProvider, BN } from '@anchor-lang/core';
 import { Connection, PublicKey } from '@solana/web3.js';
+import { Address } from '@solana/kit';
 import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
-import { UnifiedSupplyChainService, TransactionResult, NetbookReport } from '@/services/UnifiedSupplyChainService';
+import { UnifiedSupplyChainService, TransactionResult, NetbookReport, NetbookData } from '@/services/UnifiedSupplyChainService';
 
 // ==================== Types ====================
 
@@ -38,23 +38,8 @@ export interface AssignToStudentParams {
   schoolHash: string;
 }
 
-export interface NetbookData {
-  serialNumber: string;
-  batchId: string;
-  initialModelSpecs: string;
-  hwAuditor: PublicKey;
-  hwIntegrityPassed: boolean;
-  hwReportHash: number[];
-  swTechnician: PublicKey;
-  osVersion: string;
-  swValidationPassed: boolean;
-  destinationSchoolHash: number[];
-  studentIdHash: number[];
-  distributionTimestamp: BN;
-  state: number;
-  exists: boolean;
-  tokenId: BN;
-}
+// Re-export NetbookData from UnifiedSupplyChainService for consistency
+export type { NetbookData } from '@/services/UnifiedSupplyChainService';
 
 /**
  * Hook principal para interactuar con el programa SupplyChain
@@ -75,7 +60,7 @@ export function useSupplyChainService() {
   }, []);
 
   /**
-   * Inicializar el servicio con el provider de wallet
+   * Inicializar el servicio con el wallet adapter (Codama)
    */
   const initialize = useCallback(async () => {
     if (!publicKey || !isConnected) {
@@ -84,20 +69,14 @@ export function useSupplyChainService() {
     }
 
     try {
-      // Create Anchor-compatible wallet adapter
+      // Create wallet adapter for Codama service
       const walletAdapter = {
         publicKey,
         signTransaction: async <T>(tx: T) => tx,
         signAllTransactions: async <T>(txs: T[]) => txs,
       };
 
-      const provider = new AnchorProvider(
-        connection,
-        walletAdapter as unknown as any,
-        { commitment: 'confirmed' }
-      );
-
-      service.initialize(provider, publicKey);
+      service.initialize(walletAdapter, connection);
       setInitialized(true);
       setError(null);
     } catch {
@@ -186,7 +165,7 @@ export function useSupplyChainService() {
   /**
    * Obtener PDA de netbook por serial
    */
-  const getNetbookPdaBySerial = useCallback(async (serial: string): Promise<PublicKey | null> => {
+  const getNetbookPdaBySerial = useCallback(async (serial: string): Promise<Address | null> => {
     try {
       return await service.getNetbookPdaBySerial(serial);
     } catch {
@@ -344,7 +323,7 @@ export function useSupplyChainService() {
     role: string;
     account: string;
   }): Promise<string> => {
-    return service.grantRole(params.role, new PublicKey(params.account));
+    return service.grantRole(params.role, params.account as Address);
   }, [service]);
 
   /**
@@ -354,7 +333,7 @@ export function useSupplyChainService() {
     role: string;
     account: string;
   }): Promise<string> => {
-    return service.revokeRole(params.role, new PublicKey(params.account));
+    return service.revokeRole(params.role, params.account as Address);
   }, [service]);
 
   /**
@@ -391,7 +370,7 @@ export function useSupplyChainService() {
     role: string;
     holder: string;
   }): Promise<string> => {
-    return service.addRoleHolder(params.role, new PublicKey(params.holder));
+    return service.addRoleHolder(params.role, params.holder as Address);
   }, [service]);
 
   /**
@@ -401,7 +380,7 @@ export function useSupplyChainService() {
     role: string;
     holder: string;
   }): Promise<string> => {
-    return service.removeRoleHolder(params.role, new PublicKey(params.holder));
+    return service.removeRoleHolder(params.role, params.holder as Address);
   }, [service]);
 
   // ==================== Cache Management ====================
@@ -432,20 +411,14 @@ export function useSupplyChainService() {
     }
 
     try {
-      // Create Anchor-compatible wallet adapter
+      // Create wallet adapter for Codama service
       const walletAdapter = {
         publicKey,
         signTransaction: async <T>(tx: T) => tx,
         signAllTransactions: async <T>(txs: T[]) => txs,
       };
 
-      const provider = new AnchorProvider(
-        connection,
-        walletAdapter as unknown as any,
-        { commitment: 'confirmed' }
-      );
-
-      service.initialize(provider, publicKey);
+      service.initialize(walletAdapter, connection);
 
       // Fund deployer PDA first, then initialize
       const result = await service.fundAndInitialize(amount);

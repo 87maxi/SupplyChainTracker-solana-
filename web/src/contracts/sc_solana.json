@@ -1,5 +1,5 @@
 {
-  "address": "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN",
+  "address": "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb",
   "metadata": {
     "name": "sc_solana",
     "version": "0.1.0",
@@ -26,11 +26,29 @@
         },
         {
           "name": "admin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
           "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "signer": true
         },
         {
           "name": "role_holder",
@@ -94,15 +112,69 @@
         },
         {
           "name": "admin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
           "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "signer": true
         },
         {
           "name": "role_request",
           "writable": true
+        },
+        {
+          "name": "role_holder",
+          "docs": [
+            "RoleHolder PDA created on approval - seeds by user key"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  108,
+                  101,
+                  95,
+                  104,
+                  111,
+                  108,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "role_request.user",
+                "account": "RoleRequest"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
@@ -205,6 +277,193 @@
       ]
     },
     {
+      "name": "close_deployer",
+      "discriminator": [
+        132,
+        178,
+        139,
+        113,
+        231,
+        123,
+        71,
+        38
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "deployer",
+          "docs": [
+            "Deployer PDA to close - returns lamports to admin"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  112,
+                  108,
+                  111,
+                  121,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_role_holder",
+      "discriminator": [
+        31,
+        181,
+        61,
+        92,
+        127,
+        199,
+        245,
+        153
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "role_holder",
+          "docs": [
+            "RoleHolder account to close - returns lamports to admin",
+            "Seeds derived from the stored account field (same pattern as holder_remove)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  108,
+                  101,
+                  95,
+                  104,
+                  111,
+                  108,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "role_holder.account",
+                "account": "RoleHolder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "fund_deployer",
+      "discriminator": [
+        223,
+        191,
+        31,
+        96,
+        237,
+        187,
+        189,
+        54
+      ],
+      "accounts": [
+        {
+          "name": "deployer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  112,
+                  108,
+                  111,
+                  121,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "funder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "grant_role",
       "discriminator": [
         218,
@@ -223,11 +482,24 @@
         },
         {
           "name": "admin",
-          "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
         },
         {
           "name": "account_to_grant",
@@ -309,6 +581,57 @@
         },
         {
           "name": "admin",
+          "docs": [
+            "Admin PDA - derived from config key using seeds [b\"admin\", config.key()]"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
+        },
+        {
+          "name": "deployer",
+          "docs": [
+            "Deployer PDA - provides funds for rent exemption"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  112,
+                  108,
+                  111,
+                  121,
+                  101,
+                  114
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "funder",
+          "docs": [
+            "External wallet that funds the account creation"
+          ],
           "writable": true,
           "signer": true
         },
@@ -417,7 +740,28 @@
         },
         {
           "name": "netbook",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  101,
+                  116,
+                  98,
+                  111,
+                  111,
+                  107
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.next_token_id",
+                "account": "SupplyChainConfig"
+              }
+            ]
+          }
         },
         {
           "name": "system_program",
@@ -510,11 +854,24 @@
         },
         {
           "name": "admin",
-          "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
         },
         {
           "name": "role_request",
@@ -542,11 +899,24 @@
         },
         {
           "name": "admin",
-          "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
         },
         {
           "name": "role_holder",
@@ -653,6 +1023,60 @@
       ]
     },
     {
+      "name": "reset_role_request",
+      "discriminator": [
+        245,
+        124,
+        75,
+        34,
+        33,
+        255,
+        25,
+        37
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "role_request",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  108,
+                  101,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "revoke_role",
       "discriminator": [
         179,
@@ -671,11 +1095,24 @@
         },
         {
           "name": "admin",
-          "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config"
+              }
+            ]
+          }
         },
         {
           "name": "account_to_revoke",
@@ -692,6 +1129,38 @@
           "type": "string"
         }
       ]
+    },
+    {
+      "name": "transfer_admin",
+      "discriminator": [
+        42,
+        242,
+        66,
+        106,
+        228,
+        10,
+        111,
+        156
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "current_admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "new_admin",
+          "docs": [
+            "New admin - external account that must sign to accept the transfer"
+          ],
+          "signer": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "validate_software",
@@ -736,6 +1205,19 @@
     }
   ],
   "accounts": [
+    {
+      "name": "DeployerState",
+      "discriminator": [
+        24,
+        216,
+        238,
+        76,
+        111,
+        104,
+        253,
+        85
+      ]
+    },
     {
       "name": "Netbook",
       "discriminator": [
@@ -803,6 +1285,19 @@
     }
   ],
   "events": [
+    {
+      "name": "AdminTransferred",
+      "discriminator": [
+        255,
+        147,
+        182,
+        5,
+        199,
+        217,
+        38,
+        179
+      ]
+    },
     {
       "name": "ConfigQuery",
       "discriminator": [
@@ -1051,9 +1546,39 @@
       "code": 12012,
       "name": "RoleHolderNotFound",
       "msg": "Account not found in role holders list"
+    },
+    {
+      "code": 12013,
+      "name": "InvalidRequestState",
+      "msg": "Role request is not in pending state"
+    },
+    {
+      "code": 12014,
+      "name": "RateLimited",
+      "msg": "Role request rate limited - please wait before requesting again"
     }
   ],
   "types": [
+    {
+      "name": "AdminTransferred",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "previous_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "u64"
+          }
+        ]
+      }
+    },
     {
       "name": "ConfigQuery",
       "type": {
@@ -1105,6 +1630,31 @@
           },
           {
             "name": "escuela_count",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DeployerState",
+      "docs": [
+        "Deployer state account - thin wrapper for PDA ownership"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "docs": [
+              "Bump seed for the deployer PDA"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "total_funded",
+            "docs": [
+              "Total lamports received"
+            ],
             "type": "u64"
           }
         ]
@@ -1523,7 +2073,7 @@
                     32
                   ]
                 },
-                10
+                100
               ]
             }
           }
@@ -1582,6 +2132,10 @@
           },
           {
             "name": "admin_bump",
+            "type": "u8"
+          },
+          {
+            "name": "admin_pda_bump",
             "type": "u8"
           },
           {

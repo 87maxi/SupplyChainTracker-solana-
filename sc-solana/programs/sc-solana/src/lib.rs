@@ -11,6 +11,7 @@
 //! Anchor's `#[program]` macro code generation. The ambiguity doesn't affect
 //! runtime behavior as consumers use qualified paths.
 #![allow(ambiguous_glob_reexports)]
+#![allow(clippy::diverging_sub_expression)]
 
 use anchor_lang::prelude::*;
 
@@ -41,6 +42,9 @@ pub use state::*;
 
 // ==================== Program Module ====================
 
+// Anchor 1.0 #[program] macro generates code that triggers clippy::diverging_sub_expression
+// This is a known issue with the macro expansion - safe to suppress
+#[allow(clippy::diverging_sub_expression)]
 #[program]
 pub mod sc_solana {
     use super::*;

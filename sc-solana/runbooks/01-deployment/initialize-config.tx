@@ -23,16 +23,11 @@ signer "funder" "svm::web_wallet" {
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
-// Get program artifacts from Anchor project
-variable "program" {
-  description = "Program artifacts (IDL, binary, keypair, program_id)"
-  value = svm::get_program_from_anchor_project("sc_solana")
-}
-
-// Program ID dynamically fetched from anchor project
+// Program ID - hardcoded to avoid IDL parsing issues with Anchor 1.0 spec 0.1.0
+// This matches declare_id! in sc-solana/programs/sc-solana/src/lib.rs
 variable "program_id" {
   description = "Deployed program ID"
-  value = variable.program.program_id
+  value = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
 }
 
 // Derive PDAs - all accounts are PDA-derivable from IDL
@@ -56,13 +51,20 @@ variable "admin_pda" {
   value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
 }
 
-// Helper variables for fund_deployer instruction data
+// Helper variables for instruction data (manual discriminators for txtx compatibility)
 // Anchor discriminator for "global:fund_deployer": sha256("global:fund_deployer")[:8]
 // Full instruction data = discriminator (8 bytes) + amount u64 little-endian (8 bytes)
 // Amount: 10000000000 = 0x2540BE40 -> [0, 228, 11, 84, 2, 0, 0, 0]
 variable "fund_deployer_data" {
   description = "Complete instruction data for fund_deployer (discriminator + amount)"
   value = [223, 191, 31, 96, 237, 187, 189, 54, 0, 228, 11, 84, 2, 0, 0, 0]
+}
+
+// Anchor discriminator for "global:initialize": sha256("global:initialize")[:8]
+// No arguments - just the 8-byte discriminator
+variable "initialize_data" {
+  description = "Instruction data for initialize (discriminator only, no arguments)"
+  value = [175, 175, 109, 31, 13, 152, 155, 237]
 }
 
 // Step 1: Fund the deployer PDA
@@ -94,13 +96,14 @@ action "fund_deployer" "svm::process_instructions" {
 }
 
 // Step 2: Initialize supply chain configuration
-// ALL accounts are PDAs - fully IDL-derivable for Surfpool/txtx
+// Uses program_id with manual instruction data (txtx IDL compatibility)
+// Account order: config, serial_hash_registry, admin, deployer, funder, system_program
 action "initialize" "svm::process_instructions" {
   description = "Initialize supply chain configuration (creates Config, SerialHashRegistry, derives Admin PDA)"
   depends_on = ["fund_deployer"]
   instruction {
-    program_idl = variable.program.idl
-    instruction_name = "initialize"
+    program_id = variable.program_id
+    instruction_data = variable.initialize_data
     accounts = [
       {
         public_key = variable.config_pda.pda
@@ -115,12 +118,17 @@ action "initialize" "svm::process_instructions" {
       {
         public_key = variable.admin_pda.pda
         writable = false
-        signer = true
+        signer = false
       },
       {
         public_key = variable.deployer_pda.pda
         writable = true
         signer = false
+      },
+      {
+        public_key = signer.funder.public_key
+        writable = true
+        signer = true
       },
       {
         public_key = svm::system_program_id()
@@ -129,7 +137,7 @@ action "initialize" "svm::process_instructions" {
       }
     ]
   }
-  signers = []  // No external signers needed - all PDAs
+  signers = [signer.funder]
 }
 
 // Outputs

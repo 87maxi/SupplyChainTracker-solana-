@@ -941,6 +941,137 @@ cat .surfpool/logs/simnet_*.log
 solana balance --url http://localhost:8899
 ```
 
+### Account Management for RBAC
+
+The RBAC (Role-Based Access Control) system requires Solana accounts (keypairs) to be created and funded before roles can be assigned. This section explains how to manage accounts for role assignment.
+
+#### Pre-generated Keypairs
+
+The project includes pre-generated keypairs for each role in `config/keypairs/`:
+
+| Role | Keypair File | Address |
+|------|-------------|---------|
+| Admin | `config/keypairs/admin_new.json` | `GdbFCcdZ2hBzx9PXLkXchBHx9EcZYLVeHbrXxtACmNTg` |
+| Fabricante | `config/keypairs/fabricante.json` | `HrhY7bqE3EwabHHZKU3yqShrtkqWfbYoLt3HfVofggeK` |
+| Auditor HW | `config/keypairs/auditor_hw.json` | `AfB2jE6T3mSq3ijWQ7EX51RpphWuoY9PpEnu2BK2j86D` |
+| Tecnico SW | `config/keypairs/tecnico_sw.json` | `3pmKDqD4oTzHR8djXpfXPpwp71d5kFfHFQmxG41tApKf` |
+| Escuela | `config/keypairs/escuela.json` | `7RXymetjyToHhMZfRdeQz6u5KHQPrpvVoyquAExcdhay` |
+
+#### Admin Private Key
+
+The **Admin private key** is stored at:
+
+```
+config/keypairs/admin_new.json
+```
+
+This file contains a 64-byte array representing the private key. To use it:
+
+1. **Load into Phantom Wallet**:
+   - Open Phantom Wallet → Settings → Security & Privacy → Import Existing Wallet
+   - Select "Secret Phrase" or "Raw Key" import
+   - Copy the contents of `admin_new.json` (the JSON array) and paste it
+
+2. **Use with Solana CLI**:
+   ```bash
+   # Set admin as the current keypair
+   solana config set --keypair /path/to/config/keypairs/admin_new.json
+
+   # Or specify it per-command
+   solana balance --keypair /path/to/config/keypairs/admin_new.json --url http://localhost:8899
+   ```
+
+3. **Use with Anchor/txtx scripts**:
+   ```bash
+   # Export as environment variable
+   export ANCHOR_WALLET=/path/to/config/keypairs/admin_new.json
+   ```
+
+#### Creating New Accounts
+
+To create a new Solana account for role assignment:
+
+```bash
+# Generate a new keypair
+solana-keygen new -o /path/to/new-keypair.json
+
+# Output:
+# - A new keypair file at the specified path
+# - The public key (address) will be displayed in the terminal
+# - A secret recovery phrase (store this securely!)
+
+# Get the address of the new keypair
+solana address --keypair /path/to/new-keypair.json
+```
+
+#### Funding Accounts
+
+New accounts need SOL to pay for transaction fees and account rent. On local development:
+
+```bash
+# Airdrop SOL to a new account (local validator only)
+solana airdrop 10 <ADDRESS> --url http://localhost:8899
+
+# Example: Fund the admin account
+solana airdrop 10 GdbFCcdZ2hBzx9PXLkXchBHx9EcZYLVeHbrXxtACmNTg --url http://localhost:8899
+
+# Fund all pre-generated keypairs
+for keypair in config/keypairs/*.json; do
+  addr=$(solana address --keypair "$keypair")
+  echo "Airdropping 10 SOL to $addr ($keypair)"
+  solana airdrop 10 "$addr" --url http://localhost:8899
+done
+```
+
+#### Loading Keypairs into Phantom Wallet
+
+To use a keypair in the frontend dApp:
+
+1. **Export the private key**:
+   ```bash
+   # Display the keypair contents (64-byte array)
+   cat config/keypairs/admin_new.json
+   ```
+
+2. **Import into Phantom**:
+   - Open Phantom Wallet extension
+   - Click Settings (gear icon) → Security & Privacy
+   - Click "Import Existing Wallet"
+   - Choose "Secret Recovery Phrase" or "Raw Key"
+   - Paste the private key from the JSON file
+   - Confirm and the account will appear in your wallet
+
+3. **Connect to the dApp**:
+   - Navigate to `http://localhost:3000`
+   - Click "Connect Wallet"
+   - Select the imported account from Phantom
+
+#### Assigning Roles via Admin Dashboard
+
+Once the admin account is loaded in Phantom and connected:
+
+1. Navigate to **Admin Dashboard**: `http://localhost:3000/admin`
+2. Go to **Pending Role Requests**: `http://localhost:3000/admin/roles/pending-requests`
+3. Review pending role requests from users
+4. Click **Approve** or **Reject** on each request
+5. Confirm the transaction in Phantom wallet
+
+#### Programmatic Role Assignment
+
+Roles can also be assigned using the Solana CLI with txtx runbooks:
+
+```bash
+# Grant a role to an account
+cd sc-solana
+txtx run runbooks/03-role-management/add-role-holder.tx \
+  --role FABRICANTE \
+  --holder HrhY7bqE3EwabHHZKU3yqShrtkqWfbYoLt3HfVofggeK
+
+# Request a role (as the user)
+txtx run runbooks/03-role-management/request-role.tx \
+  --role AUDITOR_HW
+```
+
 ### Development Workflow
 
 ```mermaid

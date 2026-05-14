@@ -10,6 +10,8 @@ import {
 } from '@solana/kit';
 import { Connection } from '@solana/web3.js';
 
+export { address, type Address } from '@solana/kit';
+
 const CLUSTER = (process.env.NEXT_PUBLIC_CLUSTER || 'devnet') as string;
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL;
 

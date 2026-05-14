@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Issue #211: Migrated to @solana/kit v2 API
+ * Replaces PublicKey with address() from @solana/kit
+ */
+
 import {
   useWallet,
   useWalletSession,
@@ -8,7 +13,7 @@ import {
   useDisconnectWallet,
   useSendTransaction,
 } from "@solana/react-hooks";
-import { PublicKey } from "@solana/web3.js";
+import { type Address } from "@solana/kit";
 import { useMemo } from "react";
 
 export interface TransactionResult {
@@ -36,9 +41,9 @@ export function useSolanaWeb3() {
     return undefined;
   }, [isConnected, session]);
 
-  const publicKey = useMemo(() => {
+  const publicKey = useMemo((): Address | null => {
     if (isConnected && session) {
-      return new PublicKey(session.account.address.toString());
+      return session.account.address;
     }
     return null;
   }, [isConnected, session]);

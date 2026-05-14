@@ -1,5 +1,7 @@
 // web/src/lib/solana/connection.ts
-// Solana connection client using @solana/web3.js
+// Solana connection client
+// Issue #211: Currently uses @solana/web3.js v1 for Connection
+// TODO: Migrate to @solana/kit v2 createSolanaRpc() when stable
 
 import { Connection, clusterApiUrl, type ConnectionConfig } from '@solana/web3.js';
 

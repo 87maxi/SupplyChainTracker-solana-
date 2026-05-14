@@ -18,7 +18,7 @@ pub struct RegisterNetbooksBatch<'info> {
     #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
     #[account(mut)]
-    pub serial_hash_registry: Account<'info, SerialHashRegistry>,
+    pub serial_hash_registry: AccountLoader<'info, SerialHashRegistry>,
     #[account(
         mut,
         constraint = config.fabricante == manufacturer.key() @ crate::errors::SupplyChainError::Unauthorized
@@ -50,7 +50,7 @@ pub fn register_netbooks_batch(
     }
 
     let config = &mut ctx.accounts.config;
-    let serial_registry = &mut ctx.accounts.serial_hash_registry;
+    let serial_registry = &mut ctx.accounts.serial_hash_registry.load_mut()?;
     let start_token_id = config.next_token_id;
     let timestamp = Clock::get()?.unix_timestamp as u64;
 

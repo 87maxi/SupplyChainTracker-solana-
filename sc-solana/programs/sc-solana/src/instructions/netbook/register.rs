@@ -19,7 +19,7 @@ pub struct RegisterNetbook<'info> {
     #[account(mut)]
     pub config: Account<'info, SupplyChainConfig>,
     #[account(mut)]
-    pub serial_hash_registry: Account<'info, SerialHashRegistry>,
+    pub serial_hash_registry: AccountLoader<'info, SerialHashRegistry>,
     #[account(
         mut,
         constraint = config.fabricante == manufacturer.key() @ crate::errors::SupplyChainError::Unauthorized
@@ -45,7 +45,7 @@ pub fn register_netbook(
 ) -> Result<()> {
     let config = &mut ctx.accounts.config;
 
-    let serial_registry = &mut ctx.accounts.serial_hash_registry;
+    let serial_registry = &mut ctx.accounts.serial_hash_registry.load_mut()?;
     let _manufacturer = ctx.accounts.manufacturer.key();
 
     // Validate input lengths

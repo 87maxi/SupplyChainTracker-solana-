@@ -2185,6 +2185,7 @@ name = "sc-solana"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "bytemuck",
  "mollusk-svm",
  "sha2 0.10.9",
  "solana-account",

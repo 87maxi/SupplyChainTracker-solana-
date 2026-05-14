@@ -21,6 +21,7 @@ custom-panic = []
 
 [dependencies]
 anchor-lang = { version = "1.0.0", features = ["init-if-needed"] }
+bytemuck = { version = "1.20", features = ["min_const_generics"] }
 sha2 = "0.10"
 
 # Mollusk test dependencies (in-process SVM test harness by Anza)

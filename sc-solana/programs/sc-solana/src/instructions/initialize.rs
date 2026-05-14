@@ -11,7 +11,7 @@
 //! 3. Surfpool runbook can now use `program_idl + instruction_name`
 
 use crate::instructions::deployer::{DeployerState, DEPLOYER_SEED};
-use crate::state::{SerialHashRegistry, SupplyChainConfig, MAX_SERIAL_HASHES};
+use crate::state::{SerialHashRegistry, SupplyChainConfig};
 use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
@@ -31,7 +31,7 @@ pub struct Initialize<'info> {
         seeds = [b"serial_hashes", config.key().as_ref()],
         bump
     )]
-    pub serial_hash_registry: Account<'info, SerialHashRegistry>,
+    pub serial_hash_registry: AccountLoader<'info, SerialHashRegistry>,
     /// Admin PDA - derived from config key using seeds [b"admin", config.key()]
     /// CHECK: This PDA will be set as admin once config is initialized
     #[account(
@@ -77,11 +77,9 @@ pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
     config.escuela_count = 0;
 
     // Initialize serial hash registry
-    let serial_registry = &mut ctx.accounts.serial_hash_registry;
+    let serial_registry = &mut ctx.accounts.serial_hash_registry.load_init()?;
     serial_registry.config_bump = ctx.bumps.serial_hash_registry;
     serial_registry.serial_hash_count = 0;
-    for i in 0..MAX_SERIAL_HASHES {
-        serial_registry.registered_serial_hashes[i] = [0u8; 32];
-    }
+    // Flat array is already zeroed by load_init() - no need to manually initialize
     Ok(())
 }

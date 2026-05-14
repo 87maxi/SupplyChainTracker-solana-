@@ -890,6 +890,57 @@ yarn dev
 # - The server will hot-reload on file changes
 ```
 
+#### 9. Local Development with Surfpool (Recommended)
+
+Surfpool provides a managed local Solana simulator (Simnet) that eliminates the need for manual validator management.
+
+```bash
+# Install Surfpool CLI
+npm install -g @surfpool/cli
+
+# Start Simnet (local Solana validator with program pre-loaded)
+surfpool start
+
+# Simnet runs on:
+# - RPC: http://localhost:8899
+# - WebSocket: ws://localhost:8900
+# - Explorer: http://localhost:3001 (if available)
+
+# List available runbooks
+surfpool ls
+
+# Execute a runbook (e.g., deploy and initialize)
+surfpool run runbooks/01-deployment/deploy-program.tx
+
+# Stop Simnet when done
+surfpool stop
+```
+
+**Surfpool vs solana-test-validator:**
+
+| Feature | Surfpool | solana-test-validator |
+|---------|----------|----------------------|
+| Setup | Single command (`surfpool start`) | Manual config + keypair funding |
+| Program Deployment | Automatic via runbooks | Manual (`anchor deploy`) |
+| Explorer | Built-in (if available) | None |
+| State Persistence | Managed via `.surfpool/` | Ledger directory |
+| MCP Server | `surfpool mcp` | N/A |
+
+**Troubleshooting Surfpool:**
+
+```bash
+# If you get "Address already in use" error:
+# Kill any existing validator on port 8899
+lsof -ti:8899 | xargs kill -9
+surfpool start
+
+# Check Surfpool logs
+cat .surfpool/logs/simnet_*.log
+
+# Verify Simnet is running
+solana balance --url http://localhost:8899
+```
+
 ### Development Workflow
 
 ```mermaid

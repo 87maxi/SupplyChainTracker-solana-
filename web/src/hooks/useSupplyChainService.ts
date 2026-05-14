@@ -3,11 +3,12 @@
 /**
  * Hook para el servicio de cadena de suministro
  * Wrapper que expone las funciones del UnifiedSupplyChainService
+ * Issue #211: Partially migrated - UnifiedSupplyChainService still uses Connection internally
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { Address } from '@solana/kit';
+import { Connection } from '@solana/web3.js';
+import { type Address } from '@solana/kit';
 import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { UnifiedSupplyChainService, TransactionResult, NetbookReport, NetbookData } from '@/services/UnifiedSupplyChainService';
 

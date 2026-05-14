@@ -22,7 +22,7 @@ export const useUserRoles = (): UseUserRoles => {
   const { publicKey, isConnected } = useSolanaWeb3();
   const { hasRole: checkUserHasRole } = useSupplyChainService();
   
-  const cacheKey = `user_roles_${publicKey?.toBase58() || 'unknown'}`;
+  const cacheKey = `user_roles_${publicKey || 'unknown'}`;
   
   const [userRoles, setUserRoles] = useState<UseUserRoles>({
     isAdmin: false,
@@ -52,7 +52,7 @@ export const useUserRoles = (): UseUserRoles => {
       return;
     }
 
-    const userAddress = publicKey.toBase58();
+    const userAddress = publicKey;
 
     // Check cache first
     const cachedRoles = CacheService.get<UseUserRoles>(cacheKey);
@@ -135,7 +135,7 @@ export const useUserRoles = (): UseUserRoles => {
   // Initialize role check when wallet connects or changes
   useEffect(() => {
     if (isConnected && publicKey) {
-      console.log('Wallet changed, refreshing roles for:', publicKey.toBase58());
+      console.log('Wallet changed, refreshing roles for:', publicKey);
       checkRoles();
     }
   }, [isConnected, publicKey]);

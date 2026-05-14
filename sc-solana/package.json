@@ -1,11 +1,15 @@
 {
   "license": "ISC",
+  "type": "module",
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "codegen": "codama run --all"
   },
   "devDependencies": {
-    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/kit": "^6.9.0",
+    "@solana/program-client-core": "^6.9.0",
+    "@solana/web3.js": "^1.98.0",
     "@types/bn.js": "^5.1.0",
     "@types/chai": "^4.3.0",
     "@types/mocha": "^9.0.0",
@@ -14,5 +18,10 @@
     "prettier": "^2.6.2",
     "ts-mocha": "^10.0.0",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@codama/nodes-from-anchor": "^1.4.1",
+    "@codama/renderers-js": "^2.2.0",
+    "@codama/renderers-rust": "^3.1.0"
   }
 }

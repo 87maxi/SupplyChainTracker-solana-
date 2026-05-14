@@ -12,115 +12,118 @@
  * - Distribuida (3) → After assigning to student
  *
  * Issue #73: State Machine Transition Validation Tests (P1)
+ *
+ * Migrated from @coral-xyz/anchor to Codama-generated client (Issue #209).
  */
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program, AnchorProvider } from "@coral-xyz/anchor";
-import { ScSolana } from "../target/types/sc_solana";
 import {
   Keypair,
-  SystemProgram,
-  PublicKey,
-  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
+import { createSignerFromKeyPair } from "@solana/kit";
 import { expect } from "chai";
 
 // Import test helpers
 import {
-  getConfigPda,
-  getNetbookPda,
-  getSerialHashRegistryPda,
+  createTestClient,
+  fundAndInitialize,
+  fundKeypair,
+  toAddress,
+  toUint8Array,
+  getConfigPdaAddress,
+  getNetbookPdaAddress,
+  getSerialHashRegistryPdaAddress,
+  getAdminPdaAddress,
   createHash,
   NetbookState,
-  fundAndInitialize,
-  getAdminPda,
   generateUniqueSerial,
-  resetTokenCounter,
+  type TestClient,
 } from "./test-helpers";
 
 describe("State Machine Transition Validation Tests", () => {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
-  const program = anchor.workspace.scSolana as Program<ScSolana>;
-  const admin = Keypair.generate();
-  const fabricante = Keypair.generate();
-  const auditor = Keypair.generate();
-  const technician = Keypair.generate();
-  const school = Keypair.generate();
+  let client: TestClient;
+  let admin: Keypair;
+  let fabricante: Keypair;
+  let auditor: Keypair;
+  let technician: Keypair;
+  let school: Keypair;
 
-  let configPda: PublicKey;
-  let adminPda: PublicKey;
-  let adminBump: number;
-  let serialHashRegistryPda: PublicKey;
+  let configPda: string;
+  let adminPda: string;
+  let serialHashRegistryPda: string;
 
   // ========================================================================
   // Setup
   // ========================================================================
 
   before(async () => {
-    // Fund all keypairs
-    const amount = 2 * LAMPORTS_PER_SOL;
-    await provider.connection.requestAirdrop(admin.publicKey, amount);
-    await provider.connection.requestAirdrop(fabricante.publicKey, amount);
-    await provider.connection.requestAirdrop(auditor.publicKey, amount);
-    await provider.connection.requestAirdrop(technician.publicKey, amount);
-    await provider.connection.requestAirdrop(school.publicKey, amount);
+    // Generate test accounts
+    admin = Keypair.generate();
+    fabricante = Keypair.generate();
+    auditor = Keypair.generate();
+    technician = Keypair.generate();
+    school = Keypair.generate();
+
+    // Create test client
+    client = await createTestClient("http://localhost:8899", admin);
+
+    // Fund all accounts
+    await fundKeypair(client, fabricante, 2);
+    await fundKeypair(client, auditor, 2);
+    await fundKeypair(client, technician, 2);
+    await fundKeypair(client, school, 2);
 
     // Get PDAs
-    [configPda] = getConfigPda(program);
-    serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
+    configPda = await getConfigPdaAddress();
+    serialHashRegistryPda = await getSerialHashRegistryPdaAddress(toAddress(configPda));
+    adminPda = await getAdminPdaAddress(toAddress(configPda));
 
     // Initialize config using shared initialization (Issue #178)
-    await fundAndInitialize(program, provider, admin);
-    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
+    await fundAndInitialize(client, admin);
 
     // Grant roles
-    await grantRole("FABRICANTE", fabricante.publicKey);
-    await grantRole("AUDITOR_HW", auditor.publicKey);
-    await grantRole("TECNICO_SW", technician.publicKey);
-    await grantRole("ESCUELA", school.publicKey);
+    await grantRole("FABRICANTE", fabricante);
+    await grantRole("AUDITOR_HW", auditor);
+    await grantRole("TECNICO_SW", technician);
+    await grantRole("ESCUELA", school);
   });
 
-  async function grantRole(role: string, account: PublicKey) {
-    await program.methods
-      .grantRole(role)
-      .accounts({
-        config: configPda,
-        accountToGrant: account,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([])
-      .rpc();
+  async function grantRole(role: string, account: Keypair): Promise<void> {
+    const accountSigner = await createSignerFromKeyPair(account);
+    await client.scSolana.instructions.grantRole({
+      config: toAddress(configPda),
+      admin: toAddress(adminPda),
+      accountToGrant: accountSigner,
+      role,
+    }).sendAndConfirm();
   }
 
   async function registerNetbook(
     _fixedSerial: string,
     batchId: string,
     modelSpecs: string
-  ): Promise<PublicKey> {
+  ): Promise<string> {
     // Generate unique serial to avoid collisions between test runs
     const serialNumber = generateUniqueSerial("SM");
-    const config = await program.account.supplyChainConfig.fetch(configPda);
-    const tokenId = config.nextTokenId.toNumber();
-    const netbookPda = getNetbookPda(tokenId, program.programId);
+    const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+    const tokenId = Number(config.nextTokenId);
+    const netbookPda = await getNetbookPdaAddress(tokenId);
 
-    await program.methods
-      .registerNetbook(serialNumber, batchId, modelSpecs)
-      .accounts({
-        manufacturer: fabricante.publicKey,
-        netbook: netbookPda,
-        config: configPda,
-        serialHashRegistry: serialHashRegistryPda,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([fabricante])
-      .rpc();
+    const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+    await client.scSolana.instructions.registerNetbook({
+      manufacturer: fabricanteSigner,
+      netbook: toAddress(netbookPda),
+      config: toAddress(configPda),
+      serialHashRegistry: toAddress(serialHashRegistryPda),
+      serialNumber,
+      batchId,
+      initialModelSpecs: modelSpecs,
+    }).sendAndConfirm();
 
     return netbookPda;
   }
 
-  async function getNetbookState(netbookPda: PublicKey): Promise<NetbookState> {
-    const netbook = await program.account.netbook.fetch(netbookPda);
+  async function getNetbookState(netbookPda: string): Promise<NetbookState> {
+    const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
     return netbook.state as NetbookState;
   }
 
@@ -141,43 +144,43 @@ describe("State Machine Transition Validation Tests", () => {
       expect(state).to.equal(NetbookState.Fabricada);
 
       // Transition 1: Fabricada → HwAprobado via hardware audit
-      await program.methods
-        .auditHardware("FULL-LIFECYCLE-001", true, createHash(100))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "FULL-LIFECYCLE-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(100)),
+      }).sendAndConfirm();
 
       state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
 
       // Transition 2: HwAprobado → SwValidado via software validation
-      await program.methods
-        .validateSoftware("FULL-LIFECYCLE-001", "Ubuntu 22.04 LTS", true)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "FULL-LIFECYCLE-001",
+        osVersion: "Ubuntu 22.04 LTS",
+        passed: true,
+      }).sendAndConfirm();
 
       state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.SwValidado);
 
       // Transition 3: SwValidado → Distribuida via student assignment
-      await program.methods
-        .assignToStudent("FULL-LIFECYCLE-001", createHash(200), createHash(300))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          school: school.publicKey,
-        })
-        .signers([school])
-        .rpc();
+      const schoolSigner = await createSignerFromKeyPair(school);
+      await client.scSolana.instructions.assignToStudent({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        school: schoolSigner,
+        serial: "FULL-LIFECYCLE-001",
+        schoolHash: toUint8Array(createHash(200)),
+        studentIdHash: toUint8Array(createHash(300)),
+      }).sendAndConfirm();
 
       state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.Distribuida);
@@ -191,29 +194,29 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Register → HwAprobado
-      await program.methods
-        .auditHardware("PARTIAL-001", true, createHash(101))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "PARTIAL-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(101)),
+      }).sendAndConfirm();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
 
       // Failed software validation - should NOT transition state
-      await program.methods
-        .validateSoftware("PARTIAL-001", "Ubuntu 22.04 LTS", false)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "PARTIAL-001",
+        osVersion: "Ubuntu 22.04 LTS",
+        passed: false,
+      }).sendAndConfirm();
 
       // State should still be HwAprobado when audit fails
       state = await getNetbookState(netbookPda);
@@ -228,30 +231,29 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Failed hardware audit - should NOT transition state
-      await program.methods
-        .auditHardware("PARTIAL-HW-001", false, createHash(102))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "PARTIAL-HW-001",
+        passed: false,
+        reportHash: toUint8Array(createHash(102)),
+      }).sendAndConfirm();
 
       // State should still be Fabricada when audit fails
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.Fabricada);
 
       // Successful hardware audit should now work
-      await program.methods
-        .auditHardware("PARTIAL-HW-001", true, createHash(103))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "PARTIAL-HW-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(103)),
+      }).sendAndConfirm();
 
       state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
@@ -276,15 +278,15 @@ describe("State Machine Transition Validation Tests", () => {
 
       // Try to validate software directly from Fabricada state (should fail)
       try {
-        await program.methods
-          .validateSoftware("SKIP-STATE-001", "Ubuntu 22.04", true)
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            technician: technician.publicKey,
-          })
-          .signers([technician])
-          .rpc();
+        const technicianSigner = await createSignerFromKeyPair(technician);
+        await client.scSolana.instructions.validateSoftware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          technician: technicianSigner,
+          serial: "SKIP-STATE-001",
+          osVersion: "Ubuntu 22.04",
+          passed: true,
+        }).sendAndConfirm();
         expect.fail("Expected software validation to fail from Fabricada state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -305,15 +307,15 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Perform hardware audit to get to HwAprobado
-      await program.methods
-        .auditHardware("SKIP-STATE-002", true, createHash(104))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "SKIP-STATE-002",
+        passed: true,
+        reportHash: toUint8Array(createHash(104)),
+      }).sendAndConfirm();
 
       // Verify state is HwAprobado
       let state = await getNetbookState(netbookPda);
@@ -321,15 +323,15 @@ describe("State Machine Transition Validation Tests", () => {
 
       // Try to assign to student directly from HwAprobado state (should fail)
       try {
-        await program.methods
-          .assignToStudent("SKIP-STATE-002", createHash(201), createHash(301))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            school: school.publicKey,
-          })
-          .signers([school])
-          .rpc();
+        const schoolSigner = await createSignerFromKeyPair(school);
+        await client.scSolana.instructions.assignToStudent({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          school: schoolSigner,
+          serial: "SKIP-STATE-002",
+          schoolHash: toUint8Array(createHash(201)),
+          studentIdHash: toUint8Array(createHash(301)),
+        }).sendAndConfirm();
         expect.fail("Expected student assignment to fail from HwAprobado state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -355,15 +357,15 @@ describe("State Machine Transition Validation Tests", () => {
 
       // Try to assign to student directly from Fabricada state (should fail)
       try {
-        await program.methods
-          .assignToStudent("SKIP-STATE-003", createHash(202), createHash(302))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            school: school.publicKey,
-          })
-          .signers([school])
-          .rpc();
+        const schoolSigner = await createSignerFromKeyPair(school);
+        await client.scSolana.instructions.assignToStudent({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          school: schoolSigner,
+          serial: "SKIP-STATE-003",
+          schoolHash: toUint8Array(createHash(202)),
+          studentIdHash: toUint8Array(createHash(302)),
+        }).sendAndConfirm();
         expect.fail("Expected student assignment to fail from Fabricada state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -390,30 +392,29 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Get to HwAprobado
-      await program.methods
-        .auditHardware("REVERSE-001", true, createHash(105))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "REVERSE-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(105)),
+      }).sendAndConfirm();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
 
       // Try to audit hardware again (should fail - not in Fabricada state)
       try {
-        await program.methods
-          .auditHardware("REVERSE-001", false, createHash(106))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            auditor: auditor.publicKey,
-          })
-          .signers([auditor])
-          .rpc();
+        await client.scSolana.instructions.auditHardware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          auditor: auditorSigner,
+          serial: "REVERSE-001",
+          passed: false,
+          reportHash: toUint8Array(createHash(106)),
+        }).sendAndConfirm();
         expect.fail("Expected hardware audit to fail from HwAprobado state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -433,40 +434,39 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Get to SwValidado
-      await program.methods
-        .auditHardware("REVERSE-002", true, createHash(107))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "REVERSE-002",
+        passed: true,
+        reportHash: toUint8Array(createHash(107)),
+      }).sendAndConfirm();
 
-      await program.methods
-        .validateSoftware("REVERSE-002", "Ubuntu 22.04", true)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "REVERSE-002",
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      }).sendAndConfirm();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.SwValidado);
 
       // Try to validate software again (should fail - not in HwAprobado state)
       try {
-        await program.methods
-          .validateSoftware("REVERSE-002", "Ubuntu 22.04", false)
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            technician: technician.publicKey,
-          })
-          .signers([technician])
-          .rpc();
+        await client.scSolana.instructions.validateSoftware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          technician: technicianSigner,
+          serial: "REVERSE-002",
+          osVersion: "Ubuntu 22.04",
+          passed: false,
+        }).sendAndConfirm();
         expect.fail("Expected software validation to fail from SwValidado state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -486,50 +486,49 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Complete full lifecycle
-      await program.methods
-        .auditHardware("REVERSE-003", true, createHash(108))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "REVERSE-003",
+        passed: true,
+        reportHash: toUint8Array(createHash(108)),
+      }).sendAndConfirm();
 
-      await program.methods
-        .validateSoftware("REVERSE-003", "Ubuntu 22.04", true)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "REVERSE-003",
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      }).sendAndConfirm();
 
-      await program.methods
-        .assignToStudent("REVERSE-003", createHash(203), createHash(303))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          school: school.publicKey,
-        })
-        .signers([school])
-        .rpc();
+      const schoolSigner = await createSignerFromKeyPair(school);
+      await client.scSolana.instructions.assignToStudent({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        school: schoolSigner,
+        serial: "REVERSE-003",
+        schoolHash: toUint8Array(createHash(203)),
+        studentIdHash: toUint8Array(createHash(303)),
+      }).sendAndConfirm();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.Distribuida);
 
       // Try hardware audit (should fail - not in Fabricada state)
       try {
-        await program.methods
-          .auditHardware("REVERSE-003", true, createHash(109))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            auditor: auditor.publicKey,
-          })
-          .signers([auditor])
-          .rpc();
+        await client.scSolana.instructions.auditHardware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          auditor: auditorSigner,
+          serial: "REVERSE-003",
+          passed: true,
+          reportHash: toUint8Array(createHash(109)),
+        }).sendAndConfirm();
         expect.fail("Expected hardware audit to fail from Distribuida state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -538,15 +537,14 @@ describe("State Machine Transition Validation Tests", () => {
 
       // Try software validation (should fail - not in HwAprobado state)
       try {
-        await program.methods
-          .validateSoftware("REVERSE-003", "Ubuntu 22.04", true)
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            technician: technician.publicKey,
-          })
-          .signers([technician])
-          .rpc();
+        await client.scSolana.instructions.validateSoftware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          technician: technicianSigner,
+          serial: "REVERSE-003",
+          osVersion: "Ubuntu 22.04",
+          passed: true,
+        }).sendAndConfirm();
         expect.fail("Expected software validation to fail from Distribuida state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -555,15 +553,14 @@ describe("State Machine Transition Validation Tests", () => {
 
       // Try student assignment again (should fail - not in SwValidado state)
       try {
-        await program.methods
-          .assignToStudent("REVERSE-003", createHash(204), createHash(304))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            school: school.publicKey,
-          })
-          .signers([school])
-          .rpc();
+        await client.scSolana.instructions.assignToStudent({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          school: schoolSigner,
+          serial: "REVERSE-003",
+          schoolHash: toUint8Array(createHash(204)),
+          studentIdHash: toUint8Array(createHash(304)),
+        }).sendAndConfirm();
         expect.fail("Expected student assignment to fail from Distribuida state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -589,17 +586,17 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Failed hardware audit
-      await program.methods
-        .auditHardware("PRESERVE-001", false, createHash(110))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "PRESERVE-001",
+        passed: false,
+        reportHash: toUint8Array(createHash(110)),
+      }).sendAndConfirm();
 
-      const netbook = await program.account.netbook.fetch(netbookPda);
+      const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.Fabricada);
       expect(netbook.hwIntegrityPassed).to.be.false;
     });
@@ -612,28 +609,28 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Successful hardware audit
-      await program.methods
-        .auditHardware("PRESERVE-002", true, createHash(111))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "PRESERVE-002",
+        passed: true,
+        reportHash: toUint8Array(createHash(111)),
+      }).sendAndConfirm();
 
       // Failed software validation
-      await program.methods
-        .validateSoftware("PRESERVE-002", "Ubuntu 22.04", false)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "PRESERVE-002",
+        osVersion: "Ubuntu 22.04",
+        passed: false,
+      }).sendAndConfirm();
 
-      const netbook = await program.account.netbook.fetch(netbookPda);
+      const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.HwAprobado);
       expect(netbook.swValidationPassed).to.be.false;
     });
@@ -646,38 +643,38 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Complete hardware audit
-      await program.methods
-        .auditHardware("PRESERVE-003", true, createHash(112))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "PRESERVE-003",
+        passed: true,
+        reportHash: toUint8Array(createHash(112)),
+      }).sendAndConfirm();
 
       // Get netbook state before failed validation
-      const netbookBefore = await program.account.netbook.fetch(netbookPda);
+      const netbookBefore = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       const hwAuditorBefore = netbookBefore.hwAuditor;
 
       // Try software validation with wrong serial (should fail)
       try {
-        await program.methods
-          .validateSoftware("WRONG-SERIAL", "Ubuntu 22.04", true)
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            technician: technician.publicKey,
-          })
-          .signers([technician])
-          .rpc();
+        const technicianSigner = await createSignerFromKeyPair(technician);
+        await client.scSolana.instructions.validateSoftware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          technician: technicianSigner,
+          serial: "WRONG-SERIAL",
+          osVersion: "Ubuntu 22.04",
+          passed: true,
+        }).sendAndConfirm();
         expect.fail("Expected validation to fail due to wrong serial");
       } catch (error: any) {
         expect(error).to.not.be.null;
       }
 
       // Verify state is unchanged
-      const netbookAfter = await program.account.netbook.fetch(netbookPda);
+      const netbookAfter = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbookAfter.state).to.equal(netbookBefore.state);
       expect(netbookAfter.hwAuditor).to.equal(hwAuditorBefore);
     });
@@ -696,20 +693,20 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Start hardware audit
-      const auditPromise = program.methods
-        .auditHardware("CONCURRENT-001", true, createHash(113))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      const auditPromise = client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "CONCURRENT-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(113)),
+      }).sendAndConfirm();
 
       // Query state during transition
       const queryPromise = getNetbookState(netbookPda);
 
-      const [state, sig] = await Promise.all([queryPromise, auditPromise]);
+      await Promise.all([queryPromise, auditPromise]);
 
       // After both complete, state should be HwAprobado
       const finalState = await getNetbookState(netbookPda);
@@ -724,30 +721,29 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // First hardware audit - should succeed
-      await program.methods
-        .auditHardware("DUPLICATE-001", true, createHash(114))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "DUPLICATE-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(114)),
+      }).sendAndConfirm();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
 
       // Second hardware audit - should fail (not in Fabricada state)
       try {
-        await program.methods
-          .auditHardware("DUPLICATE-001", true, createHash(115))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            auditor: auditor.publicKey,
-          })
-          .signers([auditor])
-          .rpc();
+        await client.scSolana.instructions.auditHardware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          auditor: auditorSigner,
+          serial: "DUPLICATE-001",
+          passed: true,
+          reportHash: toUint8Array(createHash(115)),
+        }).sendAndConfirm();
         expect.fail("Expected second hardware audit to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -793,48 +789,47 @@ describe("State Machine Transition Validation Tests", () => {
       expect(state3).to.equal(NetbookState.Fabricada);
 
       // Advance netbook1 to HwAprobado
-      await program.methods
-        .auditHardware("MULTI-001", true, createHash(116))
-        .accounts({
-          netbook: netbook1Pda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbook1Pda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "MULTI-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(116)),
+      }).sendAndConfirm();
 
       state1 = await getNetbookState(netbook1Pda);
       expect(state1).to.equal(NetbookState.HwAprobado);
-      expect(state2).to.equal(NetbookState.Fabricada);
-      expect(state3).to.equal(NetbookState.Fabricada);
+      expect(await getNetbookState(netbook2Pda)).to.equal(NetbookState.Fabricada);
+      expect(await getNetbookState(netbook3Pda)).to.equal(NetbookState.Fabricada);
 
       // Advance netbook2 to HwAprobado
-      await program.methods
-        .auditHardware("MULTI-002", true, createHash(117))
-        .accounts({
-          netbook: netbook2Pda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbook2Pda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "MULTI-002",
+        passed: true,
+        reportHash: toUint8Array(createHash(117)),
+      }).sendAndConfirm();
 
       state2 = await getNetbookState(netbook2Pda);
       expect(state1).to.equal(NetbookState.HwAprobado);
       expect(state2).to.equal(NetbookState.HwAprobado);
-      expect(state3).to.equal(NetbookState.Fabricada);
+      expect(await getNetbookState(netbook3Pda)).to.equal(NetbookState.Fabricada);
 
       // Advance netbook3 to SwValidado (skip software audit - should fail)
       try {
-        await program.methods
-          .validateSoftware("MULTI-003", "Ubuntu 22.04", true)
-          .accounts({
-            netbook: netbook3Pda,
-            config: configPda,
-            technician: technician.publicKey,
-          })
-          .signers([technician])
-          .rpc();
+        const technicianSigner = await createSignerFromKeyPair(technician);
+        await client.scSolana.instructions.validateSoftware({
+          netbook: toAddress(netbook3Pda),
+          config: toAddress(configPda),
+          technician: technicianSigner,
+          serial: "MULTI-003",
+          osVersion: "Ubuntu 22.04",
+          passed: true,
+        }).sendAndConfirm();
         expect.fail("Expected software validation to fail without hardware audit");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -854,35 +849,35 @@ describe("State Machine Transition Validation Tests", () => {
         "Full Lifecycle Model"
       );
 
-      await program.methods
-        .auditHardware("FULL-001", true, createHash(118))
-        .accounts({
-          netbook: fullLifecyclePda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(fullLifecyclePda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "FULL-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(118)),
+      }).sendAndConfirm();
 
-      await program.methods
-        .validateSoftware("FULL-001", "Ubuntu 22.04", true)
-        .accounts({
-          netbook: fullLifecyclePda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(fullLifecyclePda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "FULL-001",
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      }).sendAndConfirm();
 
-      await program.methods
-        .assignToStudent("FULL-001", createHash(205), createHash(305))
-        .accounts({
-          netbook: fullLifecyclePda,
-          config: configPda,
-          school: school.publicKey,
-        })
-        .signers([school])
-        .rpc();
+      const schoolSigner = await createSignerFromKeyPair(school);
+      await client.scSolana.instructions.assignToStudent({
+        netbook: toAddress(fullLifecyclePda),
+        config: toAddress(configPda),
+        school: schoolSigner,
+        serial: "FULL-001",
+        schoolHash: toUint8Array(createHash(205)),
+        studentIdHash: toUint8Array(createHash(305)),
+      }).sendAndConfirm();
 
       expect(await getNetbookState(fullLifecyclePda)).to.equal(
         NetbookState.Distribuida
@@ -895,25 +890,23 @@ describe("State Machine Transition Validation Tests", () => {
         "Partial Lifecycle Model"
       );
 
-      await program.methods
-        .auditHardware("PARTIAL-002", true, createHash(119))
-        .accounts({
-          netbook: partialLifecyclePda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(partialLifecyclePda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "PARTIAL-002",
+        passed: true,
+        reportHash: toUint8Array(createHash(119)),
+      }).sendAndConfirm();
 
-      await program.methods
-        .validateSoftware("PARTIAL-002", "Ubuntu 22.04", false)
-        .accounts({
-          netbook: partialLifecyclePda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(partialLifecyclePda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "PARTIAL-002",
+        osVersion: "Ubuntu 22.04",
+        passed: false,
+      }).sendAndConfirm();
 
       expect(await getNetbookState(partialLifecyclePda)).to.equal(
         NetbookState.HwAprobado
@@ -926,15 +919,14 @@ describe("State Machine Transition Validation Tests", () => {
         "Failed HW Model"
       );
 
-      await program.methods
-        .auditHardware("FAILED-HW-001", false, createHash(120))
-        .accounts({
-          netbook: failedHwPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(failedHwPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "FAILED-HW-001",
+        passed: false,
+        reportHash: toUint8Array(createHash(120)),
+      }).sendAndConfirm();
 
       expect(await getNetbookState(failedHwPda)).to.equal(
         NetbookState.Fabricada
@@ -955,35 +947,35 @@ describe("State Machine Transition Validation Tests", () => {
       );
 
       // Execute full lifecycle rapidly
-      await program.methods
-        .auditHardware("RAPID-001", true, createHash(121))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "RAPID-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(121)),
+      }).sendAndConfirm();
 
-      await program.methods
-        .validateSoftware("RAPID-001", "Ubuntu 22.04", true)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "RAPID-001",
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      }).sendAndConfirm();
 
-      await program.methods
-        .assignToStudent("RAPID-001", createHash(206), createHash(306))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          school: school.publicKey,
-        })
-        .signers([school])
-        .rpc();
+      const schoolSigner = await createSignerFromKeyPair(school);
+      await client.scSolana.instructions.assignToStudent({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        school: schoolSigner,
+        serial: "RAPID-001",
+        schoolHash: toUint8Array(createHash(206)),
+        studentIdHash: toUint8Array(createHash(306)),
+      }).sendAndConfirm();
 
       const state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.Distribuida);
@@ -996,7 +988,7 @@ describe("State Machine Transition Validation Tests", () => {
         "Type Check Model"
       );
 
-      const netbook = await program.account.netbook.fetch(netbookPda);
+      const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
 
       // Verify state is stored as u8
       expect(typeof netbook.state).to.equal("number");
@@ -1004,17 +996,17 @@ describe("State Machine Transition Validation Tests", () => {
       expect(netbook.state).to.equal(0);
 
       // Perform hardware audit
-      await program.methods
-        .auditHardware("TYPE-CHECK-001", true, createHash(122))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "TYPE-CHECK-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(122)),
+      }).sendAndConfirm();
 
-      const netbook2 = await program.account.netbook.fetch(netbookPda);
+      const netbook2 = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook2.state).to.equal(NetbookState.HwAprobado);
       expect(netbook2.state).to.equal(1);
     });
@@ -1026,7 +1018,7 @@ describe("State Machine Transition Validation Tests", () => {
         "Exists Check Model"
       );
 
-      const netbook = await program.account.netbook.fetch(netbookPda);
+      const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.exists).to.be.true;
     });
 
@@ -1036,8 +1028,8 @@ describe("State Machine Transition Validation Tests", () => {
       await registerNetbook("TOKEN-002", "TOKEN-BATCH-001", "Token Model 2");
       await registerNetbook("TOKEN-003", "TOKEN-BATCH-001", "Token Model 3");
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      expect(config.nextTokenId.toNumber()).to.equal(3); // Next token ID should be 3
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(config.nextTokenId)).to.equal(3); // Next token ID should be 3
     });
   });
 
@@ -1053,43 +1045,27 @@ describe("State Machine Transition Validation Tests", () => {
         "Error Code Model"
       );
 
-      try {
-        await program.methods
-          .auditHardware("ERROR-CODE-001", true, createHash(123))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            auditor: auditor.publicKey,
-          })
-          .signers([auditor])
-          .rpc();
-        expect.fail("Expected audit to succeed from Fabricada");
-      } catch (error: any) {
-        expect(error).to.not.be.null;
-      }
-
-      // Now audit successfully
-      await program.methods
-        .auditHardware("ERROR-CODE-001", true, createHash(124))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      // First audit should succeed from Fabricada
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "ERROR-CODE-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(123)),
+      }).sendAndConfirm();
 
       // Try audit again - should get InvalidStateTransition
       try {
-        await program.methods
-          .auditHardware("ERROR-CODE-001", true, createHash(125))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            auditor: auditor.publicKey,
-          })
-          .signers([auditor])
-          .rpc();
+        await client.scSolana.instructions.auditHardware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          auditor: auditorSigner,
+          serial: "ERROR-CODE-001",
+          passed: true,
+          reportHash: toUint8Array(createHash(125)),
+        }).sendAndConfirm();
         expect.fail("Expected second audit to fail");
       } catch (error: any) {
         expect(error.message).to.contain("InvalidStateTransition");
@@ -1105,15 +1081,15 @@ describe("State Machine Transition Validation Tests", () => {
 
       // Try validation from Fabricada - should get InvalidStateTransition
       try {
-        await program.methods
-          .validateSoftware("ERROR-CODE-002", "Ubuntu 22.04", true)
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            technician: technician.publicKey,
-          })
-          .signers([technician])
-          .rpc();
+        const technicianSigner = await createSignerFromKeyPair(technician);
+        await client.scSolana.instructions.validateSoftware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          technician: technicianSigner,
+          serial: "ERROR-CODE-002",
+          osVersion: "Ubuntu 22.04",
+          passed: true,
+        }).sendAndConfirm();
         expect.fail("Expected validation to fail from Fabricada");
       } catch (error: any) {
         expect(error.message).to.contain("InvalidStateTransition");
@@ -1129,15 +1105,15 @@ describe("State Machine Transition Validation Tests", () => {
 
       // Try assignment from Fabricada - should get InvalidStateTransition
       try {
-        await program.methods
-          .assignToStudent("ERROR-CODE-003", createHash(207), createHash(307))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            school: school.publicKey,
-          })
-          .signers([school])
-          .rpc();
+        const schoolSigner = await createSignerFromKeyPair(school);
+        await client.scSolana.instructions.assignToStudent({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          school: schoolSigner,
+          serial: "ERROR-CODE-003",
+          schoolHash: toUint8Array(createHash(207)),
+          studentIdHash: toUint8Array(createHash(307)),
+        }).sendAndConfirm();
         expect.fail("Expected assignment to fail from Fabricada");
       } catch (error: any) {
         expect(error.message).to.contain("InvalidStateTransition");
@@ -1158,37 +1134,37 @@ describe("State Machine Transition Validation Tests", () => {
         "Integrity Model"
       );
 
-      await program.methods
-        .auditHardware(serialNumber, true, createHash(126))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: serialNumber,
+        passed: true,
+        reportHash: toUint8Array(createHash(126)),
+      }).sendAndConfirm();
 
-      await program.methods
-        .validateSoftware(serialNumber, "Ubuntu 22.04", true)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: serialNumber,
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      }).sendAndConfirm();
 
-      await program.methods
-        .assignToStudent(serialNumber, createHash(208), createHash(308))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          school: school.publicKey,
-        })
-        .signers([school])
-        .rpc();
+      const schoolSigner = await createSignerFromKeyPair(school);
+      await client.scSolana.instructions.assignToStudent({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        school: schoolSigner,
+        serial: serialNumber,
+        schoolHash: toUint8Array(createHash(208)),
+        studentIdHash: toUint8Array(createHash(308)),
+      }).sendAndConfirm();
 
-      const netbook = await program.account.netbook.fetch(netbookPda);
+      const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.serialNumber).to.equal(serialNumber);
     });
 
@@ -1200,37 +1176,37 @@ describe("State Machine Transition Validation Tests", () => {
         "Integrity Model 2"
       );
 
-      await program.methods
-        .auditHardware("INTEGRITY-002", true, createHash(127))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "INTEGRITY-002",
+        passed: true,
+        reportHash: toUint8Array(createHash(127)),
+      }).sendAndConfirm();
 
-      await program.methods
-        .validateSoftware("INTEGRITY-002", "Ubuntu 22.04", true)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "INTEGRITY-002",
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      }).sendAndConfirm();
 
-      await program.methods
-        .assignToStudent("INTEGRITY-002", createHash(209), createHash(309))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          school: school.publicKey,
-        })
-        .signers([school])
-        .rpc();
+      const schoolSigner = await createSignerFromKeyPair(school);
+      await client.scSolana.instructions.assignToStudent({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        school: schoolSigner,
+        serial: "INTEGRITY-002",
+        schoolHash: toUint8Array(createHash(209)),
+        studentIdHash: toUint8Array(createHash(309)),
+      }).sendAndConfirm();
 
-      const netbook = await program.account.netbook.fetch(netbookPda);
+      const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.batchId).to.equal(batchId);
     });
 
@@ -1241,21 +1217,21 @@ describe("State Machine Transition Validation Tests", () => {
         "Data Integrity Model"
       );
 
-      const netbookBefore = await program.account.netbook.fetch(netbookPda);
+      const netbookBefore = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbookBefore.hwAuditor).to.be.null;
 
-      await program.methods
-        .auditHardware("DATA-INT-001", true, createHash(128))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "DATA-INT-001",
+        passed: true,
+        reportHash: toUint8Array(createHash(128)),
+      }).sendAndConfirm();
 
-      const netbookAfter = await program.account.netbook.fetch(netbookPda);
-      expect(netbookAfter.hwAuditor).to.equal(auditor.publicKey.toBase58());
+      const netbookAfter = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
+      expect(netbookAfter.hwAuditor).to.equal(toAddress(auditor.publicKey.toBase58()));
     });
 
     it("updates sw_technician after successful software validation", async () => {
@@ -1265,32 +1241,32 @@ describe("State Machine Transition Validation Tests", () => {
         "Data Integrity Model 2"
       );
 
-      await program.methods
-        .auditHardware("DATA-INT-002", true, createHash(129))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "DATA-INT-002",
+        passed: true,
+        reportHash: toUint8Array(createHash(129)),
+      }).sendAndConfirm();
 
-      const netbookBefore = await program.account.netbook.fetch(netbookPda);
+      const netbookBefore = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbookBefore.swTechnician).to.be.null;
 
-      await program.methods
-        .validateSoftware("DATA-INT-002", "Ubuntu 22.04", true)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "DATA-INT-002",
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      }).sendAndConfirm();
 
-      const netbookAfter = await program.account.netbook.fetch(netbookPda);
+      const netbookAfter = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbookAfter.swTechnician).to.equal(
-        technician.publicKey.toBase58()
+        toAddress(technician.publicKey.toBase58())
       );
     });
   });
@@ -1309,8 +1285,7 @@ describe("State Machine Transition Validation Tests", () => {
     });
 
     it("verifies complete state machine coverage with 5 netbooks", async () => {
-      const netbooks: { serial: string; pda: PublicKey; targetState: NetbookState }[] =
-        [];
+      const netbooks: { serial: string; pda: string; targetState: NetbookState }[] = [];
 
       // Netbook 1: Fabricada (registration only)
       const nb1Pda = await registerNetbook("FINAL-001", "FINAL-BATCH-001", "Final Model 1");
@@ -1318,81 +1293,77 @@ describe("State Machine Transition Validation Tests", () => {
 
       // Netbook 2: HwAprobado
       const nb2Pda = await registerNetbook("FINAL-002", "FINAL-BATCH-001", "Final Model 2");
-      await program.methods
-        .auditHardware("FINAL-002", true, createHash(130))
-        .accounts({
-          netbook: nb2Pda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(nb2Pda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "FINAL-002",
+        passed: true,
+        reportHash: toUint8Array(createHash(130)),
+      }).sendAndConfirm();
       netbooks.push({ serial: "FINAL-002", pda: nb2Pda, targetState: NetbookState.HwAprobado });
 
       // Netbook 3: SwValidado
       const nb3Pda = await registerNetbook("FINAL-003", "FINAL-BATCH-001", "Final Model 3");
-      await program.methods
-        .auditHardware("FINAL-003", true, createHash(131))
-        .accounts({
-          netbook: nb3Pda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
-      await program.methods
-        .validateSoftware("FINAL-003", "Ubuntu 22.04", true)
-        .accounts({
-          netbook: nb3Pda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(nb3Pda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "FINAL-003",
+        passed: true,
+        reportHash: toUint8Array(createHash(131)),
+      }).sendAndConfirm();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(nb3Pda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "FINAL-003",
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      }).sendAndConfirm();
       netbooks.push({ serial: "FINAL-003", pda: nb3Pda, targetState: NetbookState.SwValidado });
 
       // Netbook 4: Distribuida (full lifecycle)
       const nb4Pda = await registerNetbook("FINAL-004", "FINAL-BATCH-001", "Final Model 4");
-      await program.methods
-        .auditHardware("FINAL-004", true, createHash(132))
-        .accounts({
-          netbook: nb4Pda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
-      await program.methods
-        .validateSoftware("FINAL-004", "Ubuntu 22.04", true)
-        .accounts({
-          netbook: nb4Pda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
-      await program.methods
-        .assignToStudent("FINAL-004", createHash(210), createHash(310))
-        .accounts({
-          netbook: nb4Pda,
-          config: configPda,
-          school: school.publicKey,
-        })
-        .signers([school])
-        .rpc();
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(nb4Pda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "FINAL-004",
+        passed: true,
+        reportHash: toUint8Array(createHash(132)),
+      }).sendAndConfirm();
+      await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(nb4Pda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serial: "FINAL-004",
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      }).sendAndConfirm();
+      const schoolSigner = await createSignerFromKeyPair(school);
+      await client.scSolana.instructions.assignToStudent({
+        netbook: toAddress(nb4Pda),
+        config: toAddress(configPda),
+        school: schoolSigner,
+        serial: "FINAL-004",
+        schoolHash: toUint8Array(createHash(210)),
+        studentIdHash: toUint8Array(createHash(310)),
+      }).sendAndConfirm();
       netbooks.push({ serial: "FINAL-004", pda: nb4Pda, targetState: NetbookState.Distribuida });
 
       // Netbook 5: Failed hardware audit (stays Fabricada)
       const nb5Pda = await registerNetbook("FINAL-005", "FINAL-BATCH-001", "Final Model 5");
-      await program.methods
-        .auditHardware("FINAL-005", false, createHash(133))
-        .accounts({
-          netbook: nb5Pda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(nb5Pda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serial: "FINAL-005",
+        passed: false,
+        reportHash: toUint8Array(createHash(133)),
+      }).sendAndConfirm();
       netbooks.push({ serial: "FINAL-005", pda: nb5Pda, targetState: NetbookState.Fabricada });
 
       // Verify all states

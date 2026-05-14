@@ -5,36 +5,36 @@
  * Verifies that role constraints are properly enforced across all instructions.
  *
  * Issue #72: Role Enforcement Boundary Tests (P1)
+ *
+ * Migrated from @coral-xyz/anchor to Codama-generated client (Issue #209).
  */
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program, AnchorProvider } from "@coral-xyz/anchor";
-import { ScSolana } from "../target/types/sc_solana";
 import {
   Keypair,
-  SystemProgram,
-  PublicKey,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
+import { createSignerFromKeyPair } from "@solana/kit";
 import { expect } from "chai";
 
 // Import test helpers
 import {
-  getConfigPda,
-  getNetbookPda,
-  getSerialHashRegistryPda,
-  getAdminPda,
+  createTestClient,
+  fundAndInitialize,
+  fundKeypair,
+  toAddress,
+  toUint8Array,
+  getConfigPdaAddress,
+  getNetbookPdaAddress,
+  getSerialHashRegistryPdaAddress,
+  getAdminPdaAddress,
   createHash,
   NetbookState,
-  fundAndInitialize,
   generateUniqueSerial,
-  resetTokenCounter,
+  type TestClient,
 } from "./test-helpers";
 
 describe("Role Enforcement Boundary Tests", () => {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
-  const program = anchor.workspace.scSolana as Program<ScSolana>;
+  let client: TestClient;
   const admin = Keypair.generate();
   const fabricante = Keypair.generate();
   const auditor = Keypair.generate();
@@ -43,31 +43,31 @@ describe("Role Enforcement Boundary Tests", () => {
   const randomUser = Keypair.generate();
   const anotherRandom = Keypair.generate();
 
-  let configPda: PublicKey;
-  let adminPda: PublicKey;
-  let adminBump: number;
-  let serialHashRegistryPda: PublicKey;
-  let crossRoleNetbookPda: PublicKey;
+  let configPda: string;
+  let adminPda: string;
+  let serialHashRegistryPda: string;
+  let crossRoleNetbookPda: string;
 
   // ========================================================================
   // Setup
   // ========================================================================
 
   before(async () => {
+    // Create client
+    client = await createTestClient("http://localhost:8899", admin);
+
     // Fund all keypairs
-    const amount = 2 * LAMPORTS_PER_SOL;
-    await provider.connection.requestAirdrop(admin.publicKey, amount);
-    await provider.connection.requestAirdrop(fabricante.publicKey, amount);
-    await provider.connection.requestAirdrop(auditor.publicKey, amount);
-    await provider.connection.requestAirdrop(technician.publicKey, amount);
-    await provider.connection.requestAirdrop(school.publicKey, amount);
-    await provider.connection.requestAirdrop(randomUser.publicKey, amount);
-    await provider.connection.requestAirdrop(anotherRandom.publicKey, amount);
+    await fundKeypair(client, fabricante, 2 * LAMPORTS_PER_SOL);
+    await fundKeypair(client, auditor, 2 * LAMPORTS_PER_SOL);
+    await fundKeypair(client, technician, 2 * LAMPORTS_PER_SOL);
+    await fundKeypair(client, school, 2 * LAMPORTS_PER_SOL);
+    await fundKeypair(client, randomUser, 2 * LAMPORTS_PER_SOL);
+    await fundKeypair(client, anotherRandom, 2 * LAMPORTS_PER_SOL);
 
     // Get PDAs
-    [configPda] = getConfigPda(program);
-    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
-    serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
+    configPda = await getConfigPdaAddress();
+    adminPda = await getAdminPdaAddress(toAddress(configPda));
+    serialHashRegistryPda = await getSerialHashRegistryPdaAddress(toAddress(configPda));
   });
 
   // ========================================================================
@@ -75,7 +75,7 @@ describe("Role Enforcement Boundary Tests", () => {
   // ========================================================================
 
   async function initializeConfig() {
-    await fundAndInitialize(program, provider, admin);
+    await fundAndInitialize(client, admin);
   }
 
   // ========================================================================
@@ -88,69 +88,65 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("allows admin to grant FABRICANTE role", async () => {
-      const sig = await program.methods
-        .grantRole("FABRICANTE")
-        .accounts({
-          config: configPda,
-          accountToGrant: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      const tx = await client.scSolana.instructions.grantRole({
+        config: toAddress(configPda),
+        admin: toAddress(adminPda),
+        accountToGrant: fabricanteSigner,
+        role: "FABRICANTE",
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("allows admin to grant AUDITOR_HW role", async () => {
-      const sig = await program.methods
-        .grantRole("AUDITOR_HW")
-        .accounts({
-          config: configPda,
-          accountToGrant: auditor.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      const tx = await client.scSolana.instructions.grantRole({
+        config: toAddress(configPda),
+        admin: toAddress(adminPda),
+        accountToGrant: auditorSigner,
+        role: "AUDITOR_HW",
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("allows admin to grant TECNICO_SW role", async () => {
-      const sig = await program.methods
-        .grantRole("TECNICO_SW")
-        .accounts({
-          config: configPda,
-          accountToGrant: technician.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      const tx = await client.scSolana.instructions.grantRole({
+        config: toAddress(configPda),
+        admin: toAddress(adminPda),
+        accountToGrant: technicianSigner,
+        role: "TECNICO_SW",
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("allows admin to grant ESCUELA role", async () => {
-      const sig = await program.methods
-        .grantRole("ESCUELA")
-        .accounts({
-          config: configPda,
-          accountToGrant: school.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([school])
-        .rpc();
+      const schoolSigner = await createSignerFromKeyPair(school);
+      const tx = await client.scSolana.instructions.grantRole({
+        config: toAddress(configPda),
+        admin: toAddress(adminPda),
+        accountToGrant: schoolSigner,
+        role: "ESCUELA",
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("rejects grant role from non-admin account", async () => {
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
+      const anotherRandomSigner = await createSignerFromKeyPair(anotherRandom);
       try {
-        await program.methods
-          .grantRole("FABRICANTE")
-          .accounts({
-            config: configPda,
-            admin: randomUser.publicKey,
-            accountToGrant: anotherRandom.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(randomUser.publicKey.toString()),
+            accountToGrant: anotherRandomSigner,
+            role: "FABRICANTE",
           })
-          .signers([randomUser, anotherRandom])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected grant role to fail from non-admin");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -158,16 +154,16 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects grant of invalid role name", async () => {
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .grantRole("INVALID_ROLE")
-          .accounts({
-            config: configPda,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: randomUserSigner,
+            role: "INVALID_ROLE",
           })
-          .signers([randomUser])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected grant role to fail for invalid role");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -175,16 +171,16 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects duplicate FABRICANTE role grant", async () => {
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
       try {
-        await program.methods
-          .grantRole("FABRICANTE")
-          .accounts({
-            config: configPda,
-            accountToGrant: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: fabricanteSigner,
+            role: "FABRICANTE",
           })
-          .signers([fabricante])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected duplicate grant to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -199,42 +195,41 @@ describe("Role Enforcement Boundary Tests", () => {
   describe("Revoke Role Boundary Tests", () => {
     before(async () => {
       // Grant role first
-      await program.methods
-        .grantRole("FABRICANTE")
-        .accounts({
-          config: configPda,
-          accountToGrant: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: fabricanteSigner,
+          role: "FABRICANTE",
         })
-        .signers([fabricante])
-        .rpc();
+        .sendAndConfirm();
     });
 
     it("allows admin to revoke FABRICANTE role", async () => {
-      const sig = await program.methods
-        .revokeRole("FABRICANTE")
-        .accounts({
-          config: configPda,
-          accountToRevoke: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      const tx = await client.scSolana.instructions.revokeRole({
+        config: toAddress(configPda),
+        admin: toAddress(adminPda),
+        accountToRevoke: fabricanteSigner,
+        role: "FABRICANTE",
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("rejects revoke role from non-admin", async () => {
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
+      const anotherRandomSigner = await createSignerFromKeyPair(anotherRandom);
       try {
-        await program.methods
-          .revokeRole("FABRICANTE")
-          .accounts({
-            config: configPda,
-            admin: randomUser.publicKey,
-            accountToRevoke: anotherRandom.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .revokeRole({
+            config: toAddress(configPda),
+            admin: toAddress(randomUser.publicKey.toString()),
+            accountToRevoke: anotherRandomSigner,
+            role: "FABRICANTE",
           })
-          .signers([randomUser, anotherRandom])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected revoke role to fail from non-admin");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -242,16 +237,16 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects revoke of invalid role name", async () => {
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
       try {
-        await program.methods
-          .revokeRole("INVALID_ROLE")
-          .accounts({
-            config: configPda,
-            accountToRevoke: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .revokeRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToRevoke: fabricanteSigner,
+            role: "INVALID_ROLE",
           })
-          .signers([fabricante])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected revoke role to fail for invalid role");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -268,54 +263,55 @@ describe("Role Enforcement Boundary Tests", () => {
       await initializeConfig();
 
       // Grant FABRICANTE role
-      await program.methods
-        .grantRole("FABRICANTE")
-        .accounts({
-          config: configPda,
-          accountToGrant: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: fabricanteSigner,
+          role: "FABRICANTE",
         })
-        .signers([fabricante])
-        .rpc();
+        .sendAndConfirm();
     });
 
     it("allows manufacturer with FABRICANTE role to register netbook", async () => {
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const tokenId = config.nextTokenId.toNumber();
-      const netbookPda = getNetbookPda(tokenId, program.programId);
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const tokenId = Number(config.nextTokenId);
+      const netbookPda = await getNetbookPdaAddress(tokenId);
 
       const uniqueSerial = generateUniqueSerial("ROLE");
-      const sig = await program.methods
-        .registerNetbook(uniqueSerial, "ROLE-BATCH-001", "Test Model")
-        .accounts({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          netbook: netbookPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      const tx = await client.scSolana.instructions.registerNetbook({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        netbook: toAddress(netbookPda),
+        serialNumber: uniqueSerial,
+        batchId: "ROLE-BATCH-001",
+        initialModelSpecs: "Test Model",
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("rejects netbook registration from non-manufacturer", async () => {
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const tokenId = config.nextTokenId.toNumber();
-      const netbookPda = getNetbookPda(tokenId, program.programId);
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const tokenId = Number(config.nextTokenId);
+      const netbookPda = await getNetbookPdaAddress(tokenId);
 
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .registerNetbook(generateUniqueSerial("ROLE"), "ROLE-BATCH-002", "Test Model")
-          .accounts({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: randomUser.publicKey,
-            netbook: netbookPda,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .registerNetbook({
+            config: toAddress(configPda),
+            serialHashRegistry: toAddress(serialHashRegistryPda),
+            manufacturer: randomUserSigner,
+            netbook: toAddress(netbookPda),
+            serialNumber: generateUniqueSerial("ROLE"),
+            batchId: "ROLE-BATCH-002",
+            initialModelSpecs: "Test Model",
           })
-          .signers([randomUser])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected registration to fail from non-manufacturer");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -323,22 +319,23 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects netbook registration from user without FABRICANTE role", async () => {
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const tokenId = config.nextTokenId.toNumber();
-      const netbookPda = getNetbookPda(tokenId, program.programId);
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const tokenId = Number(config.nextTokenId);
+      const netbookPda = await getNetbookPdaAddress(tokenId);
 
+      const auditorSigner = await createSignerFromKeyPair(auditor);
       try {
-        await program.methods
-          .registerNetbook(generateUniqueSerial("ROLE"), "ROLE-BATCH-003", "Test Model")
-          .accounts({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: auditor.publicKey,
-            netbook: netbookPda,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .registerNetbook({
+            config: toAddress(configPda),
+            serialHashRegistry: toAddress(serialHashRegistryPda),
+            manufacturer: auditorSigner,
+            netbook: toAddress(netbookPda),
+            serialNumber: generateUniqueSerial("ROLE"),
+            batchId: "ROLE-BATCH-003",
+            initialModelSpecs: "Test Model",
           })
-          .signers([auditor])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected registration to fail from auditor without FABRICANTE");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -351,73 +348,75 @@ describe("Role Enforcement Boundary Tests", () => {
   // ========================================================================
 
   describe("Hardware Audit Role Enforcement", () => {
+    let auditSerial: string;
+
     before(async () => {
       // Grant AUDITOR_HW role
-      await program.methods
-        .grantRole("AUDITOR_HW")
-        .accounts({
-          config: configPda,
-          accountToGrant: auditor.publicKey,
-          systemProgram: SystemProgram.programId,
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: auditorSigner,
+          role: "AUDITOR_HW",
         })
-        .signers([auditor])
-        .rpc();
+        .sendAndConfirm();
 
       // Register a netbook first
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const tokenId = config.nextTokenId.toNumber();
-      const netbookPda = getNetbookPda(tokenId, program.programId);
-      const auditSerial = generateUniqueSerial("AUDIT");
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const tokenId = Number(config.nextTokenId);
+      const netbookPda = await getNetbookPdaAddress(tokenId);
+      auditSerial = generateUniqueSerial("AUDIT");
 
-      await program.methods
-        .registerNetbook(auditSerial, "AUDIT-BATCH-001", "Audit Test Model")
-        .accounts({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          netbook: netbookPda,
-          systemProgram: SystemProgram.programId,
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      await client.scSolana.instructions
+        .registerNetbook({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          netbook: toAddress(netbookPda),
+          serialNumber: auditSerial,
+          batchId: "AUDIT-BATCH-001",
+          initialModelSpecs: "Audit Test Model",
         })
-        .signers([fabricante])
-        .rpc();
-
-      // Store for use in tests
-      (this as any).auditSerial = auditSerial;
+        .sendAndConfirm();
     });
 
     it("allows auditor with AUDITOR_HW role to audit hardware", async () => {
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const tokenId = config.nextTokenId.toNumber();
-      const netbookPda = getNetbookPda(tokenId, program.programId);
-      const auditSerial = (this as any).auditSerial || generateUniqueSerial("AUDIT");
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const tokenId = Number(config.nextTokenId);
+      const netbookPda = await getNetbookPdaAddress(tokenId);
 
-      const sig = await program.methods
-        .auditHardware(auditSerial, true, createHash(42))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
-        })
-        .signers([auditor])
-        .rpc();
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      const tx = await client.scSolana.instructions.auditHardware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        auditor: auditorSigner,
+        serialNumber: auditSerial,
+        passed: true,
+        reportHash: toUint8Array(createHash(42)),
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("rejects hardware audit from non-auditor", async () => {
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const tokenId = config.nextTokenId.toNumber();
-      const netbookPda = getNetbookPda(tokenId, program.programId);
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const tokenId = Number(config.nextTokenId);
+      const netbookPda = await getNetbookPdaAddress(tokenId);
 
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .auditHardware("AUDIT-ROLE-001", true, createHash(43))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            auditor: randomUser.publicKey,
+        await client.scSolana.instructions
+          .auditHardware({
+            netbook: toAddress(netbookPda),
+            config: toAddress(configPda),
+            auditor: randomUserSigner,
+            serialNumber: "AUDIT-ROLE-001",
+            passed: true,
+            reportHash: toUint8Array(createHash(43)),
           })
-          .signers([randomUser])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected audit to fail from non-auditor");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -425,20 +424,22 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects hardware audit from technician without AUDITOR_HW role", async () => {
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const tokenId = config.nextTokenId.toNumber();
-      const netbookPda = getNetbookPda(tokenId, program.programId);
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const tokenId = Number(config.nextTokenId);
+      const netbookPda = await getNetbookPdaAddress(tokenId);
 
+      const technicianSigner = await createSignerFromKeyPair(technician);
       try {
-        await program.methods
-          .auditHardware("AUDIT-ROLE-001", true, createHash(44))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            auditor: technician.publicKey,
+        await client.scSolana.instructions
+          .auditHardware({
+            netbook: toAddress(netbookPda),
+            config: toAddress(configPda),
+            auditor: technicianSigner,
+            serialNumber: "AUDIT-ROLE-001",
+            passed: true,
+            reportHash: toUint8Array(createHash(44)),
           })
-          .signers([technician])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected audit to fail from technician without AUDITOR_HW");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -451,79 +452,81 @@ describe("Role Enforcement Boundary Tests", () => {
   // ========================================================================
 
   describe("Software Validation Role Enforcement", () => {
-    let netbookPda: PublicKey;
+    let netbookPda: string;
+    let validateSerial: string;
 
     before(async () => {
       // Grant TECNICO_SW role
-      await program.methods
-        .grantRole("TECNICO_SW")
-        .accounts({
-          config: configPda,
-          accountToGrant: technician.publicKey,
-          systemProgram: SystemProgram.programId,
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: technicianSigner,
+          role: "TECNICO_SW",
         })
-        .signers([technician])
-        .rpc();
+        .sendAndConfirm();
 
       // Register and audit a netbook first
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const tokenId = config.nextTokenId.toNumber();
-      netbookPda = getNetbookPda(tokenId, program.programId);
-      const validateSerial = generateUniqueSerial("VAL");
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const tokenId = Number(config.nextTokenId);
+      netbookPda = await getNetbookPdaAddress(tokenId);
+      validateSerial = generateUniqueSerial("VAL");
 
-      await program.methods
-        .registerNetbook(validateSerial, "VALIDATE-BATCH-001", "Validate Test Model")
-        .accounts({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          netbook: netbookPda,
-          systemProgram: SystemProgram.programId,
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      await client.scSolana.instructions
+        .registerNetbook({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          netbook: toAddress(netbookPda),
+          serialNumber: validateSerial,
+          batchId: "VALIDATE-BATCH-001",
+          initialModelSpecs: "Validate Test Model",
         })
-        .signers([fabricante])
-        .rpc();
+        .sendAndConfirm();
 
       // Audit hardware first
-      await program.methods
-        .auditHardware(validateSerial, true, createHash(50))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions
+        .auditHardware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          auditor: auditorSigner,
+          serialNumber: validateSerial,
+          passed: true,
+          reportHash: toUint8Array(createHash(50)),
         })
-        .signers([auditor])
-        .rpc();
-
-      // Store for use in tests
-      (this as any).validateSerial = validateSerial;
+        .sendAndConfirm();
     });
 
     it("allows technician with TECNICO_SW role to validate software", async () => {
-      const validateSerial = (this as any).validateSerial || generateUniqueSerial("VAL");
-      const sig = await program.methods
-        .validateSoftware(validateSerial, "Ubuntu 22.04", true)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
-        })
-        .signers([technician])
-        .rpc();
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      const tx = await client.scSolana.instructions.validateSoftware({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        technician: technicianSigner,
+        serialNumber: validateSerial,
+        osVersion: "Ubuntu 22.04",
+        passed: true,
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("rejects software validation from non-technician", async () => {
-      const validateSerial = (this as any).validateSerial || generateUniqueSerial("VAL");
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .validateSoftware(validateSerial, "Ubuntu 22.04", true)
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            technician: randomUser.publicKey,
+        await client.scSolana.instructions
+          .validateSoftware({
+            netbook: toAddress(netbookPda),
+            config: toAddress(configPda),
+            technician: randomUserSigner,
+            serialNumber: validateSerial,
+            osVersion: "Ubuntu 22.04",
+            passed: true,
           })
-          .signers([randomUser])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected validation to fail from non-technician");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -531,17 +534,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects software validation from auditor without TECNICO_SW role", async () => {
-      const validateSerial = (this as any).validateSerial || generateUniqueSerial("VAL");
+      const auditorSigner = await createSignerFromKeyPair(auditor);
       try {
-        await program.methods
-          .validateSoftware(validateSerial, "Ubuntu 22.04", true)
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            technician: auditor.publicKey,
+        await client.scSolana.instructions
+          .validateSoftware({
+            netbook: toAddress(netbookPda),
+            config: toAddress(configPda),
+            technician: auditorSigner,
+            serialNumber: validateSerial,
+            osVersion: "Ubuntu 22.04",
+            passed: true,
           })
-          .signers([auditor])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected validation to fail from auditor without TECNICO_SW");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -554,90 +558,94 @@ describe("Role Enforcement Boundary Tests", () => {
   // ========================================================================
 
   describe("Student Assignment Role Enforcement", () => {
-    let netbookPda: PublicKey;
+    let netbookPda: string;
+    let assignSerial: string;
 
     before(async () => {
       // Grant ESCUELA role
-      await program.methods
-        .grantRole("ESCUELA")
-        .accounts({
-          config: configPda,
-          accountToGrant: school.publicKey,
-          systemProgram: SystemProgram.programId,
+      const schoolSigner = await createSignerFromKeyPair(school);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: schoolSigner,
+          role: "ESCUELA",
         })
-        .signers([school])
-        .rpc();
+        .sendAndConfirm();
 
       // Register, audit, and validate a netbook first
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const tokenId = config.nextTokenId.toNumber();
-      netbookPda = getNetbookPda(tokenId, program.programId);
-      const assignSerial = generateUniqueSerial("ASGN");
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const tokenId = Number(config.nextTokenId);
+      netbookPda = await getNetbookPdaAddress(tokenId);
+      assignSerial = generateUniqueSerial("ASGN");
 
-      await program.methods
-        .registerNetbook(assignSerial, "ASSIGN-BATCH-001", "Assign Test Model")
-        .accounts({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          netbook: netbookPda,
-          systemProgram: SystemProgram.programId,
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      await client.scSolana.instructions
+        .registerNetbook({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          netbook: toAddress(netbookPda),
+          serialNumber: assignSerial,
+          batchId: "ASSIGN-BATCH-001",
+          initialModelSpecs: "Assign Test Model",
         })
-        .signers([fabricante])
-        .rpc();
+        .sendAndConfirm();
 
       // Audit hardware
-      await program.methods
-        .auditHardware(assignSerial, true, createHash(60))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          auditor: auditor.publicKey,
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions
+        .auditHardware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          auditor: auditorSigner,
+          serialNumber: assignSerial,
+          passed: true,
+          reportHash: toUint8Array(createHash(60)),
         })
-        .signers([auditor])
-        .rpc();
+        .sendAndConfirm();
 
       // Validate software
-      await program.methods
-        .validateSoftware(assignSerial, "Ubuntu 22.04", true)
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          technician: technician.publicKey,
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions
+        .validateSoftware({
+          netbook: toAddress(netbookPda),
+          config: toAddress(configPda),
+          technician: technicianSigner,
+          serialNumber: assignSerial,
+          osVersion: "Ubuntu 22.04",
+          passed: true,
         })
-        .signers([technician])
-        .rpc();
-
-      // Store for use in tests
-      (this as any).assignSerial = assignSerial;
+        .sendAndConfirm();
     });
 
     it("allows school with ESCUELA role to assign netbook to student", async () => {
-      const assignSerial = (this as any).assignSerial || generateUniqueSerial("ASGN");
-      const sig = await program.methods
-        .assignToStudent(assignSerial, createHash(100), createHash(200))
-        .accounts({
-          netbook: netbookPda,
-          config: configPda,
-          school: school.publicKey,
-        })
-        .signers([school])
-        .rpc();
+      const schoolSigner = await createSignerFromKeyPair(school);
+      const tx = await client.scSolana.instructions.assignToStudent({
+        netbook: toAddress(netbookPda),
+        config: toAddress(configPda),
+        school: schoolSigner,
+        serialNumber: assignSerial,
+        studentIdHash: toUint8Array(createHash(100)),
+        schoolIdHash: toUint8Array(createHash(200)),
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("rejects student assignment from non-school account", async () => {
-      const assignSerial = (this as any).assignSerial || generateUniqueSerial("ASGN");
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .assignToStudent(assignSerial, createHash(101), createHash(201))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            school: randomUser.publicKey,
+        await client.scSolana.instructions
+          .assignToStudent({
+            netbook: toAddress(netbookPda),
+            config: toAddress(configPda),
+            school: randomUserSigner,
+            serialNumber: assignSerial,
+            studentIdHash: toUint8Array(createHash(101)),
+            schoolIdHash: toUint8Array(createHash(201)),
           })
-          .signers([randomUser])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected assignment to fail from non-school");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -645,17 +653,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects student assignment from manufacturer without ESCUELA role", async () => {
-      const assignSerial = (this as any).assignSerial || generateUniqueSerial("ASGN");
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
       try {
-        await program.methods
-          .assignToStudent(assignSerial, createHash(102), createHash(202))
-          .accounts({
-            netbook: netbookPda,
-            config: configPda,
-            school: fabricante.publicKey,
+        await client.scSolana.instructions
+          .assignToStudent({
+            netbook: toAddress(netbookPda),
+            config: toAddress(configPda),
+            school: fabricanteSigner,
+            serialNumber: assignSerial,
+            studentIdHash: toUint8Array(createHash(102)),
+            schoolIdHash: toUint8Array(createHash(202)),
           })
-          .signers([fabricante])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected assignment to fail from manufacturer without ESCUELA");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -670,80 +679,79 @@ describe("Role Enforcement Boundary Tests", () => {
   describe("Cross-Role Boundary Tests", () => {
     before(async () => {
       // Grant all roles
-      await program.methods
-        .grantRole("FABRICANTE")
-        .accounts({
-          config: configPda,
-          accountToGrant: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: fabricanteSigner,
+          role: "FABRICANTE",
         })
-        .signers([fabricante])
-        .rpc();
+        .sendAndConfirm();
 
-      await program.methods
-        .grantRole("AUDITOR_HW")
-        .accounts({
-          config: configPda,
-          accountToGrant: auditor.publicKey,
-          systemProgram: SystemProgram.programId,
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: auditorSigner,
+          role: "AUDITOR_HW",
         })
-        .signers([auditor])
-        .rpc();
+        .sendAndConfirm();
 
-      await program.methods
-        .grantRole("TECNICO_SW")
-        .accounts({
-          config: configPda,
-          accountToGrant: technician.publicKey,
-          systemProgram: SystemProgram.programId,
+      const technicianSigner = await createSignerFromKeyPair(technician);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: technicianSigner,
+          role: "TECNICO_SW",
         })
-        .signers([technician])
-        .rpc();
+        .sendAndConfirm();
 
-      await program.methods
-        .grantRole("ESCUELA")
-        .accounts({
-          config: configPda,
-          accountToGrant: school.publicKey,
-          systemProgram: SystemProgram.programId,
+      const schoolSigner = await createSignerFromKeyPair(school);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: schoolSigner,
+          role: "ESCUELA",
         })
-        .signers([school])
-        .rpc();
+        .sendAndConfirm();
 
       // Register a netbook for cross-role tests (needs to be in Fabricada state for audit tests)
       const serialNumber = "CROSS-ROLE-001";
       const batchId = "CROSS-BATCH-001";
       const modelSpecs = "Cross-Role Test Model";
-      crossRoleNetbookPda = getNetbookPda(1, program.programId);
-      const crossRoleSerialHashRegistryPda = getSerialHashRegistryPda(
-        configPda,
-        program.programId
-      );
+      crossRoleNetbookPda = await getNetbookPdaAddress(1);
+      const crossRoleSerialHashRegistryPda = await getSerialHashRegistryPdaAddress(toAddress(configPda));
 
-      await program.methods
-        .registerNetbook(serialNumber, batchId, modelSpecs)
-        .accounts({
-          manufacturer: fabricante.publicKey,
-          netbook: crossRoleNetbookPda,
-          config: configPda,
-          serialHashRegistry: crossRoleSerialHashRegistryPda,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .registerNetbook({
+          manufacturer: fabricanteSigner,
+          netbook: toAddress(crossRoleNetbookPda),
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(crossRoleSerialHashRegistryPda),
+          serialNumber,
+          batchId,
+          initialModelSpecs: modelSpecs,
         })
-        .signers([fabricante])
-        .rpc();
+        .sendAndConfirm();
     });
 
     it("fabricante cannot perform hardware audit", async () => {
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
       try {
-        await program.methods
-          .auditHardware("TEST-SERIAL", true, createHash(70))
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: configPda,
-            auditor: fabricante.publicKey,
+        await client.scSolana.instructions
+          .auditHardware({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(configPda),
+            auditor: fabricanteSigner,
+            serialNumber: "TEST-SERIAL",
+            passed: true,
+            reportHash: toUint8Array(createHash(70)),
           })
-          .signers([fabricante])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected audit to fail from fabricante");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -751,16 +759,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("fabricante cannot perform software validation", async () => {
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
       try {
-        await program.methods
-          .validateSoftware("TEST-SERIAL", "Ubuntu 22.04", true)
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: configPda,
-            technician: fabricante.publicKey,
+        await client.scSolana.instructions
+          .validateSoftware({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(configPda),
+            technician: fabricanteSigner,
+            serialNumber: "TEST-SERIAL",
+            osVersion: "Ubuntu 22.04",
+            passed: true,
           })
-          .signers([fabricante])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected validation to fail from fabricante");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -768,16 +778,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("fabricante cannot assign to student", async () => {
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
       try {
-        await program.methods
-          .assignToStudent("TEST-SERIAL", createHash(80), createHash(90))
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: configPda,
-            school: fabricante.publicKey,
+        await client.scSolana.instructions
+          .assignToStudent({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(configPda),
+            school: fabricanteSigner,
+            serialNumber: "TEST-SERIAL",
+            studentIdHash: toUint8Array(createHash(80)),
+            schoolIdHash: toUint8Array(createHash(90)),
           })
-          .signers([fabricante])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected assignment to fail from fabricante");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -785,16 +797,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("auditor cannot perform software validation", async () => {
+      const auditorSigner = await createSignerFromKeyPair(auditor);
       try {
-        await program.methods
-          .validateSoftware("TEST-SERIAL", "Ubuntu 22.04", true)
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: configPda,
-            technician: auditor.publicKey,
+        await client.scSolana.instructions
+          .validateSoftware({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(configPda),
+            technician: auditorSigner,
+            serialNumber: "TEST-SERIAL",
+            osVersion: "Ubuntu 22.04",
+            passed: true,
           })
-          .signers([auditor])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected validation to fail from auditor");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -802,16 +816,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("auditor cannot assign to student", async () => {
+      const auditorSigner = await createSignerFromKeyPair(auditor);
       try {
-        await program.methods
-          .assignToStudent("TEST-SERIAL", createHash(81), createHash(91))
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: configPda,
-            school: auditor.publicKey,
+        await client.scSolana.instructions
+          .assignToStudent({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(configPda),
+            school: auditorSigner,
+            serialNumber: "TEST-SERIAL",
+            studentIdHash: toUint8Array(createHash(81)),
+            schoolIdHash: toUint8Array(createHash(91)),
           })
-          .signers([auditor])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected assignment to fail from auditor");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -819,16 +835,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("technician cannot perform hardware audit", async () => {
+      const technicianSigner = await createSignerFromKeyPair(technician);
       try {
-        await program.methods
-          .auditHardware("TEST-SERIAL", true, createHash(71))
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: configPda,
-            auditor: technician.publicKey,
+        await client.scSolana.instructions
+          .auditHardware({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(configPda),
+            auditor: technicianSigner,
+            serialNumber: "TEST-SERIAL",
+            passed: true,
+            reportHash: toUint8Array(createHash(71)),
           })
-          .signers([technician])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected audit to fail from technician");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -836,16 +854,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("technician cannot assign to student", async () => {
+      const technicianSigner = await createSignerFromKeyPair(technician);
       try {
-        await program.methods
-          .assignToStudent("TEST-SERIAL", createHash(82), createHash(92))
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: configPda,
-            school: technician.publicKey,
+        await client.scSolana.instructions
+          .assignToStudent({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(configPda),
+            school: technicianSigner,
+            serialNumber: "TEST-SERIAL",
+            studentIdHash: toUint8Array(createHash(82)),
+            schoolIdHash: toUint8Array(createHash(92)),
           })
-          .signers([technician])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected assignment to fail from technician");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -853,16 +873,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("school cannot perform hardware audit", async () => {
+      const schoolSigner = await createSignerFromKeyPair(school);
       try {
-        await program.methods
-          .auditHardware("TEST-SERIAL", true, createHash(72))
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: configPda,
-            auditor: school.publicKey,
+        await client.scSolana.instructions
+          .auditHardware({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(configPda),
+            auditor: schoolSigner,
+            serialNumber: "TEST-SERIAL",
+            passed: true,
+            reportHash: toUint8Array(createHash(72)),
           })
-          .signers([school])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected audit to fail from school");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -870,16 +892,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("school cannot perform software validation", async () => {
+      const schoolSigner = await createSignerFromKeyPair(school);
       try {
-        await program.methods
-          .validateSoftware("TEST-SERIAL", "Ubuntu 22.04", true)
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: configPda,
-            technician: school.publicKey,
+        await client.scSolana.instructions
+          .validateSoftware({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(configPda),
+            technician: schoolSigner,
+            serialNumber: "TEST-SERIAL",
+            osVersion: "Ubuntu 22.04",
+            passed: true,
           })
-          .signers([school])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected validation to fail from school");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -892,44 +916,41 @@ describe("Role Enforcement Boundary Tests", () => {
   // ========================================================================
 
   describe("Role Enforcement with Default Pubkey", () => {
-    let newConfigPda: PublicKey;
-    let newSerialHashPda: PublicKey;
+    let newConfigPda: string;
+    let newSerialHashPda: string;
 
     before(async () => {
       // Create a new config where auditor_hw is default (no auditor granted)
       const newAdmin = Keypair.generate();
-      await provider.connection.requestAirdrop(newAdmin.publicKey, 2 * LAMPORTS_PER_SOL);
+      await fundKeypair(client, newAdmin, 2 * LAMPORTS_PER_SOL);
 
-      [newConfigPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("config")],
-        program.programId
-      );
-      newSerialHashPda = getSerialHashRegistryPda(newConfigPda, program.programId);
+      newConfigPda = await getConfigPdaAddress();
+      newSerialHashPda = await getSerialHashRegistryPdaAddress(newConfigPda);
 
       // Initialize with admin as fabricante only
-      await program.methods
-        .initialize()
-        .accounts({
-          config: newConfigPda,
-          serialHashRegistry: newSerialHashPda,
-          admin: newAdmin.publicKey,
-          systemProgram: SystemProgram.programId,
+      const newAdminSigner = await createSignerFromKeyPair(newAdmin);
+      await client.scSolana.instructions
+        .initialize({
+          config: toAddress(newConfigPda),
+          serialHashRegistry: toAddress(newSerialHashPda),
+          admin: newAdminSigner,
         })
-        .signers([newAdmin])
-        .rpc();
+        .sendAndConfirm();
     });
 
     it("rejects hardware audit when no auditor_hw is set (default pubkey)", async () => {
+      const auditorSigner = await createSignerFromKeyPair(auditor);
       try {
-        await program.methods
-          .auditHardware("TEST-SERIAL", true, createHash(73))
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: newConfigPda,
-            auditor: auditor.publicKey,
+        await client.scSolana.instructions
+          .auditHardware({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(newConfigPda),
+            auditor: auditorSigner,
+            serialNumber: "TEST-SERIAL",
+            passed: true,
+            reportHash: toUint8Array(createHash(73)),
           })
-          .signers([auditor])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected audit to fail when no auditor_hw is set");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -937,16 +958,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects software validation when no tecnico_sw is set (default pubkey)", async () => {
+      const technicianSigner = await createSignerFromKeyPair(technician);
       try {
-        await program.methods
-          .validateSoftware("TEST-SERIAL", "Ubuntu 22.04", true)
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: newConfigPda,
-            technician: technician.publicKey,
+        await client.scSolana.instructions
+          .validateSoftware({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(newConfigPda),
+            technician: technicianSigner,
+            serialNumber: "TEST-SERIAL",
+            osVersion: "Ubuntu 22.04",
+            passed: true,
           })
-          .signers([technician])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected validation to fail when no tecnico_sw is set");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -954,16 +977,18 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects student assignment when no escuela is set (default pubkey)", async () => {
+      const schoolSigner = await createSignerFromKeyPair(school);
       try {
-        await program.methods
-          .assignToStudent("TEST-SERIAL", createHash(83), createHash(93))
-          .accounts({
-            netbook: getNetbookPda(1, program.programId),
-            config: newConfigPda,
-            school: school.publicKey,
+        await client.scSolana.instructions
+          .assignToStudent({
+            netbook: toAddress(await getNetbookPdaAddress(1)),
+            config: toAddress(newConfigPda),
+            school: schoolSigner,
+            serialNumber: "TEST-SERIAL",
+            studentIdHash: toUint8Array(createHash(83)),
+            schoolIdHash: toUint8Array(createHash(93)),
           })
-          .signers([school])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected assignment to fail when no escuela is set");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -981,25 +1006,21 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("allows anyone to query config without any role", async () => {
-      const sig = await program.methods
-        .queryConfig()
-        .accounts({
-          config: configPda,
-        })
-        .signers([])
-        .rpc();
+      const tx = await client.scSolana.instructions.queryConfig({
+        config: toAddress(configPda),
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
 
     it("allows anyone to query netbook state without any role", async () => {
       try {
-        const sig = await program.methods
-          .queryNetbookState("non-existent-serial")
-          .accounts({
-            netbook: getNetbookPda(99999, program.programId),
-          })
-          .signers([])
-          .rpc({ skipPreflight: true });
+        const netbookPda = await getNetbookPdaAddress(99999);
+        const tx = await client.scSolana.instructions.queryNetbookState({
+          netbook: toAddress(netbookPda),
+          serialNumber: "non-existent-serial",
+        });
+        await tx.sendAndConfirm({ skipPreflight: true });
         // May fail due to account not existing, but not due to role
         expect(true).to.be.true;
       } catch (error: any) {
@@ -1009,14 +1030,12 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("allows anyone to query role without any role", async () => {
-      const sig = await program.methods
-        .queryRole("FABRICANTE")
-        .accounts({
-          config: configPda,
-          accountToCheck: randomUser.publicKey,
-        })
-        .signers([])
-        .rpc();
+      const tx = await client.scSolana.instructions.queryRole({
+        config: toAddress(configPda),
+        accountToCheck: toAddress(randomUser.publicKey.toString()),
+        role: "FABRICANTE",
+      });
+      const sig = await tx.sendAndConfirm();
       expect(sig).to.not.be.null;
     });
   });
@@ -1030,38 +1049,38 @@ describe("Role Enforcement Boundary Tests", () => {
       await initializeConfig();
 
       // Grant roles
-      await program.methods
-        .grantRole("FABRICANTE")
-        .accounts({
-          config: configPda,
-          accountToGrant: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: fabricanteSigner,
+          role: "FABRICANTE",
         })
-        .signers([fabricante])
-        .rpc();
+        .sendAndConfirm();
 
-      await program.methods
-        .grantRole("AUDITOR_HW")
-        .accounts({
-          config: configPda,
-          accountToGrant: auditor.publicKey,
-          systemProgram: SystemProgram.programId,
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: auditorSigner,
+          role: "AUDITOR_HW",
         })
-        .signers([auditor])
-        .rpc();
+        .sendAndConfirm();
     });
 
     it("rejects operation with empty role string", async () => {
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .grantRole("")
-          .accounts({
-            config: configPda,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: randomUserSigner,
+            role: "",
           })
-          .signers([randomUser])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected grant role to fail with empty role");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -1069,16 +1088,16 @@ describe("Role Enforcement Boundary Tests", () => {
     });
 
     it("rejects operation with role containing special characters", async () => {
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .grantRole("FABRICANTE; DROP TABLE config;--")
-          .accounts({
-            config: configPda,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: randomUserSigner,
+            role: "FABRICANTE; DROP TABLE config;--",
           })
-          .signers([randomUser])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected grant role to fail with special characters");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -1087,16 +1106,16 @@ describe("Role Enforcement Boundary Tests", () => {
 
     it("rejects operation with role exceeding maximum length", async () => {
       const longRole = "A".repeat(1000);
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .grantRole(longRole)
-          .accounts({
-            config: configPda,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: randomUserSigner,
+            role: longRole,
           })
-          .signers([randomUser])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected grant role to fail with very long role");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -1107,19 +1126,19 @@ describe("Role Enforcement Boundary Tests", () => {
       // This tests that the has_one constraint in GrantRole is enforced
       // The admin must match config.admin
       const wrongAdmin = Keypair.generate();
-      await provider.connection.requestAirdrop(wrongAdmin.publicKey, 2 * LAMPORTS_PER_SOL);
+      await fundKeypair(client, wrongAdmin, 2 * LAMPORTS_PER_SOL);
 
+      const wrongAdminSigner = await createSignerFromKeyPair(wrongAdmin);
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .grantRole("FABRICANTE")
-          .accounts({
-            config: configPda,
-            admin: wrongAdmin.publicKey,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(wrongAdmin.publicKey.toString()),
+            accountToGrant: randomUserSigner,
+            role: "FABRICANTE",
           })
-          .signers([wrongAdmin, randomUser])
-          .rpc();
+          .sendAndConfirm();
         expect.fail("Expected grant role to fail with wrong admin");
       } catch (error: any) {
         expect(error).to.not.be.null;

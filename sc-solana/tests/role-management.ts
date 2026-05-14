@@ -1,6 +1,6 @@
 /**
  * Role Management Integration Tests
- * 
+ *
  * Tests for role management instructions covering:
  * - Grant role operations
  * - Request role operations
@@ -9,34 +9,30 @@
  * - Multiple role holders
  * - Role enforcement
  * - Error handling
+ *
+ * Migrated from @coral-xyz/anchor to Codama-generated client (Issue #209).
  */
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { ScSolana } from "../target/types/sc_solana";
 import {
   Keypair,
   LAMPORTS_PER_SOL,
-  SystemProgram,
-  PublicKey,
 } from "@solana/web3.js";
+import { createSignerFromKeyPair } from "@solana/kit";
+import { expect } from "chai";
+
 import {
-  getConfigPda,
-  getRoleRequestPda,
-  getAdminPda,
-  getRoleHolderByUserPda,
+  createTestClient,
+  getConfigPdaAddress,
+  getRoleRequestPdaAddress,
+  getAdminPdaAddress,
+  getRoleHolderByUserPdaAddress,
   fundKeypair,
   fundAndInitialize,
-  grantRoleWithAdminPda,
-  ensureAllFunds,
-  approveRoleRequestWithAdminPda,
+  toAddress,
+  toUint8Array,
   RequestStatus,
+  type TestClient,
 } from "./test-helpers";
-import {
-  isTestStateClean,
-  resetTestState,
-  logTestEnvironment,
-} from "./test-isolation";
 
 // Role constants (matching the program)
 const FABRICANTE_ROLE = "FABRICANTE";
@@ -45,11 +41,7 @@ const TECNICO_SW_ROLE = "TECNICO_SW";
 const ESCUELA_ROLE = "ESCUELA";
 
 describe("Role Management Integration Tests", () => {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
-  
-  // Load program from workspace or fall back to IDL-based loading
-  let program: Program<ScSolana>;
+  let client: TestClient;
 
   // Key accounts
   let admin: Keypair;
@@ -58,27 +50,11 @@ describe("Role Management Integration Tests", () => {
   let tecnico: Keypair;
   let escuela: Keypair;
   let randomUser: Keypair;
-  let configPda: PublicKey;
-  let adminPda: PublicKey;
-  let adminBump: number;
+  let configPda: string;
+  let adminPda: string;
 
   before(async () => {
-    // Load program
-    if (anchor.workspace.scSolana) {
-      program = anchor.workspace.scSolana as Program<ScSolana>;
-    } else {
-      const idl = require("../target/idl/sc_solana.json");
-      const programId = new anchor.web3.PublicKey("7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb");
-      // Recreate provider with the program IDL for manual test runs
-      const updatedProvider = new anchor.AnchorProvider(provider.connection, provider.wallet, {
-        commitment: provider.opts.commitment,
-        preflightCommitment: provider.opts.preflightCommitment,
-      });
-      anchor.setProvider(updatedProvider);
-      program = new anchor.Program({ ...idl, address: programId.toString() }, updatedProvider);
-    }
-
-    // Generate test accounts (each test needs fresh accounts for proper isolation)
+    // Generate test accounts
     admin = Keypair.generate();
     fabricante = Keypair.generate();
     auditor = Keypair.generate();
@@ -86,149 +62,157 @@ describe("Role Management Integration Tests", () => {
     escuela = Keypair.generate();
     randomUser = Keypair.generate();
 
-    // Check test state before initialization
-    const { clean, accountCount } = await isTestStateClean(
-      provider.connection,
-      program.programId
-    );
-
-    if (!clean) {
-      console.log(`[Role Management] Resetting test state: ${accountCount} accounts found`);
-      try {
-        await resetTestState(
-          provider,
-          [admin, fabricante, auditor, tecnico, escuela, randomUser],
-          5
-        );
-      } catch (e: any) {
-        console.warn("[Role Management] State reset failed (continuing anyway):", e.message);
-      }
-    }
+    // Create client
+    client = await createTestClient("http://localhost:8899", admin);
 
     // Fund all accounts with sufficient balance for all operations
-    for (const kp of [admin, fabricante, auditor, tecnico, escuela, randomUser]) {
-      await fundKeypair(provider, kp, 2);
-    }
+    await fundKeypair(client, fabricante, 5 * LAMPORTS_PER_SOL);
+    await fundKeypair(client, auditor, 5 * LAMPORTS_PER_SOL);
+    await fundKeypair(client, tecnico, 5 * LAMPORTS_PER_SOL);
+    await fundKeypair(client, escuela, 5 * LAMPORTS_PER_SOL);
+    await fundKeypair(client, randomUser, 5 * LAMPORTS_PER_SOL);
 
-    configPda = (await getConfigPda(program))[0];
-    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
+    configPda = await getConfigPdaAddress();
+    adminPda = await getAdminPdaAddress(toAddress(configPda));
 
     // Initialize using shared initialization (Issue #178)
-    // Use force=true to ensure fresh state for test isolation
-    await fundAndInitialize(program, provider, admin, { force: true });
-
-    // Ensure ALL accounts have sufficient funds for operations like requestRole
-    // requestRole needs ~0.003 SOL for rent, but we give 5 SOL for safety
-    await ensureAllFunds(provider, [admin, fabricante, auditor, tecnico, escuela, randomUser], 5);
+    await fundAndInitialize(client, admin);
   });
 
   describe("Grant Role Operations", () => {
     it("grants FABRICANTE role to account", async () => {
-      await grantRoleWithAdminPda(
-        program, provider, configPda, adminPda, adminBump,
-        FABRICANTE_ROLE, fabricante.publicKey, fabricante
-      );
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: fabricanteSigner,
+          role: FABRICANTE_ROLE,
+        })
+        .sendAndConfirm();
 
       // Verify role was granted
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.fabricante.toString().should.equal(fabricante.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.fabricante.toString()).to.equal(fabricante.publicKey.toString());
     });
 
     it("grants AUDITOR_HW role to account", async () => {
-      await grantRoleWithAdminPda(
-        program, provider, configPda, adminPda, adminBump,
-        AUDITOR_HW_ROLE, auditor.publicKey, auditor
-      );
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: auditorSigner,
+          role: AUDITOR_HW_ROLE,
+        })
+        .sendAndConfirm();
 
       // Verify role was granted
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.auditorHw.toString().should.equal(auditor.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.auditorHw.toString()).to.equal(auditor.publicKey.toString());
     });
 
     it("grants TECNICO_SW role to account", async () => {
-      await grantRoleWithAdminPda(
-        program, provider, configPda, adminPda, adminBump,
-        TECNICO_SW_ROLE, tecnico.publicKey, tecnico
-      );
+      const tecnicoSigner = await createSignerFromKeyPair(tecnico);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: tecnicoSigner,
+          role: TECNICO_SW_ROLE,
+        })
+        .sendAndConfirm();
 
       // Verify role was granted
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.tecnicoSw.toString().should.equal(tecnico.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.tecnicoSw.toString()).to.equal(tecnico.publicKey.toString());
     });
 
     it("grants ESCUELA role to account", async () => {
-      await grantRoleWithAdminPda(
-        program, provider, configPda, adminPda, adminBump,
-        ESCUELA_ROLE, escuela.publicKey, escuela
-      );
+      const escuelaSigner = await createSignerFromKeyPair(escuela);
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: escuelaSigner,
+          role: ESCUELA_ROLE,
+        })
+        .sendAndConfirm();
 
       // Verify role was granted
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.escuela.toString().should.equal(escuela.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.escuela.toString()).to.equal(escuela.publicKey.toString());
     });
 
     it("returns error when granting same role twice", async () => {
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
       try {
-        await program.methods
-          .grantRole(FABRICANTE_ROLE)
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            accountToGrant: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: fabricanteSigner,
+            role: FABRICANTE_ROLE,
           })
-          .signers([fabricante])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("RoleAlreadyGranted");
+        expect(error.message).to.include("RoleAlreadyGranted");
       }
     });
 
     it("returns error when granting invalid role name", async () => {
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await grantRoleWithAdminPda(
-          program, provider, configPda, adminPda, adminBump,
-          "INVALID_ROLE", randomUser.publicKey, randomUser
-        );
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: randomUserSigner,
+            role: "INVALID_ROLE",
+          })
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("RoleNotFound");
+        expect(error.message).to.include("RoleNotFound");
       }
     });
 
     it("cannot grant role as non-admin", async () => {
+      const auditorSigner = await createSignerFromKeyPair(auditor);
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .grantRole(AUDITOR_HW_ROLE)
-          .accounts({
-            config: configPda,
-            admin: auditor.publicKey,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(auditor.publicKey.toString()),
+            accountToGrant: randomUserSigner,
+            role: AUDITOR_HW_ROLE,
           })
-          .signers([auditor, randomUser])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("Unauthorized") || msg.includes("HasOne")
+        expect(error.message).to.satisfy(
+          (msg: string) => msg.includes("Unauthorized") || msg.includes("HasOne")
         );
       }
     });
 
     it("cannot grant role without account_to_grant signing", async () => {
+      const wrongSigner = await createSignerFromKeyPair(Keypair.generate());
       try {
-        await grantRoleWithAdminPda(
-          program, provider, configPda, adminPda, adminBump,
-          TECNICO_SW_ROLE, randomUser.publicKey, Keypair.generate()
-        );
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: toAddress(randomUser.publicKey.toString()),
+            role: TECNICO_SW_ROLE,
+          })
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("Signature") || msg.includes("invalid signer")
+        expect(error.message).to.satisfy(
+          (msg: string) => msg.includes("Signature") || msg.includes("invalid signer")
         );
       }
     });
@@ -236,234 +220,242 @@ describe("Role Management Integration Tests", () => {
 
   describe("Request Role Operations", () => {
     it("requests TECNICO_SW role via PDA", async () => {
-      const roleRequestPda = getRoleRequestPda(tecnico.publicKey, program.programId);
-      
-      const tx = await program.methods
-        .requestRole(TECNICO_SW_ROLE)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: tecnico.publicKey,
-          systemProgram: SystemProgram.programId,
+      const roleRequestPda = await getRoleRequestPdaAddress(toAddress(tecnico.publicKey.toString()));
+      const tecnicoSigner = await createSignerFromKeyPair(tecnico);
+
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: tecnicoSigner,
+          role: TECNICO_SW_ROLE,
         })
-        .signers([tecnico])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify role request was created
-      const roleRequest = await program.account.roleRequest.fetch(roleRequestPda);
-      roleRequest.status.should.equal(RequestStatus.Pending);
-      roleRequest.user.toString().should.equal(tecnico.publicKey.toString());
-      roleRequest.role.should.equal(TECNICO_SW_ROLE);
+      const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
+      expect(roleRequest.status).to.equal(RequestStatus.Pending);
+      expect(roleRequest.user.toString()).to.equal(tecnico.publicKey.toString());
+      expect(roleRequest.role).to.equal(TECNICO_SW_ROLE);
     });
 
     it("requests ESCUELA role via PDA", async () => {
-      const roleRequestPda = getRoleRequestPda(escuela.publicKey, program.programId);
-      
-      const tx = await program.methods
-        .requestRole(ESCUELA_ROLE)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: escuela.publicKey,
-          systemProgram: SystemProgram.programId,
+      const roleRequestPda = await getRoleRequestPdaAddress(toAddress(escuela.publicKey.toString()));
+      const escuelaSigner = await createSignerFromKeyPair(escuela);
+
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: escuelaSigner,
+          role: ESCUELA_ROLE,
         })
-        .signers([escuela])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify role request was created
-      const roleRequest = await program.account.roleRequest.fetch(roleRequestPda);
-      roleRequest.status.should.equal(RequestStatus.Pending);
-      roleRequest.user.toString().should.equal(escuela.publicKey.toString());
-      roleRequest.role.should.equal(ESCUELA_ROLE);
+      const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
+      expect(roleRequest.status).to.equal(RequestStatus.Pending);
+      expect(roleRequest.user.toString()).to.equal(escuela.publicKey.toString());
+      expect(roleRequest.role).to.equal(ESCUELA_ROLE);
     });
 
     it("cannot request same role twice", async () => {
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(randomUser.publicKey.toString())
+      );
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
+
+      // First request
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: randomUserSigner,
+          role: FABRICANTE_ROLE,
+        })
+        .sendAndConfirm();
+
+      // Second request should fail
       try {
-        const roleRequestPda = getRoleRequestPda(randomUser.publicKey, program.programId);
-        
-        // First request should fail because randomUser has no role yet
-        // But if we try to request again, it should fail
-        await program.methods
-          .requestRole(FABRICANTE_ROLE)
-          .accounts({
-            config: configPda,
-            roleRequest: roleRequestPda,
-            user: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .requestRole({
+            config: toAddress(configPda),
+            roleRequest: toAddress(roleRequestPda),
+            user: randomUserSigner,
+            role: FABRICANTE_ROLE,
           })
-          .signers([randomUser])
-          .rpc();
-
-        // If first succeeded, second should fail
-        const roleRequestPda2 = getRoleRequestPda(randomUser.publicKey, program.programId);
-        await program.methods
-          .requestRole(FABRICANTE_ROLE)
-          .accounts({
-            config: configPda,
-            roleRequest: roleRequestPda2,
-            user: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([randomUser])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("RoleAlreadyGranted") || msg.includes("InvalidInput")
+        expect(error.message).to.satisfy(
+          (msg: string) => msg.includes("RoleAlreadyGranted") || msg.includes("InvalidInput")
         );
       }
     });
 
     it("creates unique PDA for each user request", async () => {
-      const tecnicoRequestPda = getRoleRequestPda(tecnico.publicKey, program.programId);
-      const escuelaRequestPda = getRoleRequestPda(escuela.publicKey, program.programId);
-      
-      tecnicoRequestPda.toString().should.not.equal(escuelaRequestPda.toString());
+      const tecnicoRequestPda = await getRoleRequestPdaAddress(
+        toAddress(tecnico.publicKey.toString())
+      );
+      const escuelaRequestPda = await getRoleRequestPdaAddress(
+        toAddress(escuela.publicKey.toString())
+      );
+
+      expect(tecnicoRequestPda.toString()).to.not.equal(escuelaRequestPda.toString());
     });
   });
 
   describe("Approve Role Request Operations", () => {
     it("approves TECNICO_SW role request", async () => {
-      const roleRequestPda = getRoleRequestPda(tecnico.publicKey, program.programId);
-      
-      const roleHolderPda = getRoleHolderByUserPda(tecnico.publicKey, program.programId);
-      const tx = await (program.methods as any)
-        .approveRoleRequest()
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          payer: admin.publicKey,
-          roleRequest: roleRequestPda,
-          roleHolder: roleHolderPda,
-          systemProgram: SystemProgram.programId,
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(tecnico.publicKey.toString())
+      );
+      const roleHolderPda = await getRoleHolderByUserPdaAddress(
+        toAddress(tecnico.publicKey.toString())
+      );
+      const adminSigner = await createSignerFromKeyPair(admin);
+
+      await client.scSolana.instructions
+        .approveRoleRequest({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          payer: adminSigner,
+          roleRequest: toAddress(roleRequestPda),
+          roleHolder: toAddress(roleHolderPda),
         })
-        .signers([admin])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify role request was approved
-      const roleRequest = await program.account.roleRequest.fetch(roleRequestPda);
-      roleRequest.status.should.equal(RequestStatus.Approved);
+      const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
+      expect(roleRequest.status).to.equal(RequestStatus.Approved);
 
       // Verify config was updated
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.tecnicoSw.toString().should.equal(tecnico.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.tecnicoSw.toString()).to.equal(tecnico.publicKey.toString());
     });
 
     it("approves ESCUELA role request", async () => {
-      const roleRequestPda = getRoleRequestPda(escuela.publicKey, program.programId);
-      
-      const roleHolderPda2 = getRoleHolderByUserPda(escuela.publicKey, program.programId);
-      const tx = await (program.methods as any)
-        .approveRoleRequest()
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          payer: admin.publicKey,
-          roleRequest: roleRequestPda,
-          roleHolder: roleHolderPda2,
-          systemProgram: SystemProgram.programId,
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(escuela.publicKey.toString())
+      );
+      const roleHolderPda = await getRoleHolderByUserPdaAddress(
+        toAddress(escuela.publicKey.toString())
+      );
+      const adminSigner = await createSignerFromKeyPair(admin);
+
+      await client.scSolana.instructions
+        .approveRoleRequest({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          payer: adminSigner,
+          roleRequest: toAddress(roleRequestPda),
+          roleHolder: toAddress(roleHolderPda),
         })
-        .signers([admin])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify role request was approved
-      const roleRequest = await program.account.roleRequest.fetch(roleRequestPda);
-      roleRequest.status.should.equal(RequestStatus.Approved);
+      const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
+      expect(roleRequest.status).to.equal(RequestStatus.Approved);
 
       // Verify config was updated
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.escuela.toString().should.equal(escuela.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.escuela.toString()).to.equal(escuela.publicKey.toString());
     });
 
     it("cannot approve already approved request", async () => {
-      const roleRequestPda = getRoleRequestPda(tecnico.publicKey, program.programId);
-      
-      try {
-        const techRoleHolder = getRoleHolderByUserPda(tecnico.publicKey, program.programId);
-        await (program.methods as any)
-          .approveRoleRequest()
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            payer: admin.publicKey,
-            roleRequest: roleRequestPda,
-            roleHolder: techRoleHolder,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([admin])
-          .rpc();
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(tecnico.publicKey.toString())
+      );
+      const roleHolderPda = await getRoleHolderByUserPdaAddress(
+        toAddress(tecnico.publicKey.toString())
+      );
+      const adminSigner = await createSignerFromKeyPair(admin);
 
+      try {
+        await client.scSolana.instructions
+          .approveRoleRequest({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            payer: adminSigner,
+            roleRequest: toAddress(roleRequestPda),
+            roleHolder: toAddress(roleHolderPda),
+          })
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("InvalidRequestState") || msg.includes("RoleAlreadyGranted") || msg.includes("InvalidInput")
+        expect(error.message).to.satisfy(
+          (msg: string) =>
+            msg.includes("InvalidRequestState") ||
+            msg.includes("RoleAlreadyGranted") ||
+            msg.includes("InvalidInput")
         );
       }
     });
 
     it("cannot approve non-existent role request", async () => {
       const nonExistentUser = Keypair.generate();
-      const roleRequestPda = getRoleRequestPda(nonExistentUser.publicKey, program.programId);
-      
-      try {
-        const nonExistentRoleHolder = getRoleHolderByUserPda(nonExistentUser.publicKey, program.programId);
-        await (program.methods as any)
-          .approveRoleRequest()
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            payer: admin.publicKey,
-            roleRequest: roleRequestPda,
-            roleHolder: nonExistentRoleHolder,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([admin])
-          .rpc();
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(nonExistentUser.publicKey.toString())
+      );
+      const roleHolderPda = await getRoleHolderByUserPdaAddress(
+        toAddress(nonExistentUser.publicKey.toString())
+      );
+      const adminSigner = await createSignerFromKeyPair(admin);
 
+      try {
+        await client.scSolana.instructions
+          .approveRoleRequest({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            payer: adminSigner,
+            roleRequest: toAddress(roleRequestPda),
+            roleHolder: toAddress(roleHolderPda),
+          })
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("AccountNotInitialized") || msg.includes("InvalidInput")
+        expect(error.message).to.satisfy(
+          (msg: string) =>
+            msg.includes("AccountNotInitialized") || msg.includes("InvalidInput")
         );
       }
     });
 
     it("cannot approve role request as non-admin", async () => {
       const nonAdmin = Keypair.generate();
-      const roleRequestPda = getRoleRequestPda(nonAdmin.publicKey, program.programId);
-      
+      await fundKeypair(client, nonAdmin, 2 * LAMPORTS_PER_SOL);
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(nonAdmin.publicKey.toString())
+      );
+      const nonAdminSigner = await createSignerFromKeyPair(nonAdmin);
+
       // First create a request
-      await program.methods
-        .requestRole(FABRICANTE_ROLE)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: nonAdmin.publicKey,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: nonAdminSigner,
+          role: FABRICANTE_ROLE,
         })
-        .signers([nonAdmin])
-        .rpc();
+        .sendAndConfirm();
 
+      const roleHolderPda = await getRoleHolderByUserPdaAddress(
+        toAddress(nonAdmin.publicKey.toString())
+      );
       try {
-        const nonAdminRoleHolder = getRoleHolderByUserPda(nonAdmin.publicKey, program.programId);
-        await (program.methods as any)
-          .approveRoleRequest()
-          .accounts({
-            config: configPda,
-            admin: nonAdmin.publicKey,
-            payer: nonAdmin.publicKey,
-            roleRequest: roleRequestPda,
-            roleHolder: nonAdminRoleHolder,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .approveRoleRequest({
+            config: toAddress(configPda),
+            admin: toAddress(nonAdmin.publicKey.toString()),
+            payer: nonAdminSigner,
+            roleRequest: toAddress(roleRequestPda),
+            roleHolder: toAddress(roleHolderPda),
           })
-          .signers([nonAdmin])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("Unauthorized") || msg.includes("HasOne")
+        expect(error.message).to.satisfy(
+          (msg: string) => msg.includes("Unauthorized") || msg.includes("HasOne")
         );
       }
     });
@@ -472,113 +464,112 @@ describe("Role Management Integration Tests", () => {
   describe("Reject Role Request Operations", () => {
     it("rejects a role request", async () => {
       const rejectUser = Keypair.generate();
-      const roleRequestPda = getRoleRequestPda(rejectUser.publicKey, program.programId);
-      
+      await fundKeypair(client, rejectUser, 2 * LAMPORTS_PER_SOL);
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(rejectUser.publicKey.toString())
+      );
+      const rejectUserSigner = await createSignerFromKeyPair(rejectUser);
+
       // First create a role request
-      await program.methods
-        .requestRole(TECNICO_SW_ROLE)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: rejectUser.publicKey,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: rejectUserSigner,
+          role: TECNICO_SW_ROLE,
         })
-        .signers([rejectUser])
-        .rpc();
+        .sendAndConfirm();
 
       // Now reject it
-      const tx = await program.methods
-        .rejectRoleRequest()
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          roleRequest: roleRequestPda,
+      await client.scSolana.instructions
+        .rejectRoleRequest({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          roleRequest: toAddress(roleRequestPda),
         })
-        .signers([])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify role request was rejected
-      const roleRequest = await program.account.roleRequest.fetch(roleRequestPda);
-      roleRequest.status.should.equal(RequestStatus.Rejected);
+      const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
+      expect(roleRequest.status).to.equal(RequestStatus.Rejected);
     });
 
     it("cannot reject already rejected request", async () => {
       const rejectUser = Keypair.generate();
-      const roleRequestPda = getRoleRequestPda(rejectUser.publicKey, program.programId);
-      
-      // Create and reject
-      await program.methods
-        .requestRole(TECNICO_SW_ROLE)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: rejectUser.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([rejectUser])
-        .rpc();
+      await fundKeypair(client, rejectUser, 2 * LAMPORTS_PER_SOL);
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(rejectUser.publicKey.toString())
+      );
+      const rejectUserSigner = await createSignerFromKeyPair(rejectUser);
 
-      await program.methods
-        .rejectRoleRequest()
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          roleRequest: roleRequestPda,
+      // Create and reject
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: rejectUserSigner,
+          role: TECNICO_SW_ROLE,
         })
-        .signers([])
-        .rpc();
+        .sendAndConfirm();
+
+      await client.scSolana.instructions
+        .rejectRoleRequest({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          roleRequest: toAddress(roleRequestPda),
+        })
+        .sendAndConfirm();
 
       // Try to reject again
       try {
-        await program.methods
-          .rejectRoleRequest()
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            roleRequest: roleRequestPda,
+        await client.scSolana.instructions
+          .rejectRoleRequest({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            roleRequest: toAddress(roleRequestPda),
           })
-          .signers([])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("InvalidRequestState") || msg.includes("InvalidInput") || msg.includes("RoleRequest")
+        expect(error.message).to.satisfy(
+          (msg: string) =>
+            msg.includes("InvalidRequestState") ||
+            msg.includes("InvalidInput") ||
+            msg.includes("RoleRequest")
         );
       }
     });
 
     it("cannot reject role request as non-admin", async () => {
       const rejectUser = Keypair.generate();
-      const roleRequestPda = getRoleRequestPda(rejectUser.publicKey, program.programId);
-      
+      await fundKeypair(client, rejectUser, 2 * LAMPORTS_PER_SOL);
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(rejectUser.publicKey.toString())
+      );
+      const rejectUserSigner = await createSignerFromKeyPair(rejectUser);
+
       // Create a request
-      await program.methods
-        .requestRole(TECNICO_SW_ROLE)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: rejectUser.publicKey,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: rejectUserSigner,
+          role: TECNICO_SW_ROLE,
         })
-        .signers([rejectUser])
-        .rpc();
+        .sendAndConfirm();
 
       try {
-        await program.methods
-          .rejectRoleRequest()
-          .accounts({
-            config: configPda,
-            admin: rejectUser.publicKey,
-            roleRequest: roleRequestPda,
+        await client.scSolana.instructions
+          .rejectRoleRequest({
+            config: toAddress(configPda),
+            admin: toAddress(rejectUser.publicKey.toString()),
+            roleRequest: toAddress(roleRequestPda),
           })
-          .signers([rejectUser])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("Unauthorized") || msg.includes("HasOne")
+        expect(error.message).to.satisfy(
+          (msg: string) => msg.includes("Unauthorized") || msg.includes("HasOne")
         );
       }
     });
@@ -587,70 +578,70 @@ describe("Role Management Integration Tests", () => {
   describe("Role Enforcement", () => {
     it("unauthorized user cannot grant roles", async () => {
       const unauthorized = Keypair.generate();
-      
-      try {
-        await program.methods
-          .grantRole(FABRICANTE_ROLE)
-          .accounts({
-            config: configPda,
-            admin: unauthorized.publicKey,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([unauthorized, randomUser])
-          .rpc();
+      await fundKeypair(client, unauthorized, 2 * LAMPORTS_PER_SOL);
+      const unauthorizedSigner = await createSignerFromKeyPair(unauthorized);
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
 
+      try {
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(unauthorized.publicKey.toString()),
+            accountToGrant: randomUserSigner,
+            role: FABRICANTE_ROLE,
+          })
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("Unauthorized") || msg.includes("HasOne")
+        expect(error.message).to.satisfy(
+          (msg: string) => msg.includes("Unauthorized") || msg.includes("HasOne")
         );
       }
     });
 
     it("unauthorized user cannot approve role requests", async () => {
       const unauthorized = Keypair.generate();
-      const roleRequestPda = getRoleRequestPda(unauthorized.publicKey, program.programId);
-      
+      await fundKeypair(client, unauthorized, 2 * LAMPORTS_PER_SOL);
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(unauthorized.publicKey.toString())
+      );
+      const unauthorizedSigner = await createSignerFromKeyPair(unauthorized);
+
       // Create a request
-      await program.methods
-        .requestRole(TECNICO_SW_ROLE)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: unauthorized.publicKey,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: unauthorizedSigner,
+          role: TECNICO_SW_ROLE,
         })
-        .signers([unauthorized])
-        .rpc();
+        .sendAndConfirm();
 
+      const roleHolderPda = await getRoleHolderByUserPdaAddress(
+        toAddress(unauthorized.publicKey.toString())
+      );
       try {
-        const unauthRoleHolder = getRoleHolderByUserPda(unauthorized.publicKey, program.programId);
-        await (program.methods as any)
-          .approveRoleRequest()
-          .accounts({
-            config: configPda,
-            admin: unauthorized.publicKey,
-            payer: unauthorized.publicKey,
-            roleRequest: roleRequestPda,
-            roleHolder: unauthRoleHolder,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .approveRoleRequest({
+            config: toAddress(configPda),
+            admin: toAddress(unauthorized.publicKey.toString()),
+            payer: unauthorizedSigner,
+            roleRequest: toAddress(roleRequestPda),
+            roleHolder: toAddress(roleHolderPda),
           })
-          .signers([unauthorized])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("Unauthorized") || msg.includes("HasOne")
+        expect(error.message).to.satisfy(
+          (msg: string) => msg.includes("Unauthorized") || msg.includes("HasOne")
         );
       }
     });
 
     it("role holder can use granted role", async () => {
       // Fabricante should already have FABRICANTE role
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.fabricante.toString().should.equal(fabricante.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.fabricante.toString()).to.equal(fabricante.publicKey.toString());
     });
   });
 
@@ -658,243 +649,242 @@ describe("Role Management Integration Tests", () => {
     it("can hold multiple roles simultaneously", async () => {
       // Create a user that will hold multiple roles
       const multiRoleUser = Keypair.generate();
-      
-      // Grant multiple roles to the same user
-      await program.methods
-        .grantRole(AUDITOR_HW_ROLE)
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          accountToGrant: multiRoleUser.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([multiRoleUser])
-        .rpc();
+      await fundKeypair(client, multiRoleUser, 2 * LAMPORTS_PER_SOL);
+      const multiRoleSigner = await createSignerFromKeyPair(multiRoleUser);
 
-      await program.methods
-        .grantRole(TECNICO_SW_ROLE)
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          accountToGrant: multiRoleUser.publicKey,
-          systemProgram: SystemProgram.programId,
+      // Grant multiple roles to the same user
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: multiRoleSigner,
+          role: AUDITOR_HW_ROLE,
         })
-        .signers([multiRoleUser])
-        .rpc();
+        .sendAndConfirm();
+
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: multiRoleSigner,
+          role: TECNICO_SW_ROLE,
+        })
+        .sendAndConfirm();
 
       // Verify both roles are granted
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.auditorHw.toString().should.equal(multiRoleUser.publicKey.toString());
-      config.tecnicoSw.toString().should.equal(multiRoleUser.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.auditorHw.toString()).to.equal(multiRoleUser.publicKey.toString());
+      expect(config.tecnicoSw.toString()).to.equal(multiRoleUser.publicKey.toString());
     });
 
     it("can grant different roles to different users", async () => {
       const user1 = Keypair.generate();
       const user2 = Keypair.generate();
       const user3 = Keypair.generate();
+      await fundKeypair(client, user1, 2 * LAMPORTS_PER_SOL);
+      await fundKeypair(client, user2, 2 * LAMPORTS_PER_SOL);
+      await fundKeypair(client, user3, 2 * LAMPORTS_PER_SOL);
+
+      const user1Signer = await createSignerFromKeyPair(user1);
+      const user2Signer = await createSignerFromKeyPair(user2);
+      const user3Signer = await createSignerFromKeyPair(user3);
 
       // Grant different roles
-      await program.methods
-        .grantRole(AUDITOR_HW_ROLE)
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          accountToGrant: user1.publicKey,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: user1Signer,
+          role: AUDITOR_HW_ROLE,
         })
-        .signers([user1])
-        .rpc();
+        .sendAndConfirm();
 
-      await program.methods
-        .grantRole(TECNICO_SW_ROLE)
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          accountToGrant: user2.publicKey,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: user2Signer,
+          role: TECNICO_SW_ROLE,
         })
-        .signers([user2])
-        .rpc();
+        .sendAndConfirm();
 
-      await program.methods
-        .grantRole(ESCUELA_ROLE)
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          accountToGrant: user3.publicKey,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .grantRole({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          accountToGrant: user3Signer,
+          role: ESCUELA_ROLE,
         })
-        .signers([user3])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify all roles are granted to correct users
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.auditorHw.toString().should.equal(user1.publicKey.toString());
-      config.tecnicoSw.toString().should.equal(user2.publicKey.toString());
-      config.escuela.toString().should.equal(user3.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.auditorHw.toString()).to.equal(user1.publicKey.toString());
+      expect(config.tecnicoSw.toString()).to.equal(user2.publicKey.toString());
+      expect(config.escuela.toString()).to.equal(user3.publicKey.toString());
     });
   });
 
   describe("Role Request Lifecycle", () => {
     it("completes full role request lifecycle: request -> approve", async () => {
       const lifecycleUser = Keypair.generate();
-      const roleRequestPda = getRoleRequestPda(lifecycleUser.publicKey, program.programId);
+      await fundKeypair(client, lifecycleUser, 2 * LAMPORTS_PER_SOL);
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(lifecycleUser.publicKey.toString())
+      );
+      const lifecycleUserSigner = await createSignerFromKeyPair(lifecycleUser);
 
       // Step 1: Request role
-      await program.methods
-        .requestRole(ESCUELA_ROLE)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: lifecycleUser.publicKey,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: lifecycleUserSigner,
+          role: ESCUELA_ROLE,
         })
-        .signers([lifecycleUser])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify pending status
-      let roleRequest = await program.account.roleRequest.fetch(roleRequestPda);
-      roleRequest.status.should.equal(RequestStatus.Pending);
+      let roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
+      expect(roleRequest.status).to.equal(RequestStatus.Pending);
 
       // Step 2: Admin approves
-      const lifecycleRoleHolder = getRoleHolderByUserPda(lifecycleUser.publicKey, program.programId);
-      await (program.methods as any)
-        .approveRoleRequest()
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          payer: admin.publicKey,
-          roleRequest: roleRequestPda,
-          roleHolder: lifecycleRoleHolder,
-          systemProgram: SystemProgram.programId,
+      const roleHolderPda = await getRoleHolderByUserPdaAddress(
+        toAddress(lifecycleUser.publicKey.toString())
+      );
+      const adminSigner = await createSignerFromKeyPair(admin);
+
+      await client.scSolana.instructions
+        .approveRoleRequest({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          payer: adminSigner,
+          roleRequest: toAddress(roleRequestPda),
+          roleHolder: toAddress(roleHolderPda),
         })
-        .signers([admin])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify approved status and config update
-      roleRequest = await program.account.roleRequest.fetch(roleRequestPda);
-      roleRequest.status.should.equal(RequestStatus.Approved);
+      roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
+      expect(roleRequest.status).to.equal(RequestStatus.Approved);
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      config.escuela.toString().should.equal(lifecycleUser.publicKey.toString());
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(config.escuela.toString()).to.equal(lifecycleUser.publicKey.toString());
     });
 
     it("completes full role request lifecycle: request -> reject", async () => {
       const lifecycleUser = Keypair.generate();
-      const roleRequestPda = getRoleRequestPda(lifecycleUser.publicKey, program.programId);
+      await fundKeypair(client, lifecycleUser, 2 * LAMPORTS_PER_SOL);
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(lifecycleUser.publicKey.toString())
+      );
+      const lifecycleUserSigner = await createSignerFromKeyPair(lifecycleUser);
 
       // Step 1: Request role
-      await program.methods
-        .requestRole(FABRICANTE_ROLE)
-        .accounts({
-          config: configPda,
-          roleRequest: roleRequestPda,
-          user: lifecycleUser.publicKey,
-          systemProgram: SystemProgram.programId,
+      await client.scSolana.instructions
+        .requestRole({
+          config: toAddress(configPda),
+          roleRequest: toAddress(roleRequestPda),
+          user: lifecycleUserSigner,
+          role: FABRICANTE_ROLE,
         })
-        .signers([lifecycleUser])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify pending status
-      let roleRequest = await program.account.roleRequest.fetch(roleRequestPda);
-      roleRequest.status.should.equal(RequestStatus.Pending);
+      let roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
+      expect(roleRequest.status).to.equal(RequestStatus.Pending);
 
       // Step 2: Admin rejects
-      await program.methods
-        .rejectRoleRequest()
-        .accounts({
-          config: configPda,
-          admin: adminPda,
-          roleRequest: roleRequestPda,
+      await client.scSolana.instructions
+        .rejectRoleRequest({
+          config: toAddress(configPda),
+          admin: toAddress(adminPda),
+          roleRequest: toAddress(roleRequestPda),
         })
-        .signers([])
-        .rpc();
+        .sendAndConfirm();
 
       // Verify rejected status
-      roleRequest = await program.account.roleRequest.fetch(roleRequestPda);
-      roleRequest.status.should.equal(RequestStatus.Rejected);
+      roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
+      expect(roleRequest.status).to.equal(RequestStatus.Rejected);
     });
   });
 
   describe("Error Handling", () => {
     it("handles role not found error for invalid role string", async () => {
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .grantRole("NOT_A_VALID_ROLE")
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: randomUserSigner,
+            role: "NOT_A_VALID_ROLE",
           })
-          .signers([randomUser])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("RoleNotFound");
+        expect(error.message).to.include("RoleNotFound");
       }
     });
 
     it("handles role already granted error", async () => {
       // Try to grant a role that's already granted
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+
       if (!config.fabricante.equals(fabricante.publicKey)) {
         // Grant first
-        await program.methods
-          .grantRole(FABRICANTE_ROLE)
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            accountToGrant: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
+        const fabricanteSigner = await createSignerFromKeyPair(fabricante);
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: fabricanteSigner,
+            role: FABRICANTE_ROLE,
           })
-          .signers([fabricante])
-          .rpc();
+          .sendAndConfirm();
       }
 
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
       try {
-        await program.methods
-          .grantRole(FABRICANTE_ROLE)
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            accountToGrant: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: fabricanteSigner,
+            role: FABRICANTE_ROLE,
           })
-          .signers([fabricante])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("RoleAlreadyGranted");
+        expect(error.message).to.include("RoleAlreadyGranted");
       }
     });
 
     it("handles account not initialized for non-existent role request", async () => {
       const nonExistent = Keypair.generate();
-      const roleRequestPda = getRoleRequestPda(nonExistent.publicKey, program.programId);
-      
-      try {
-        const nonExRoleHolder = getRoleHolderByUserPda(nonExistent.publicKey, program.programId);
-        await (program.methods as any)
-          .approveRoleRequest()
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            payer: admin.publicKey,
-            roleRequest: roleRequestPda,
-            roleHolder: nonExRoleHolder,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([admin])
-          .rpc();
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(nonExistent.publicKey.toString())
+      );
+      const roleHolderPda = await getRoleHolderByUserPdaAddress(
+        toAddress(nonExistent.publicKey.toString())
+      );
+      const adminSigner = await createSignerFromKeyPair(admin);
 
+      try {
+        await client.scSolana.instructions
+          .approveRoleRequest({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            payer: adminSigner,
+            roleRequest: toAddress(roleRequestPda),
+            roleHolder: toAddress(roleHolderPda),
+          })
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("AccountNotInitialized") || msg.includes("InvalidInput")
+        expect(error.message).to.satisfy(
+          (msg: string) =>
+            msg.includes("AccountNotInitialized") || msg.includes("InvalidInput")
         );
       }
     });
@@ -902,48 +892,48 @@ describe("Role Management Integration Tests", () => {
 
   describe("Config State Verification", () => {
     it("verifies all role fields in config after operations", async () => {
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+
       // Verify role fields are public keys
-      config.admin.toString().should.not.be.empty;
-      config.fabricante.toString().should.not.be.empty;
-      config.auditorHw.toString().should.not.be.empty;
-      config.tecnicoSw.toString().should.not.be.empty;
-      config.escuela.toString().should.not.be.empty;
+      expect(config.admin.toString()).to.not.be.empty;
+      expect(config.fabricante.toString()).to.not.be.empty;
+      expect(config.auditorHw.toString()).to.not.be.empty;
+      expect(config.tecnicoSw.toString()).to.not.be.empty;
+      expect(config.escuela.toString()).to.not.be.empty;
     });
 
     it("verifies config counters after role operations", async () => {
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+
       // nextTokenId should be >= 0
-      config.nextTokenId.toNumber().should.be.at.least(0);
-      
+      expect(Number(config.nextTokenId)).to.be.at.least(0);
+
       // totalNetbooks should be >= 0
-      config.totalNetbooks.toNumber().should.be.at.least(0);
+      expect(Number(config.totalNetbooks)).to.be.at.least(0);
     });
   });
 
   describe("Edge Cases", () => {
     it("handles role request from user with existing role", async () => {
       // Fabricante already has FABRICANTE role
-      const roleRequestPda = getRoleRequestPda(fabricante.publicKey, program.programId);
-      
-      try {
-        await program.methods
-          .requestRole(FABRICANTE_ROLE)
-          .accounts({
-            config: configPda,
-            roleRequest: roleRequestPda,
-            user: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+      const roleRequestPda = await getRoleRequestPdaAddress(
+        toAddress(fabricante.publicKey.toString())
+      );
+      const fabricanteSigner = await createSignerFromKeyPair(fabricante);
 
+      try {
+        await client.scSolana.instructions
+          .requestRole({
+            config: toAddress(configPda),
+            roleRequest: toAddress(roleRequestPda),
+            user: fabricanteSigner,
+            role: FABRICANTE_ROLE,
+          })
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("RoleAlreadyGranted") || msg.includes("InvalidInput")
+        expect(error.message).to.satisfy(
+          (msg: string) => msg.includes("RoleAlreadyGranted") || msg.includes("InvalidInput")
         );
       }
     });
@@ -952,74 +942,79 @@ describe("Role Management Integration Tests", () => {
       const user1 = Keypair.generate();
       const user2 = Keypair.generate();
       const user3 = Keypair.generate();
+      await fundKeypair(client, user1, 2 * LAMPORTS_PER_SOL);
+      await fundKeypair(client, user2, 2 * LAMPORTS_PER_SOL);
+      await fundKeypair(client, user3, 2 * LAMPORTS_PER_SOL);
 
-      const requestPda1 = getRoleRequestPda(user1.publicKey, program.programId);
-      const requestPda2 = getRoleRequestPda(user2.publicKey, program.programId);
-      const requestPda3 = getRoleRequestPda(user3.publicKey, program.programId);
+      const requestPda1 = await getRoleRequestPdaAddress(
+        toAddress(user1.publicKey.toString())
+      );
+      const requestPda2 = await getRoleRequestPdaAddress(
+        toAddress(user2.publicKey.toString())
+      );
+      const requestPda3 = await getRoleRequestPdaAddress(
+        toAddress(user3.publicKey.toString())
+      );
+
+      const user1Signer = await createSignerFromKeyPair(user1);
+      const user2Signer = await createSignerFromKeyPair(user2);
+      const user3Signer = await createSignerFromKeyPair(user3);
 
       // All three request roles concurrently
       await Promise.all([
-        program.methods
-          .requestRole(TECNICO_SW_ROLE)
-          .accounts({
-            config: configPda,
-            roleRequest: requestPda1,
-            user: user1.publicKey,
-            systemProgram: SystemProgram.programId,
+        client.scSolana.instructions
+          .requestRole({
+            config: toAddress(configPda),
+            roleRequest: toAddress(requestPda1),
+            user: user1Signer,
+            role: TECNICO_SW_ROLE,
           })
-          .signers([user1])
-          .rpc(),
-        
-        program.methods
-          .requestRole(ESCUELA_ROLE)
-          .accounts({
-            config: configPda,
-            roleRequest: requestPda2,
-            user: user2.publicKey,
-            systemProgram: SystemProgram.programId,
+          .sendAndConfirm(),
+
+        client.scSolana.instructions
+          .requestRole({
+            config: toAddress(configPda),
+            roleRequest: toAddress(requestPda2),
+            user: user2Signer,
+            role: ESCUELA_ROLE,
           })
-          .signers([user2])
-          .rpc(),
-        
-        program.methods
-          .requestRole(AUDITOR_HW_ROLE)
-          .accounts({
-            config: configPda,
-            roleRequest: requestPda3,
-            user: user3.publicKey,
-            systemProgram: SystemProgram.programId,
+          .sendAndConfirm(),
+
+        client.scSolana.instructions
+          .requestRole({
+            config: toAddress(configPda),
+            roleRequest: toAddress(requestPda3),
+            user: user3Signer,
+            role: AUDITOR_HW_ROLE,
           })
-          .signers([user3])
-          .rpc(),
+          .sendAndConfirm(),
       ]);
 
       // Verify all requests are pending
-      const req1 = await program.account.roleRequest.fetch(requestPda1);
-      const req2 = await program.account.roleRequest.fetch(requestPda2);
-      const req3 = await program.account.roleRequest.fetch(requestPda3);
+      const req1 = await client.scSolana.accounts.roleRequest.fetch(toAddress(requestPda1));
+      const req2 = await client.scSolana.accounts.roleRequest.fetch(toAddress(requestPda2));
+      const req3 = await client.scSolana.accounts.roleRequest.fetch(toAddress(requestPda3));
 
-      req1.status.should.equal(RequestStatus.Pending);
-      req2.status.should.equal(RequestStatus.Pending);
-      req3.status.should.equal(RequestStatus.Pending);
+      expect(req1.status).to.equal(RequestStatus.Pending);
+      expect(req2.status).to.equal(RequestStatus.Pending);
+      expect(req3.status).to.equal(RequestStatus.Pending);
     });
 
     it("handles empty role string", async () => {
+      const randomUserSigner = await createSignerFromKeyPair(randomUser);
       try {
-        await program.methods
-          .grantRole("")
-          .accounts({
-            config: configPda,
-            admin: adminPda,
-            accountToGrant: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
+        await client.scSolana.instructions
+          .grantRole({
+            config: toAddress(configPda),
+            admin: toAddress(adminPda),
+            accountToGrant: randomUserSigner,
+            role: "",
           })
-          .signers([randomUser])
-          .rpc();
-
+          .sendAndConfirm();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.satisfy((msg) =>
-          msg.includes("RoleNotFound") || msg.includes("InvalidInput")
+        expect(error.message).to.satisfy(
+          (msg: string) => msg.includes("RoleNotFound") || msg.includes("InvalidInput")
         );
       }
     });

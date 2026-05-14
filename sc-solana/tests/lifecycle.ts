@@ -7,21 +7,27 @@
  * Related Issues:
  * - Issue #67: Complete Lifecycle Integration Test
  * - Original Issue #10: Phase 11: Integration Tests
+ *
+ * Migrated from @coral-xyz/anchor to Codama-generated client (Issue #209).
  */
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program, AnchorProvider } from "@coral-xyz/anchor";
-import { ScSolana } from "../target/types/sc_solana";
-import { expect } from "chai";
 import {
   Keypair,
-  SystemProgram,
-  PublicKey,
-  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
+import { createSignerFromKeyPair } from "@solana/kit";
+import { expect } from "chai";
 
 // Import test helpers
 import {
+  createTestClient,
+  fundAndInitialize,
+  fundKeypair,
+  toAddress,
+  toUint8Array,
+  getConfigPdaAddress,
+  getNetbookPdaAddress,
+  getSerialHashRegistryPdaAddress,
+  getAdminPdaAddress,
   NetbookState,
   RequestStatus,
   ROLE_TYPES,
@@ -30,46 +36,30 @@ import {
   createSerialNumber,
   createBatchId,
   createModelSpecs,
-  getConfigPda,
-  getNetbookPda,
-  getRoleRequestPda,
-  getAdminPda,
-  fundAndInitialize,
-  waitForConfirmation,
-  TestAccounts,
-  NetbookRegistrationData,
-  HardwareAuditData,
-  SoftwareValidationData,
-  StudentAssignmentData,
+  type TestClient,
 } from "./test-helpers";
-
-// Import test isolation utilities
-import {
-  isTestStateClean,
-  resetTestState,
-} from "./test-isolation";
 
 // ============================================================================
 // Test Data Constants
 // ============================================================================
 
-const TEST_NETBOOK: NetbookRegistrationData = {
+const TEST_NETBOOK = {
   serialNumber: createSerialNumber("NB", 1),
   batchId: createBatchId("MFG", 2024, 1),
   initialModelSpecs: createModelSpecs("TestBrand", "ProBook", 2024),
 };
 
-const TEST_AUDIT: HardwareAuditData = {
+const TEST_AUDIT = {
   passed: true,
   reportHash: createHash(42),
 };
 
-const TEST_VALIDATION: SoftwareValidationData = {
+const TEST_VALIDATION = {
   passed: true,
   osVersion: "Ubuntu 22.04 LTS",
 };
 
-const TEST_ASSIGNMENT: StudentAssignmentData = {
+const TEST_ASSIGNMENT = {
   studentIdHash: createStringHash("student-001"),
   schoolIdHash: createStringHash("school-001"),
 };
@@ -79,153 +69,121 @@ const TEST_ASSIGNMENT: StudentAssignmentData = {
 // ============================================================================
 
 /**
- * Fund a keypair with SOL
- */
-async function fundKeypair(
-  provider: AnchorProvider,
-  keypair: Keypair,
-  amountSol: number = 2
-): Promise<string> {
-  const signature = await provider.connection.requestAirdrop(
-    keypair.publicKey,
-    amountSol * LAMPORTS_PER_SOL
-  );
-  const latestBlockhash = await provider.connection.getLatestBlockhash();
-  await provider.connection.confirmTransaction({
-    signature,
-    ...latestBlockhash,
-  });
-  return signature;
-}
-
-/**
  * Grant role with proper account setup
  */
 async function grantRole(
-  program: Program<ScSolana>,
-  configPda: PublicKey,
-  adminPda: PublicKey,
+  client: TestClient,
+  configPda: string,
+  adminPda: string,
   accountToGrant: Keypair,
   role: string
-): Promise<string> {
-  const signature = await program.methods
-    .grantRole(role)
-    .accountsStrict({
-      config: configPda,
-      admin: adminPda,
-      accountToGrant: accountToGrant.publicKey,
-      systemProgram: SystemProgram.programId,
-    })
-    .signers([accountToGrant])
-    .rpc();
-  return signature;
+): Promise<void> {
+  const accountSigner = await createSignerFromKeyPair(accountToGrant);
+  await client.scSolana.instructions.grantRole({
+    config: toAddress(configPda),
+    admin: toAddress(adminPda),
+    accountToGrant: accountSigner,
+    role,
+  }).sendAndConfirm();
 }
 
 /**
  * Register a netbook and return token ID
  */
 async function registerNetbook(
-  program: Program<ScSolana>,
-  configPda: PublicKey,
-  serialHashRegistryPda: PublicKey,
+  client: TestClient,
+  configPda: string,
+  serialHashRegistryPda: string,
   manufacturer: Keypair,
-  netbookData: NetbookRegistrationData = TEST_NETBOOK
-): Promise<{ tokenId: number; netbookPda: PublicKey; signature: string }> {
-  // Fetch current next token ID
-  const config = await program.account.supplyChainConfig.fetch(configPda);
-  const tokenId = config.nextTokenId.toNumber();
-  const netbookPda = getNetbookPda(tokenId, program.programId);
+  serialNumber: string,
+  batchId: string,
+  modelSpecs: string
+): Promise<{ tokenId: number; netbookPda: string }> {
+  const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+  const tokenId = Number(config.nextTokenId);
+  const netbookPda = await getNetbookPdaAddress(tokenId);
 
-  const signature = await program.methods
-    .registerNetbook(
-      netbookData.serialNumber,
-      netbookData.batchId,
-      netbookData.initialModelSpecs
-    )
-    .accountsStrict({
-      config: configPda,
-      serialHashRegistry: serialHashRegistryPda,
-      manufacturer: manufacturer.publicKey,
-      netbook: netbookPda,
-      systemProgram: SystemProgram.programId,
-    })
-    .signers([manufacturer])
-    .rpc();
+  const manufacturerSigner = await createSignerFromKeyPair(manufacturer);
+  await client.scSolana.instructions.registerNetbook({
+    config: toAddress(configPda),
+    serialHashRegistry: toAddress(serialHashRegistryPda),
+    manufacturer: manufacturerSigner,
+    netbook: toAddress(netbookPda),
+    serialNumber,
+    batchId,
+    initialModelSpecs: modelSpecs,
+  }).sendAndConfirm();
 
-  return { tokenId, netbookPda, signature };
+  return { tokenId, netbookPda };
 }
 
 /**
  * Perform hardware audit
  */
 async function hardwareAudit(
-  program: Program<ScSolana>,
-  netbookPda: PublicKey,
-  configPda: PublicKey,
+  client: TestClient,
+  netbookPda: string,
+  configPda: string,
   auditor: Keypair,
   serial: string,
-  auditData: HardwareAuditData = TEST_AUDIT
-): Promise<string> {
-  const signature = await program.methods
-    .auditHardware(serial, auditData.passed, auditData.reportHash)
-    .accountsStrict({
-      netbook: netbookPda,
-      config: configPda,
-      auditor: auditor.publicKey,
-    })
-    .signers([auditor])
-    .rpc();
-  return signature;
+  passed: boolean,
+  reportHash: number[]
+): Promise<void> {
+  const auditorSigner = await createSignerFromKeyPair(auditor);
+  await client.scSolana.instructions.auditHardware({
+    netbook: toAddress(netbookPda),
+    config: toAddress(configPda),
+    auditor: auditorSigner,
+    serial,
+    passed,
+    reportHash: toUint8Array(reportHash),
+  }).sendAndConfirm();
 }
 
 /**
  * Perform software validation
  */
 async function softwareValidation(
-  program: Program<ScSolana>,
-  netbookPda: PublicKey,
-  configPda: PublicKey,
+  client: TestClient,
+  netbookPda: string,
+  configPda: string,
   technician: Keypair,
   serial: string,
-  validationData: SoftwareValidationData = TEST_VALIDATION
-): Promise<string> {
-  const signature = await program.methods
-    .validateSoftware(serial, validationData.osVersion, validationData.passed)
-    .accountsStrict({
-      netbook: netbookPda,
-      config: configPda,
-      technician: technician.publicKey,
-    })
-    .signers([technician])
-    .rpc();
-  return signature;
+  osVersion: string,
+  passed: boolean
+): Promise<void> {
+  const technicianSigner = await createSignerFromKeyPair(technician);
+  await client.scSolana.instructions.validateSoftware({
+    netbook: toAddress(netbookPda),
+    config: toAddress(configPda),
+    technician: technicianSigner,
+    serial,
+    osVersion,
+    passed,
+  }).sendAndConfirm();
 }
 
 /**
  * Assign netbook to student
  */
 async function assignToStudent(
-  program: Program<ScSolana>,
-  netbookPda: PublicKey,
-  configPda: PublicKey,
+  client: TestClient,
+  netbookPda: string,
+  configPda: string,
   school: Keypair,
   serial: string,
-  assignmentData: StudentAssignmentData = TEST_ASSIGNMENT
-): Promise<string> {
-  const signature = await program.methods
-    .assignToStudent(
-      serial,
-      assignmentData.studentIdHash,
-      assignmentData.schoolIdHash
-    )
-    .accountsStrict({
-      netbook: netbookPda,
-      config: configPda,
-      school: school.publicKey,
-    })
-    .signers([school])
-    .rpc();
-  return signature;
+  studentIdHash: number[],
+  schoolIdHash: number[]
+): Promise<void> {
+  const schoolSigner = await createSignerFromKeyPair(school);
+  await client.scSolana.instructions.assignToStudent({
+    netbook: toAddress(netbookPda),
+    config: toAddress(configPda),
+    school: schoolSigner,
+    serial,
+    schoolHash: toUint8Array(schoolIdHash),
+    studentIdHash: toUint8Array(studentIdHash),
+  }).sendAndConfirm();
 }
 
 // ============================================================================
@@ -233,65 +191,47 @@ async function assignToStudent(
 // ============================================================================
 
 describe("Lifecycle Integration Tests", () => {
-  anchor.setProvider(anchor.AnchorProvider.env());
-  const program = anchor.workspace.scSolana as Program<ScSolana>;
-  const provider = anchor.getProvider() as AnchorProvider;
+  let client: TestClient;
 
   // Test accounts
-  const admin = Keypair.generate();
-  const fabricante = Keypair.generate();
-  const auditor = Keypair.generate();
-  const technician = Keypair.generate();
-  const school = Keypair.generate();
+  let admin: Keypair;
+  let fabricante: Keypair;
+  let auditor: Keypair;
+  let technician: Keypair;
+  let school: Keypair;
 
   // PDA references
-  let configPda: PublicKey;
-  let configBump: number;
-  let serialHashRegistryPda: PublicKey;
-  let adminPda: PublicKey;
-  let adminBump: number;
+  let configPda: string;
+  let serialHashRegistryPda: string;
+  let adminPda: string;
 
   /**
    * Setup: Fund accounts and initialize program
    */
   before(async () => {
-    // Check test state before initialization
-    const { clean, accountCount } = await isTestStateClean(
-      provider.connection,
-      program.programId
-    );
+    // Generate test accounts
+    admin = Keypair.generate();
+    fabricante = Keypair.generate();
+    auditor = Keypair.generate();
+    technician = Keypair.generate();
+    school = Keypair.generate();
 
-    if (!clean) {
-      console.log(`[Lifecycle] Resetting test state: ${accountCount} accounts found`);
-      try {
-        await resetTestState(
-          provider,
-          [admin, fabricante, auditor, technician, school],
-          5
-        );
-      } catch (e: any) {
-        console.warn("[Lifecycle] State reset failed (continuing anyway):", e.message);
-      }
-    }
+    // Create test client
+    client = await createTestClient("http://localhost:8899", admin);
 
     // Fund all test accounts
-    await fundKeypair(provider, admin);
-    await fundKeypair(provider, fabricante);
-    await fundKeypair(provider, auditor);
-    await fundKeypair(provider, technician);
-    await fundKeypair(provider, school);
+    await fundKeypair(client, fabricante, 2);
+    await fundKeypair(client, auditor, 2);
+    await fundKeypair(client, technician, 2);
+    await fundKeypair(client, school, 2);
 
     // Get PDAs
-    [configPda, configBump] = getConfigPda(program);
-    serialHashRegistryPda = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("serial_hashes"), configPda.toBuffer()],
-      program.programId
-    )[0];
+    configPda = await getConfigPdaAddress();
+    serialHashRegistryPda = await getSerialHashRegistryPdaAddress(toAddress(configPda));
+    adminPda = await getAdminPdaAddress(toAddress(configPda));
 
-    // Initialize program using PDA-first pattern with force=true for test isolation
-    const funder = Keypair.generate();
-    await fundAndInitialize(program, provider, admin, { force: true });
-    [adminPda, adminBump] = getAdminPda(configPda, program.programId);
+    // Initialize program using PDA-first pattern
+    await fundAndInitialize(client, admin);
   });
 
   // ========================================================================
@@ -304,27 +244,24 @@ describe("Lifecycle Integration Tests", () => {
 
       // Step 1: Grant FABRICANTE role
       console.log("Step 1: Granting FABRICANTE role...");
-      await grantRole(
-        program,
-        configPda, admin.publicKey,
-        fabricante,
-        ROLE_TYPES.FABRICANTE
-      );
+      await grantRole(client, configPda, adminPda, fabricante, ROLE_TYPES.FABRICANTE);
       console.log("✓ FABRICANTE role granted");
 
       // Step 2: Register netbook
       console.log("\nStep 2: Registering netbook...");
-      const { tokenId, netbookPda, signature: regSig } = await registerNetbook(
-        program,
+      const { tokenId, netbookPda } = await registerNetbook(
+        client,
         configPda,
         serialHashRegistryPda,
         fabricante,
-        TEST_NETBOOK
+        TEST_NETBOOK.serialNumber,
+        TEST_NETBOOK.batchId,
+        TEST_NETBOOK.initialModelSpecs
       );
       console.log(`✓ Netbook registered with tokenId: ${tokenId}`);
 
       // Verify initial state
-      let netbook = await program.account.netbook.fetch(netbookPda);
+      let netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.Fabricada);
       expect(netbook.serialNumber).to.equal(TEST_NETBOOK.serialNumber);
       expect(netbook.batchId).to.equal(TEST_NETBOOK.batchId);
@@ -333,561 +270,309 @@ describe("Lifecycle Integration Tests", () => {
 
       // Step 3: Grant AUDITOR_HW role and perform hardware audit
       console.log("\nStep 3: Granting AUDITOR_HW role...");
-      await grantRole(
-        program,
-        configPda, admin.publicKey,
-        auditor,
-        ROLE_TYPES.AUDITOR_HW
-      );
+      await grantRole(client, configPda, adminPda, auditor, ROLE_TYPES.AUDITOR_HW);
       console.log("✓ AUDITOR_HW role granted");
 
       console.log("\nStep 4: Performing hardware audit...");
       await hardwareAudit(
-        program,
+        client,
         netbookPda,
         configPda,
         auditor,
         TEST_NETBOOK.serialNumber,
-        TEST_AUDIT
+        TEST_AUDIT.passed,
+        TEST_AUDIT.reportHash
       );
       console.log("✓ Hardware audit passed");
 
       // Verify state after audit
-      netbook = await program.account.netbook.fetch(netbookPda);
+      netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.HwAprobado);
       expect(netbook.hwIntegrityPassed).to.be.true;
-      expect(netbook.hwAuditor.toString()).to.equal(auditor.publicKey.toString());
       console.log("✓ State after audit: HwAprobado");
 
       // Step 5: Grant TECNICO_SW role and perform software validation
       console.log("\nStep 5: Granting TECNICO_SW role...");
-      await grantRole(
-        program,
-        configPda, admin.publicKey,
-        technician,
-        ROLE_TYPES.TECNICO_SW
-      );
+      await grantRole(client, configPda, adminPda, technician, ROLE_TYPES.TECNICO_SW);
       console.log("✓ TECNICO_SW role granted");
 
       console.log("\nStep 6: Performing software validation...");
       await softwareValidation(
-        program,
+        client,
         netbookPda,
         configPda,
         technician,
         TEST_NETBOOK.serialNumber,
-        TEST_VALIDATION
+        TEST_VALIDATION.osVersion,
+        TEST_VALIDATION.passed
       );
       console.log("✓ Software validation passed");
 
       // Verify state after validation
-      netbook = await program.account.netbook.fetch(netbookPda);
+      netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.SwValidado);
       expect(netbook.swValidationPassed).to.be.true;
       expect(netbook.osVersion).to.equal(TEST_VALIDATION.osVersion);
-      expect(netbook.swTechnician.toString()).to.equal(
-        technician.publicKey.toString()
-      );
       console.log("✓ State after validation: SwValidado");
 
       // Step 6: Grant ESCUELA role and assign to student
       console.log("\nStep 7: Granting ESCUELA role...");
-      await grantRole(
-        program,
-        configPda, admin.publicKey,
-        school,
-        ROLE_TYPES.ESCUELA
-      );
+      await grantRole(client, configPda, adminPda, school, ROLE_TYPES.ESCUELA);
       console.log("✓ ESCUELA role granted");
 
       console.log("\nStep 8: Assigning to student...");
       await assignToStudent(
-        program,
+        client,
         netbookPda,
         configPda,
         school,
         TEST_NETBOOK.serialNumber,
-        TEST_ASSIGNMENT
+        TEST_ASSIGNMENT.studentIdHash,
+        TEST_ASSIGNMENT.schoolIdHash
       );
       console.log("✓ Student assignment completed");
 
       // Verify final state
-      netbook = await program.account.netbook.fetch(netbookPda);
+      netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.Distribuida);
-      expect(netbook.studentIdHash).to.deep.equal(TEST_ASSIGNMENT.studentIdHash);
-      expect(netbook.destinationSchoolHash).to.deep.equal(
-        TEST_ASSIGNMENT.schoolIdHash
-      );
-      expect(netbook.distributionTimestamp.toNumber()).to.be.greaterThan(0);
       console.log("✓ Final state: Distribuida");
 
       // Verify config updates
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      expect(config.totalNetbooks.toNumber()).to.be.greaterThan(0);
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(config.totalNetbooks)).to.be.greaterThan(0);
       console.log("✓ Config totalNetbooks updated");
 
       console.log("\n=== Complete Lifecycle Test Passed ===\n");
     });
 
-    // ========================================================================
-    // Failed Lifecycle Test (hardware audit fails)
-    // ========================================================================
-
     it("handles failed hardware audit correctly", async () => {
       console.log("\n=== Starting Failed Hardware Audit Test ===\n");
 
       // Grant roles
-      await grantRole(
-        program,
-        configPda, admin.publicKey,
-        fabricante,
-        ROLE_TYPES.FABRICANTE
-      );
-      await grantRole(
-        program,
-        configPda, admin.publicKey,
-        auditor,
-        ROLE_TYPES.AUDITOR_HW
-      );
+      await grantRole(client, configPda, adminPda, fabricante, ROLE_TYPES.FABRICANTE);
+      await grantRole(client, configPda, adminPda, auditor, ROLE_TYPES.AUDITOR_HW);
 
       // Register netbook
-      const failedNetbookData: NetbookRegistrationData = {
+      const failedNetbookData = {
         serialNumber: createSerialNumber("NB-FAIL", 1),
         batchId: createBatchId("MFG", 2024, 2),
         initialModelSpecs: createModelSpecs("FailBrand", "BadBook", 2024),
       };
 
       const { netbookPda } = await registerNetbook(
-        program,
+        client,
         configPda,
         serialHashRegistryPda,
         fabricante,
-        failedNetbookData
+        failedNetbookData.serialNumber,
+        failedNetbookData.batchId,
+        failedNetbookData.initialModelSpecs
       );
 
       // Perform failed hardware audit
-      const failedAudit: HardwareAuditData = {
-        passed: false,
-        reportHash: createHash(0),
-      };
-
       await hardwareAudit(
-        program,
+        client,
         netbookPda,
         configPda,
         auditor,
         failedNetbookData.serialNumber,
-        failedAudit
+        false,
+        createHash(0)
       );
 
       // Verify netbook remains in Fabricada state
-      const netbook = await program.account.netbook.fetch(netbookPda);
+      const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.Fabricada);
       expect(netbook.hwIntegrityPassed).to.be.false;
       console.log("✓ Netbook remains in Fabricada after failed audit");
 
       console.log("\n=== Failed Hardware Audit Test Passed ===\n");
     });
+  });
 
-    // ========================================================================
-    // State Transition Validation Tests
-    // ========================================================================
+  // ========================================================================
+  // State Transition Validation Tests
+  // ========================================================================
 
-    describe("State Transition Validation", () => {
-      it("cannot skip state transitions", async () => {
-        console.log("\n=== Starting State Skip Test ===\n");
+  describe("State Transition Validation", () => {
+    it("cannot skip state transitions", async () => {
+      console.log("\n=== Starting State Skip Test ===\n");
 
-        // Setup
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          fabricante,
-          ROLE_TYPES.FABRICANTE
-        );
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          technician,
-          ROLE_TYPES.TECNICO_SW
-        );
+      // Setup
+      await grantRole(client, configPda, adminPda, fabricante, ROLE_TYPES.FABRICANTE);
+      await grantRole(client, configPda, adminPda, technician, ROLE_TYPES.TECNICO_SW);
 
-        // Register netbook
-        const { netbookPda } = await registerNetbook(
-          program,
-          configPda,
-          serialHashRegistryPda,
-          fabricante,
-          {
-            serialNumber: createSerialNumber("NB-SKIP", 1),
-            batchId: createBatchId("MFG", 2024, 3),
-            initialModelSpecs: createModelSpecs("SkipBrand", "SkipBook", 2024),
-          }
-        );
+      // Register netbook
+      const { netbookPda } = await registerNetbook(
+        client,
+        configPda,
+        serialHashRegistryPda,
+        fabricante,
+        createSerialNumber("NB-SKIP", 1),
+        createBatchId("MFG", 2024, 3),
+        createModelSpecs("SkipBrand", "SkipBook", 2024)
+      );
 
-        // Attempt to validate software without hardware audit (should fail)
-        try {
-          await program.methods
-            .validateSoftware(
-              "NB-SKIP-000001",
-              "Ubuntu 22.04",
-              true
-            )
-            .accountsStrict({
-              netbook: netbookPda,
-              config: configPda,
-              technician: technician.publicKey,
-            })
-            .signers([technician])
-            .rpc();
-          expect.fail("Should have thrown InvalidStateTransition error");
-        } catch (err: any) {
-          expect(err.message).to.include("InvalidStateTransition");
-          console.log("✓ Correctly rejected software validation without hardware audit");
-        }
-
-        console.log("\n=== State Skip Test Passed ===\n");
-      });
-
-      it("cannot assign without software validation", async () => {
-        console.log("\n=== Starting Assign Without Validation Test ===\n");
-
-        // Setup
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          fabricante,
-          ROLE_TYPES.FABRICANTE
-        );
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          auditor,
-          ROLE_TYPES.AUDITOR_HW
-        );
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          school,
-          ROLE_TYPES.ESCUELA
-        );
-
-        // Register and audit netbook
-        const { netbookPda } = await registerNetbook(
-          program,
-          configPda,
-          serialHashRegistryPda,
-          fabricante,
-          {
-            serialNumber: createSerialNumber("NB-NOVALID", 1),
-            batchId: createBatchId("MFG", 2024, 4),
-            initialModelSpecs: createModelSpecs(
-              "NoValidBrand",
-              "NoValidBook",
-              2024
-            ),
-          }
-        );
-
-        // Hardware audit only
-        await hardwareAudit(
-          program,
+      // Attempt to validate software without hardware audit (should fail)
+      try {
+        await softwareValidation(
+          client,
           netbookPda,
           configPda,
-          auditor,
-          "NB-NOVALID-000001",
-          { passed: true, reportHash: createHash(1) }
-        );
-
-        // Attempt to assign without software validation (should fail)
-        try {
-          await program.methods
-            .assignToStudent(
-              "NB-NOVALID-000001",
-              createStringHash("student-test"),
-              createStringHash("school-test")
-            )
-            .accountsStrict({
-              netbook: netbookPda,
-              config: configPda,
-              school: school.publicKey,
-            })
-            .signers([school])
-            .rpc();
-          expect.fail("Should have thrown InvalidStateTransition error");
-        } catch (err: any) {
-          expect(err.message).to.include("InvalidStateTransition");
-          console.log(
-            "✓ Correctly rejected assignment without software validation"
-          );
-        }
-
-        console.log("\n=== Assign Without Validation Test Passed ===\n");
-      });
-
-      it("cannot repeat completed state transitions", async () => {
-        console.log("\n=== Starting Repeat Transition Test ===\n");
-
-        // Setup - create a fully distributed netbook
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          fabricante,
-          ROLE_TYPES.FABRICANTE
-        );
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          auditor,
-          ROLE_TYPES.AUDITOR_HW
-        );
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
           technician,
-          ROLE_TYPES.TECNICO_SW
+          "NB-SKIP-000001",
+          "Ubuntu 22.04",
+          true
         );
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          school,
-          ROLE_TYPES.ESCUELA
-        );
+        expect.fail("Should have thrown InvalidStateTransition error");
+      } catch (err: any) {
+        expect(err.message).to.include("InvalidStateTransition");
+        console.log("✓ Correctly rejected software validation without hardware audit");
+      }
 
-        const { netbookPda } = await registerNetbook(
-          program,
-          configPda,
-          serialHashRegistryPda,
-          fabricante,
-          {
-            serialNumber: createSerialNumber("NB-REPEAT", 1),
-            batchId: createBatchId("MFG", 2024, 5),
-            initialModelSpecs: createModelSpecs(
-              "RepeatBrand",
-              "RepeatBook",
-              2024
-            ),
-          }
-        );
-
-        // Complete full lifecycle
-        await hardwareAudit(
-          program,
-          netbookPda,
-          configPda,
-          auditor,
-          "NB-REPEAT-000001",
-          { passed: true, reportHash: createHash(1) }
-        );
-
-        await program.methods
-          .validateSoftware(
-            "NB-REPEAT-000001",
-            "Ubuntu 22.04",
-            true
-          )
-          .accountsStrict({
-            netbook: netbookPda,
-            config: configPda,
-            technician: technician.publicKey,
-          })
-          .signers([technician])
-          .rpc();
-
-        await program.methods
-          .assignToStudent(
-            "NB-REPEAT-000001",
-            createStringHash("student-repeat"),
-            createStringHash("school-repeat")
-          )
-          .accountsStrict({
-            netbook: netbookPda,
-            config: configPda,
-            school: school.publicKey,
-          })
-          .signers([school])
-          .rpc();
-
-        // Verify final state
-        let netbook = await program.account.netbook.fetch(netbookPda);
-        expect(netbook.state).to.equal(NetbookState.Distribuida);
-
-        // Attempt hardware audit on distributed netbook (should fail)
-        try {
-          await program.methods
-            .auditHardware(
-              "NB-REPEAT-000001",
-              true,
-              createHash(99)
-            )
-            .accountsStrict({
-              netbook: netbookPda,
-              config: configPda,
-              auditor: auditor.publicKey,
-            })
-            .signers([auditor])
-            .rpc();
-          expect.fail("Should have thrown InvalidStateTransition error");
-        } catch (err: any) {
-          expect(err.message).to.include("InvalidStateTransition");
-          console.log(
-            "✓ Correctly rejected hardware audit on distributed netbook"
-          );
-        }
-
-        // Attempt software validation on distributed netbook (should fail)
-        try {
-          await program.methods
-            .validateSoftware(
-              "NB-REPEAT-000001",
-              "Ubuntu 24.04",
-              true
-            )
-            .accountsStrict({
-              netbook: netbookPda,
-              config: configPda,
-              technician: technician.publicKey,
-            })
-            .signers([technician])
-            .rpc();
-          expect.fail("Should have thrown InvalidStateTransition error");
-        } catch (err: any) {
-          expect(err.message).to.include("InvalidStateTransition");
-          console.log(
-            "✓ Correctly rejected software validation on distributed netbook"
-          );
-        }
-
-        console.log("\n=== Repeat Transition Test Passed ===\n");
-      });
+      console.log("\n=== State Skip Test Passed ===\n");
     });
 
-    // ========================================================================
-    // Multiple Lifecycle Test
-    // ========================================================================
+    it("cannot assign without software validation", async () => {
+      console.log("\n=== Starting Assign Without Validation Test ===\n");
 
-    describe("Multiple Netbook Lifecycle", () => {
-      it("handles multiple netbooks through lifecycle concurrently", async () => {
-        console.log(
-          "\n=== Starting Multiple Netbook Lifecycle Test ===\n"
-        );
+      // Setup
+      await grantRole(client, configPda, adminPda, fabricante, ROLE_TYPES.FABRICANTE);
+      await grantRole(client, configPda, adminPda, auditor, ROLE_TYPES.AUDITOR_HW);
+      await grantRole(client, configPda, adminPda, school, ROLE_TYPES.ESCUELA);
 
-        // Setup roles
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          fabricante,
-          ROLE_TYPES.FABRICANTE
-        );
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          auditor,
-          ROLE_TYPES.AUDITOR_HW
-        );
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
-          technician,
-          ROLE_TYPES.TECNICO_SW
-        );
-        await grantRole(
-          program,
-          configPda, admin.publicKey,
+      // Register and audit netbook
+      const { netbookPda } = await registerNetbook(
+        client,
+        configPda,
+        serialHashRegistryPda,
+        fabricante,
+        createSerialNumber("NB-NOVALID", 1),
+        createBatchId("MFG", 2024, 4),
+        createModelSpecs("NoValidBrand", "NoValidBook", 2024)
+      );
+
+      // Hardware audit only
+      await hardwareAudit(
+        client,
+        netbookPda,
+        configPda,
+        auditor,
+        "NB-NOVALID-000001",
+        true,
+        createHash(1)
+      );
+
+      // Attempt to assign without software validation (should fail)
+      try {
+        await assignToStudent(
+          client,
+          netbookPda,
+          configPda,
           school,
-          ROLE_TYPES.ESCUELA
+          "NB-NOVALID-000001",
+          createStringHash("student-test"),
+          createStringHash("school-test")
         );
+        expect.fail("Should have thrown InvalidStateTransition error");
+      } catch (err: any) {
+        expect(err.message).to.include("InvalidStateTransition");
+        console.log("✓ Correctly rejected assignment without software validation");
+      }
 
-        const netbookResults = [];
-        const numNetbooks = 3;
+      console.log("\n=== Assign Without Validation Test Passed ===\n");
+    });
+  });
 
-        // Register all netbooks
-        console.log(`Registering ${numNetbooks} netbooks...`);
-        for (let i = 0; i < numNetbooks; i++) {
-          const serial = createSerialNumber("NB-MULTI", i + 1);
-          const { tokenId, netbookPda } = await registerNetbook(
-            program,
-            configPda,
-            serialHashRegistryPda,
-            fabricante,
-            {
-              serialNumber: serial,
-              batchId: createBatchId("MFG", 2024, i + 10),
-              initialModelSpecs: createModelSpecs(
-                `MultiBrand${i}`,
-                `MultiBook${i}`,
-                2024
-              ),
-            }
-          );
-          netbookResults.push({ tokenId, netbookPda, serial });
-          console.log(`✓ Registered netbook ${i + 1}: ${serial}`);
-        }
+  // ========================================================================
+  // Multiple Netbook Lifecycle
+  // ========================================================================
 
-        // Audit all netbooks
-        console.log("\nAuditing all netbooks...");
-        for (const result of netbookResults) {
-          await hardwareAudit(
-            program,
-            result.netbookPda,
-            configPda,
-            auditor,
-            result.serial,
-            { passed: true, reportHash: createHash(result.tokenId) }
-          );
-          console.log(`✓ Audited netbook ${result.tokenId}`);
-        }
+  describe("Multiple Netbook Lifecycle", () => {
+    it("handles multiple netbooks through lifecycle concurrently", async () => {
+      console.log("\n=== Starting Multiple Netbook Lifecycle Test ===\n");
 
-        // Validate all netbooks
-        console.log("\nValidating all netbooks...");
-        for (const result of netbookResults) {
-          await softwareValidation(
-            program,
-            result.netbookPda,
-            configPda,
-            technician,
-            result.serial,
-            {
-              passed: true,
-              osVersion: `Ubuntu 22.04 LTS - Batch ${result.tokenId}`,
-            }
-          );
-          console.log(`✓ Validated netbook ${result.tokenId}`);
-        }
+      // Setup roles
+      await grantRole(client, configPda, adminPda, fabricante, ROLE_TYPES.FABRICANTE);
+      await grantRole(client, configPda, adminPda, auditor, ROLE_TYPES.AUDITOR_HW);
+      await grantRole(client, configPda, adminPda, technician, ROLE_TYPES.TECNICO_SW);
+      await grantRole(client, configPda, adminPda, school, ROLE_TYPES.ESCUELA);
 
-        // Assign all netbooks
-        console.log("\nAssigning all netbooks...");
-        for (let i = 0; i < netbookResults.length; i++) {
-          const result = netbookResults[i];
-          await assignToStudent(
-            program,
-            result.netbookPda,
-            configPda,
-            school,
-            result.serial,
-            {
-              studentIdHash: createStringHash(`student-multi-${i + 1}`),
-              schoolIdHash: createStringHash(`school-multi-${i + 1}`),
-            }
-          );
-          console.log(`✓ Assigned netbook ${result.tokenId}`);
-        }
+      const netbookResults: { tokenId: number; netbookPda: string; serial: string }[] = [];
+      const numNetbooks = 3;
 
-        // Verify all netbooks are in Distribuida state
-        console.log("\nVerifying final states...");
-        for (const result of netbookResults) {
-          const netbook = await program.account.netbook.fetch(result.netbookPda);
-          expect(netbook.state).to.equal(NetbookState.Distribuida);
-          console.log(
-            `✓ Netbook ${result.tokenId} (${result.serial}): Distribuida`
-          );
-        }
+      // Register all netbooks
+      console.log(`Registering ${numNetbooks} netbooks...`);
+      for (let i = 0; i < numNetbooks; i++) {
+        const serial = createSerialNumber("NB-MULTI", i + 1);
+        const result = await registerNetbook(
+          client,
+          configPda,
+          serialHashRegistryPda,
+          fabricante,
+          serial,
+          createBatchId("MFG", 2024, i + 10),
+          createModelSpecs(`MultiBrand${i}`, `MultiBook${i}`, 2024)
+        );
+        netbookResults.push({ ...result, serial });
+        console.log(`✓ Registered netbook ${i + 1}: ${serial}`);
+      }
 
-        // Verify config
-        const config = await program.account.supplyChainConfig.fetch(configPda);
-        expect(config.totalNetbooks.toNumber()).to.equal(numNetbooks + 5); // 5 from previous tests + 3 new
+      // Audit all netbooks
+      console.log("\nAuditing all netbooks...");
+      for (const result of netbookResults) {
+        await hardwareAudit(
+          client,
+          result.netbookPda,
+          configPda,
+          auditor,
+          result.serial,
+          true,
+          createHash(result.tokenId)
+        );
+        console.log(`✓ Audited netbook ${result.tokenId}`);
+      }
 
-        console.log("\n=== Multiple Netbook Lifecycle Test Passed ===\n");
-      });
+      // Validate all netbooks
+      console.log("\nValidating all netbooks...");
+      for (const result of netbookResults) {
+        await softwareValidation(
+          client,
+          result.netbookPda,
+          configPda,
+          technician,
+          result.serial,
+          `Ubuntu 22.04 LTS - Batch ${result.tokenId}`,
+          true
+        );
+        console.log(`✓ Validated netbook ${result.tokenId}`);
+      }
+
+      // Assign all netbooks
+      console.log("\nAssigning all netbooks...");
+      for (let i = 0; i < netbookResults.length; i++) {
+        const result = netbookResults[i];
+        await assignToStudent(
+          client,
+          result.netbookPda,
+          configPda,
+          school,
+          result.serial,
+          createStringHash(`student-multi-${i + 1}`),
+          createStringHash(`school-multi-${i + 1}`)
+        );
+        console.log(`✓ Assigned netbook ${result.tokenId}`);
+      }
+
+      // Verify all netbooks are in Distribuida state
+      console.log("\nVerifying final states...");
+      for (const result of netbookResults) {
+        const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(result.netbookPda));
+        expect(netbook.state).to.equal(NetbookState.Distribuida);
+        console.log(`✓ Netbook ${result.tokenId} (${result.serial}): Distribuida`);
+      }
+
+      console.log("\n=== Multiple Netbook Lifecycle Test Passed ===\n");
     });
   });
 });

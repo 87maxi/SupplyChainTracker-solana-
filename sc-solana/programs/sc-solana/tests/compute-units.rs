@@ -26,6 +26,7 @@ use anchor_lang::prelude::Pubkey;
 const PROGRAM_ADDRESS: &str = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb";
 
 /// System program ID
+#[allow(dead_code)]
 const SYSTEM_PROGRAM_ID: Pubkey = anchor_lang::system_program::ID;
 
 /// Solana default compute unit limit per transaction
@@ -61,12 +62,15 @@ const NETBOOK_SIZE: usize = 1104;
 const CONFIG_SIZE: usize = 234;
 
 /// RoleHolder account size (from RoleHolder::INIT_SPACE)
+#[allow(dead_code)]
 const ROLE_HOLDER_SIZE: usize = 49; // 8 + 32 + 1 + 8
 
 /// RoleRequest account size
+#[allow(dead_code)]
 const ROLE_REQUEST_SIZE: usize = 57; // 8 + 32 + 8 + 1
 
 /// SerialHashRegistry account size
+#[allow(dead_code)]
 const SERIAL_HASH_REGISTRY_SIZE: usize = 136; // 8 + 128
 
 /// Deployer state account size
@@ -76,6 +80,7 @@ const DEPLOYER_STATE_SIZE: usize = 17; // 8 + 1 + 8
 
 /// Represents a compute unit estimate for an instruction
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct CuEstimate {
     instruction: &'static str,
     account_reads: u64,
@@ -599,19 +604,23 @@ fn test_account_space_calculations() {
     // Verify account sizes match state definitions
     assert_eq!(NETBOOK_SIZE, 1104, "Netbook size should match INIT_SPACE");
     assert_eq!(CONFIG_SIZE, 234, "Config size should match INIT_SPACE");
-    assert!(
-        DEPLOYER_STATE_SIZE > 0 && DEPLOYER_STATE_SIZE < 100,
-        "Deployer state should be small"
-    );
+    const {
+        assert!(
+            DEPLOYER_STATE_SIZE > 0 && DEPLOYER_STATE_SIZE < 100,
+            "Deployer state should be small"
+        );
+    }
 }
 
 #[test]
 fn test_cu_limit_constants() {
     // Verify compute budget constants
     assert_eq!(DEFAULT_CU_LIMIT, 1_470_000);
-    assert!(BASE_TX_OVERHEAD > 0);
-    assert!(CU_PER_ACCOUNT_READ > 0);
-    assert!(CU_PER_ACCOUNT_WRITE > CU_PER_ACCOUNT_READ);
+    const {
+        assert!(BASE_TX_OVERHEAD > 0);
+        assert!(CU_PER_ACCOUNT_READ > 0);
+        assert!(CU_PER_ACCOUNT_WRITE > CU_PER_ACCOUNT_READ);
+    }
 }
 
 #[test]
@@ -702,7 +711,7 @@ fn generate_cu_report() {
     println!("\n========================================");
 
     // Lifecycle summary
-    let lifecycle = vec![
+    let lifecycle = [
         estimate_register_netbook(),
         estimate_audit_hardware(),
         estimate_validate_software(),

@@ -28,6 +28,7 @@ const PROGRAM_ID: Pubkey = ID;
 const CONFIG_SEED: &[u8] = b"config";
 
 /// Serial Hash Registry seed
+#[allow(dead_code)]
 const SERIAL_HASH_SEED: &[u8] = b"serial_hashes";
 
 /// Admin PDA seed
@@ -54,6 +55,7 @@ const STATE_DISTRIBUIDA: u8 = 3;
 // ==================== Helper Functions ====================
 
 /// Verify rent exemption calculation for account sizes
+#[allow(dead_code)]
 fn verify_rent_exemption(data_len: usize) -> u64 {
     let rent = Rent::default();
     rent.minimum_balance(data_len)
@@ -136,7 +138,9 @@ fn test_invalid_state_transitions() {
     assert_ne!(STATE_HW_APROBADO, STATE_DISTRIBUIDA);
 
     // Invalid: reverse transitions
-    assert!(STATE_DISTRIBUIDA > STATE_FABRICADA);
+    const {
+        assert!(STATE_DISTRIBUIDA > STATE_FABRICADA);
+    }
 }
 
 // ==================== Test: PDA Derivation for Lifecycle ====================
@@ -179,7 +183,7 @@ fn test_serial_hash_uniqueness() {
     for serial in &serials {
         let h = hash_serial(serial);
         assert!(
-            hashes.insert(h, serial.clone()).is_none(),
+            hashes.insert(h, *serial).is_none(),
             "Hash collision detected for {}",
             serial
         );
@@ -431,29 +435,32 @@ fn test_error_code_role_already_granted() {
 // ==================== Test: String Validation ====================
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_serial_number_length_validation() {
     // Valid serial numbers
     assert!(!"SN001".is_empty());
     assert!(!"SN001".len() > 200);
 
     // Edge case: exactly 200 chars
-    let max_serial: String = std::iter::repeat('A').take(200).collect();
+    let max_serial = "A".repeat(200);
     assert_eq!(max_serial.len(), 200);
     assert!(!max_serial.is_empty());
     assert!(!max_serial.len() > 200);
 
     // Invalid: exceeds 200 chars
-    let too_long: String = std::iter::repeat('A').take(201).collect();
+    let too_long = "A".repeat(201);
     assert!(too_long.len() > 200);
 }
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_batch_id_length_validation() {
     assert!(!"BATCH001".is_empty());
     assert!(!"BATCH001".len() > 100);
 }
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_model_specs_length_validation() {
     let specs = "Intel i7-12700H, 16GB DDR4, 512GB NVMe SSD, Intel Iris Xe";
     assert!(!specs.is_empty());
@@ -461,6 +468,7 @@ fn test_model_specs_length_validation() {
 }
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_os_version_length_validation() {
     let os = "Ubuntu 22.04.3 LTS";
     assert!(!os.is_empty());
@@ -570,7 +578,7 @@ fn test_role_grant_flow() {
     // Simulate role granting
     let mut roles: std::collections::HashMap<String, Pubkey> = std::collections::HashMap::new();
 
-    let admin = Pubkey::new_unique();
+    let _admin = Pubkey::new_unique();
     let fabricante = Pubkey::new_unique();
     let auditor = Pubkey::new_unique();
     let tecnico = Pubkey::new_unique();
@@ -656,7 +664,7 @@ fn test_account_data_sizes_for_cu() {
     // Verify account sizes match CU estimation assumptions
     assert_eq!(1104, 1104); // Netbook
     assert_eq!(234, 234); // Config
-    assert!(1104 > 234, "Netbook should be larger than Config");
+                          // Netbook (1104) is larger than Config (234) by design
 }
 
 // ==================== Test: Batch Registration Validation ====================
@@ -693,11 +701,12 @@ fn test_batch_serial_uniqueness() {
 // ==================== Test: Integration Scenario ====================
 
 #[test]
+#[allow(clippy::const_is_empty)]
 fn test_complete_integration_scenario() {
     // Simulate a complete integration scenario
     let serial = "SN-INTEGRATION-001";
-    let batch = "BATCH-2024-001";
-    let specs = "Intel i7, 16GB RAM, 512GB SSD";
+    let _batch = "BATCH-2024-001";
+    let _specs = "Intel i7, 16GB RAM, 512GB SSD";
 
     // Phase 1: Registration
     assert!(!serial.is_empty());
@@ -714,7 +723,7 @@ fn test_complete_integration_scenario() {
     assert_eq!(state_after_audit, STATE_HW_APROBADO);
 
     // Phase 3: Software Validation
-    let os_version = "Ubuntu 22.04 LTS";
+    let _os_version = "Ubuntu 22.04 LTS";
     let validation_passed = true;
     let state_after_validation = if validation_passed {
         STATE_SW_VALIDADO
@@ -737,25 +746,19 @@ fn test_complete_integration_scenario() {
 #[test]
 fn test_multiple_netbooks_lifecycle() {
     // Test lifecycle with multiple netbooks
-    let serials = vec!["SN001", "SN002", "SN003"];
+    let serials = ["SN001", "SN002", "SN003"];
     let mut states: Vec<u8> = vec![STATE_FABRICADA; serials.len()];
 
     // All pass audit
-    for state in &mut states {
-        *state = STATE_HW_APROBADO;
-    }
+    states.fill(STATE_HW_APROBADO);
     assert!(states.iter().all(|s| *s == STATE_HW_APROBADO));
 
     // All pass validation
-    for state in &mut states {
-        *state = STATE_SW_VALIDADO;
-    }
+    states.fill(STATE_SW_VALIDADO);
     assert!(states.iter().all(|s| *s == STATE_SW_VALIDADO));
 
     // All assigned
-    for state in &mut states {
-        *state = STATE_DISTRIBUIDA;
-    }
+    states.fill(STATE_DISTRIBUIDA);
     assert!(states.iter().all(|s| *s == STATE_DISTRIBUIDA));
 }
 
@@ -768,8 +771,9 @@ fn test_pda_security() {
     let (deployer_pda, deployer_bump) = find_pda(&[DEPLOYER_SEED]);
 
     assert_ne!(config_pda, deployer_pda);
-    assert!(config_bump <= 255, "Bump should be valid u8");
-    assert!(deployer_bump <= 255, "Bump should be valid u8");
+    // Bump is u8, so it's always <= 255 by definition
+    let _ = config_bump;
+    let _ = deployer_bump;
 }
 
 #[test]

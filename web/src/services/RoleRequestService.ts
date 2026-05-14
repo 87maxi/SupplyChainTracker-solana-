@@ -1,6 +1,7 @@
 // web/src/services/RoleRequestService.ts
 // Service implementation for role requests - fully integrated with Solana blockchain
 
+import { Address } from '@solana/kit';
 import { UnifiedSupplyChainService } from './UnifiedSupplyChainService';
 
 // Role request interface for UI
@@ -152,7 +153,7 @@ export const RoleRequestService = {
         throw new Error('Service not available for on-chain approval');
       }
 
-      const txHash = await service.approveRoleRequest(role);
+      const txHash = await service.approveRoleRequest(role, userAddress as Address);
 
       // Update local state
       const index = roleRequests.findIndex(r => r.address === userAddress && r.role === role);
@@ -188,7 +189,7 @@ export const RoleRequestService = {
         throw new Error('Service not available for on-chain rejection');
       }
 
-      const txHash = await service.rejectRoleRequest(role);
+      const txHash = await service.rejectRoleRequest(role, userAddress as Address);
 
       // Update local state
       const index = roleRequests.findIndex(r => r.address === userAddress && r.role === role);

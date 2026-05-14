@@ -186,9 +186,9 @@ export class SolanaSupplyChainService {
   }
 
   async approveRoleRequest(_requestId: number, _approver: PublicKey): Promise<TransactionResult> {
-    console.warn('approveRoleRequest with requestId is deprecated. Use UnifiedSupplyChainService.approveRoleRequest(role) instead.');
+    console.warn('approveRoleRequest with requestId is deprecated. Use UnifiedSupplyChainService.approveRoleRequest(role, userAddress) instead.');
     try {
-      const signature = await this.unifiedService.approveRoleRequest('');
+      const signature = await this.unifiedService.approveRoleRequest('', _approver.toBase58() as Address);
       return { signature, success: true };
     } catch (error: any) {
       return { signature: '', success: false, error: error.message };
@@ -196,13 +196,8 @@ export class SolanaSupplyChainService {
   }
 
   async rejectRoleRequest(_requestId: number): Promise<TransactionResult> {
-    console.warn('rejectRoleRequest with requestId is deprecated. Use UnifiedSupplyChainService.rejectRoleRequest(role) instead.');
-    try {
-      const signature = await this.unifiedService.rejectRoleRequest('');
-      return { signature, success: true };
-    } catch (error: any) {
-      return { signature: '', success: false, error: error.message };
-    }
+    console.warn('rejectRoleRequest with requestId is deprecated. Use UnifiedSupplyChainService.rejectRoleRequest(role, userAddress) instead.');
+    return { signature: '', success: false, error: 'rejectRoleRequest deprecated - use UnifiedSupplyChainService directly' };
   }
 
   async getRoleMembers(role: string): Promise<string[]> {

@@ -350,8 +350,9 @@ export function useSupplyChainService() {
    */
   const approveRoleRequest = useCallback(async (params: {
     role: string;
+    userAddress: string;
   }): Promise<string> => {
-    return service.approveRoleRequest(params.role);
+    return service.approveRoleRequest(params.role, params.userAddress as Address);
   }, [service]);
 
   /**
@@ -359,8 +360,9 @@ export function useSupplyChainService() {
    */
   const rejectRoleRequest = useCallback(async (params: {
     role: string;
+    userAddress: string;
   }): Promise<string> => {
-    return service.rejectRoleRequest(params.role);
+    return service.rejectRoleRequest(params.role, params.userAddress as Address);
   }, [service]);
 
   /**

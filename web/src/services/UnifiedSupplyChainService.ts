@@ -18,6 +18,7 @@ import { Connection, PublicKey, SystemProgram, Transaction } from '@solana/web3.
 import {
   Address,
   TransactionSigner,
+  createSolanaRpc,
 } from '@solana/kit';
 import {
   // Instruction builders
@@ -140,10 +141,15 @@ function fromPublicKey(pk: PublicKey): Address {
 }
 
 /**
- * Get the RPC transport from web3.js Connection
+ * Create a Codama RPC instance from web3.js Connection.
+ *
+ * Codama-generated account fetchers (fetchEncodedAccount, etc.) expect a
+ * @solana/kit RPC instance where rpc.getAccountInfo(...).send() returns a Promise.
+ * The web3.js Connection.getAccountInfo() returns a Promise directly (no .send()),
+ * so we must create a proper Codama RPC from the connection's rpcEndpoint.
  */
-function getRpcTransport(connection: Connection): any {
-  return connection as any;
+function getRpcTransport(connection: Connection) {
+  return createSolanaRpc(connection.rpcEndpoint);
 }
 
 /**
@@ -523,16 +529,26 @@ export class UnifiedSupplyChainService {
       const config = await this.queryConfig();
       if (!config) return false;
 
+      // Support both *_ROLE format (FABRICANTE_ROLE) and lowercase (fabricante)
       const roleMap: Record<string, Address> = {
+        'ADMIN_ROLE': config.admin,
+        'FABRICANTE_ROLE': config.fabricante,
+        'AUDITOR_HW_ROLE': config.auditorHw,
+        'TECNICO_SW_ROLE': config.tecnicoSw,
+        'ESCUELA_ROLE': config.escuela,
+        // Legacy lowercase support
+        'admin': config.admin,
         'fabricante': config.fabricante,
         'auditor_hw': config.auditorHw,
         'tecnico_sw': config.tecnicoSw,
         'escuela': config.escuela,
-        'admin': config.admin,
       };
 
       const targetRole = roleMap[role];
-      if (!targetRole) return false;
+      if (!targetRole) {
+        console.warn(`[hasRole] Unknown role: ${role}, available: ${Object.keys(roleMap).join(', ')}`);
+        return false;
+      }
 
       return targetRole === address;
     } catch (error) {
@@ -857,18 +873,21 @@ export class UnifiedSupplyChainService {
     }
   }
 
-  async approveRoleRequest(role: string): Promise<string> {
+  async approveRoleRequest(role: string, userAddress: Address): Promise<string> {
     if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
       const configPda = await findConfigPdaAsync();
-      const roleRequestPda = await findRoleRequestPdaAsync(this.walletPubkey);
-      const roleHolderPda = await findRoleHolderPdaAsync(this.walletPubkey);
+      const adminPda = await findAdminPdaAsync(configPda[0]);
+      // Role request PDA is derived from the user who requested the role, NOT the admin
+      const roleRequestPda = await findRoleRequestPdaAsync(userAddress);
+      const roleHolderPda = await findRoleHolderPdaAsync(userAddress);
 
       const instruction = await getApproveRoleRequestInstructionAsync({
         config: configPda[0],
+        admin: adminPda[0],
         payer: asTransactionSigner(this.walletPubkey),
         roleRequest: roleRequestPda[0],
         roleHolder: roleHolderPda[0],
@@ -886,17 +905,20 @@ export class UnifiedSupplyChainService {
     }
   }
 
-  async rejectRoleRequest(role: string): Promise<string> {
+  async rejectRoleRequest(role: string, userAddress: Address): Promise<string> {
     if (!this.connection || !this.walletAdapter || !this.walletPubkey) {
       throw new Error('Program not initialized or wallet not connected.');
     }
 
     try {
       const configPda = await findConfigPdaAsync();
-      const roleRequestPda = await findRoleRequestPdaAsync(this.walletPubkey);
+      const adminPda = await findAdminPdaAsync(configPda[0]);
+      // Role request PDA is derived from the user who requested the role, NOT the admin
+      const roleRequestPda = await findRoleRequestPdaAsync(userAddress);
 
       const instruction = await getRejectRoleRequestInstructionAsync({
         config: configPda[0],
+        admin: adminPda[0],
         roleRequest: roleRequestPda[0],
       }, { programAddress: PROGRAM_ID });
 

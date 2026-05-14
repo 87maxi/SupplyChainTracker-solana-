@@ -1,23 +1,24 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { PublicKey } from '@solana/web3.js';
+// Issue #211: Migrated from @solana/web3.js PublicKey to @solana/kit address()
+import { address, type Address } from '@solana/kit';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Helper function to validate and normalize Solana public keys
-export function validateAndNormalizeAddress(address: string): string {
-  if (!address) {
+// Helper function to validate and normalize Solana addresses
+export function validateAndNormalizeAddress(addressStr: string): Address {
+  if (!addressStr) {
     throw new Error('Address is required');
   }
 
   try {
-    // Validate base58 PublicKey format
-    new PublicKey(address);
-    return address;
-  } catch (error: any) {
-    throw new Error(`Invalid Solana address: ${address}. ${error.message}`);
+    // Validate using @solana/kit address() - throws on invalid base58
+    return address(addressStr);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Invalid Solana address: ${addressStr}. ${message}`);
   }
 }
 

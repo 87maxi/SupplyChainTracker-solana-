@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { CacheService } from '@/lib/cache/cache-service';
-import { PublicKey } from '@solana/web3.js';
+// Issue #211: PublicKey usage migrated - useSolanaWeb3 already returns address as string
 
 interface UseUserRoles {
   isAdmin: boolean;

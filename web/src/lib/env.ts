@@ -10,22 +10,23 @@
  *   const ttl = CACHE_CONFIG.NETBOOK_DATA; // 2 minutes
  */
 
-import { PublicKey } from '@solana/web3.js';
+// Issue #211: Migrated from @solana/web3.js PublicKey to @solana/kit address()
+import { address } from '@solana/kit';
 
 // ==================== Utility Functions ====================
 
 /**
- * Validates and normalizes a Solana public key (base58 format)
+ * Validates and normalizes a Solana address (base58 format)
  * Returns undefined if the key is invalid or empty
  */
-const validateAndNormalizePublicKey = (address: string | undefined): string | undefined => {
-  if (!address || address.trim() === '') return undefined;
+const validateAndNormalizePublicKey = (addressStr: string | undefined): string | undefined => {
+  if (!addressStr || addressStr.trim() === '') return undefined;
   
   try {
-    new PublicKey(address.trim());
-    return address.trim();
+    address(addressStr.trim()); // Validates and normalizes
+    return addressStr.trim();
   } catch (error) {
-    console.error(`[env] Invalid Solana public key: ${address}`, error);
+    console.error(`[env] Invalid Solana address: ${addressStr}`, error);
     return undefined;
   }
 };

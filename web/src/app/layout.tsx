@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 import { SolanaWalletClientProvider } from '@/components/SolanaWalletClientProvider';
@@ -9,8 +9,27 @@ import { NotificationContainer } from '@/components/ui/NotificationContainer';
 import { RequireWallet } from '@/components/auth/RequireWallet';
 import DiagnosticRunner from '@/components/diagnostics/DiagnosticRunner';
 import DebugComponent from '@/components/diagnostics/DebugComponent';
+import { SolanaEventProvider } from '@/lib/solana/event-provider';
+import QueryProvider from '@/lib/providers/query-provider';
 
-const inter = Inter({ subsets: ["latin"] });
+// Issue #211: New font stack - DM Sans (display), Plus Jakarta Sans (body), JetBrains Mono (data)
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-display",
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-body",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
   title: "Supply Chain Tracker",
@@ -23,37 +42,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="dark">
-      <body className={inter.className}>
-        <SolanaWalletClientProvider>
-          <div className="min-h-screen bg-background relative isolate overflow-hidden">
-            {/* Background Glows - Global */}
-            <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
-              <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#0ea5e9] to-[#8b5cf6] opacity-10 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"></div>
-            </div>
-            
-            <div className="absolute inset-x-0 top-[calc(100%-13rem)] -z-10 transform-gpu overflow-hidden blur-3xl sm:top-[calc(100%-30rem)]">
-              <div className="relative left-[calc(50%+3rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 bg-gradient-to-tr from-[#8b5cf6] to-[#0ea5e9] opacity-10 sm:left-[calc(50%+36rem)] sm:w-[72.1875rem]"></div>
-            </div>
-            
-            <Header />
-            <main className="flex-1 relative">
-              <RequireWallet>
-                <div className="container mx-auto px-4 py-8 relative z-10">
-                  {children}
-                </div>
-              </RequireWallet>
-            </main>
-            <Toaster />
-            <NotificationContainer />
-          </div>
-          {process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' && (
-            <>
-              <DiagnosticRunner />
-              <DebugComponent />
-            </>
-          )}
-        </SolanaWalletClientProvider>
+    <html lang="es" className={`${dmSans.variable} ${plusJakartaSans.variable} ${jetBrainsMono.variable}`}>
+      <body className="font-body bg-background text-foreground">
+        <QueryProvider>
+          <SolanaWalletClientProvider>
+            <SolanaEventProvider>
+              <div className="min-h-screen bg-background relative isolate">
+                {/* Issue #211: Removed gradient blob backgrounds, replaced with clean design */}
+                
+                <Header />
+                <main className="flex-1 relative">
+                  <RequireWallet>
+                    <div className="container mx-auto px-4 py-8 relative z-10">
+                      {children}
+                    </div>
+                  </RequireWallet>
+                </main>
+                <Toaster />
+                <NotificationContainer />
+              </div>
+              {process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' && (
+                <>
+                  <DiagnosticRunner />
+                  <DebugComponent />
+                </>
+              )}
+            </SolanaEventProvider>
+          </SolanaWalletClientProvider>
+        </QueryProvider>
       </body>
     </html>
   );

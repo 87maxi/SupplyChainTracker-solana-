@@ -19,84 +19,74 @@
   }
 }
 
+/* Issue #211: Warm Technical Design System */
+/* Light theme with warm off-white base, blue-teal accents */
 :root {
   --radius: 0.75rem;
-  --background: 0 0% 100%;
-  --foreground: 224 71.4% 4.1%;
+  /* Warm off-white base (#FAF9F6) */
+  --background: 48 33% 97%;
+  --foreground: 224 71.4% 12%;
   --card: 0 0% 100%;
-  --card-foreground: 224 71.4% 4.1%;
+  --card-foreground: 224 71.4% 12%;
   --popover: 0 0% 100%;
-  --popover-foreground: 224 71.4% 4.1%;
-  --primary: 221.2 83.2% 53.3%;
+  --popover-foreground: 224 71.4% 12%;
+  /* Blue-teal accent (warm ocean) */
+  --primary: 199 89% 60%;
   --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
+  --secondary: 210 40% 96%;
   --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
+  --muted: 210 30% 94%;
   --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
+  --accent: 199 89% 95%;
+  --accent-foreground: 199 89% 40%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
-  --ring: 221.2 83.2% 53.3%;
-  --chart-1: 12 76% 61%;
-  --chart-2: 173 58% 39%;
-  --chart-3: 197 37% 24%;
-  --chart-4: 43 74% 66%;
-  --chart-5: 27 87% 67%;
-}
-
-.dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 217.2 91.2% 59.8%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 224.3 76.3% 48%;
-  --chart-1: 220 70% 50%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
+  --ring: 199 89% 60%;
+  --chart-1: 199 89% 60%;
+  --chart-2: 173 58% 45%;
+  --chart-3: 25 80% 60%;
+  --chart-4: 280 65% 65%;
+  --chart-5: 340 75% 60%;
 }
 
 @layer utilities {
+  /* Issue #211: Warm Technical Design System utilities */
   .bg-glass {
-    @apply bg-background/60 backdrop-blur-md border-border/50;
+    @apply bg-background/80 backdrop-blur-sm border-border/50;
   }
 
+  /* Soft white cards with layered shadows (Notion-style) */
   .glass-card {
-    background-color: hsl(var(--card) / 0.4);
-    backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    transition: all 0.3s ease;
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.6);
+    box-shadow:
+      0 1px 3px 0 rgb(0 0 0 / 0.05),
+      0 1px 2px -1px rgb(0 0 0 / 0.05);
+    border-radius: hsl(var(--radius));
+    transition: all 0.2s ease;
   }
 
   .glass-card:hover {
-    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow:
+      0 4px 6px -1px rgb(0 0 0 / 0.07),
+      0 2px 4px -2px rgb(0 0 0 / 0.05);
+    border-color: hsl(var(--border) / 0.8);
   }
 
+  /* Issue #211: Blue-teal text gradient (warm ocean) */
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-cyan-500 via-blue-500 to-teal-500;
   }
 
   .glow-text {
-    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.5));
+    filter: drop-shadow(0 0 4px rgba(14, 165, 233, 0.3));
+  }
+
+  /* JetBrains Mono for data values, addresses, hashes */
+  .font-mono {
+    font-family: var(--font-mono), monospace;
   }
 
   .border-glow {

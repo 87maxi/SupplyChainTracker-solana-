@@ -8,6 +8,7 @@ import { useUserRoles } from '@/hooks/useUserRoles';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useWeb3 } from '@/hooks/useWeb3';
+import { ConnectionIndicator } from '@/components/real-time/ConnectionIndicator';
 import { User, Wallet } from 'lucide-react';
 import Link from 'next/link';
 
@@ -52,6 +53,9 @@ export const Header = () => {
         </div>
 
         <div className="flex items-center space-x-4">
+          {/* Issue #211: WebSocket Connection Indicator */}
+          <ConnectionIndicator />
+
           {/* Sección de roles y acciones - Solo si está conectado */}
           {mounted && isConnected && (
             <>

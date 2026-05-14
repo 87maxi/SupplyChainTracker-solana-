@@ -1,8 +1,12 @@
 // web/src/services/RoleRequestService.ts
 // Service implementation for role requests - fully integrated with Solana blockchain
+//
+// Issue #211: Removed localStorage persistence.
+// All role request data is now fetched directly from the Solana blockchain.
+// This eliminates stale data risk and ensures a single source of truth.
 
 import { Address } from '@solana/kit';
-import { UnifiedSupplyChainService } from './UnifiedSupplyChainService';
+import { UnifiedSupplyChainService, type RoleRequestData } from './UnifiedSupplyChainService';
 
 // Role request interface for UI
 export interface RoleRequest {
@@ -13,21 +17,6 @@ export interface RoleRequest {
   timestamp: Date;
   signature: string;
   transactionHash?: string;
-}
-
-// In-memory role requests store (for backward compatibility with local fallback)
-let roleRequests: RoleRequest[] = [];
-
-// Initialize from localStorage if available
-if (typeof window !== 'undefined') {
-  const stored = localStorage.getItem('role_requests');
-  if (stored) {
-    try {
-      roleRequests = JSON.parse(stored);
-    } catch (e) {
-      console.error('[RoleRequestService] Error parsing stored requests:', e);
-    }
-  }
 }
 
 // Get singleton unified service
@@ -53,35 +42,10 @@ export const RoleRequestService = {
     try {
       const service = getService();
       if (!service) {
-        // Store locally if service not available
-        const newRequest: RoleRequest = {
-          id: Date.now().toString(),
-          address: request.userAddress,
-          role: request.role,
-          status: 'pending',
-          timestamp: new Date(),
-          signature: request.signature,
-        };
-        roleRequests.push(newRequest);
-        localStorage.setItem('role_requests', JSON.stringify(roleRequests));
-        return newRequest.id;
+        throw new Error('UnifiedSupplyChainService not available');
       }
 
       const signature = await service.requestRole(request.role);
-
-      // Store in local state for UI
-      const newRequest: RoleRequest = {
-        id: Date.now().toString(),
-        address: request.userAddress,
-        role: request.role,
-        status: 'pending',
-        timestamp: new Date(),
-        signature: request.signature,
-        transactionHash: signature,
-      };
-
-      roleRequests.push(newRequest);
-      localStorage.setItem('role_requests', JSON.stringify(roleRequests));
 
       console.log('[RoleRequestService] Request created on-chain:', signature);
       return signature;
@@ -98,43 +62,38 @@ export const RoleRequestService = {
     try {
       const service = getService();
       if (!service) {
-        console.warn('[RoleRequestService] Service not available, returning local state');
-        return roleRequests;
+        console.warn('[RoleRequestService] Service not available');
+        return [];
       }
 
       // Fetch role requests from Solana blockchain
       const onChainRequests = await service.getRoleRequests();
 
       // Map on-chain data to UI format
-      const mappedRequests: RoleRequest[] = onChainRequests.map((req: any, index: number) => {
-        // Determine status from on-chain state
+      const mappedRequests: RoleRequest[] = onChainRequests.map((req: RoleRequestData, index: number) => {
+        // Determine status from on-chain state (0 = Pending, 1 = Approved, 2 = Rejected)
         let status: 'pending' | 'approved' | 'rejected' = 'pending';
-        if (req.status === 'Approved' || req.status === 'approved') {
+        if (req.status === 1) {
           status = 'approved';
-        } else if (req.status === 'Rejected' || req.status === 'rejected') {
+        } else if (req.status === 2) {
           status = 'rejected';
         }
 
         return {
-          id: req.id?.toString() ?? `onchain-${index}`,
-          address: req.user?.toString() ?? '',
+          id: req.id.toString() ?? `onchain-${index}`,
+          address: req.user ?? '',
           role: req.role ?? 'unknown',
           status,
-          timestamp: req.createdAt ? new Date(Number(req.createdAt) * 1000) : new Date(),
-          signature: req.signature ?? '',
-          transactionHash: req.transactionHash,
+          timestamp: req.timestamp ? new Date(Number(req.timestamp) * 1000) : new Date(),
+          signature: '',
+          transactionHash: undefined,
         };
       });
 
-      // Merge with local requests that aren't on-chain yet
-      const onChainIds = new Set(mappedRequests.map((r: RoleRequest) => r.id));
-      const localOnly = roleRequests.filter((r: RoleRequest) => !onChainIds.has(r.id));
-
-      return [...mappedRequests, ...localOnly];
+      return mappedRequests;
     } catch (error) {
       console.error('[RoleRequestService] Error fetching from Solana:', error);
-      // Fallback to local state
-      return roleRequests;
+      return [];
     }
   },
 
@@ -154,17 +113,6 @@ export const RoleRequestService = {
       }
 
       const txHash = await service.approveRoleRequest(role, userAddress as Address);
-
-      // Update local state
-      const index = roleRequests.findIndex(r => r.address === userAddress && r.role === role);
-      if (index !== -1) {
-        roleRequests[index] = {
-          ...roleRequests[index],
-          status: 'approved',
-          transactionHash: txHash,
-        };
-        localStorage.setItem('role_requests', JSON.stringify(roleRequests));
-      }
 
       console.log('[RoleRequestService] Role approved on-chain:', txHash);
       return { transactionHash: txHash };
@@ -191,17 +139,6 @@ export const RoleRequestService = {
 
       const txHash = await service.rejectRoleRequest(role, userAddress as Address);
 
-      // Update local state
-      const index = roleRequests.findIndex(r => r.address === userAddress && r.role === role);
-      if (index !== -1) {
-        roleRequests[index] = {
-          ...roleRequests[index],
-          status: 'rejected',
-          transactionHash: txHash,
-        };
-        localStorage.setItem('role_requests', JSON.stringify(roleRequests));
-      }
-
       console.log('[RoleRequestService] Role rejected on-chain:', txHash);
       return { transactionHash: txHash };
     } catch (error) {
@@ -218,32 +155,30 @@ export const RoleRequestService = {
     id: string,
     status: 'approved' | 'rejected'
   ): Promise<RoleRequest> => {
-    const index = roleRequests.findIndex(r => r.id === id);
-    if (index === -1) {
+    // Fetch current requests to find the one matching the id
+    const requests = await RoleRequestService.getRoleRequests();
+    const request = requests.find(r => r.id === id);
+
+    if (!request) {
       throw new Error('Request not found');
     }
-
-    const request = roleRequests[index];
 
     try {
       if (status === 'approved') {
         const result = await RoleRequestService.approveRoleRequest(request.address, request.role);
-        roleRequests[index] = {
+        return {
           ...request,
           status,
           transactionHash: result.transactionHash,
         };
       } else {
         const result = await RoleRequestService.rejectRoleRequest(request.address, request.role);
-        roleRequests[index] = {
+        return {
           ...request,
           status,
           transactionHash: result.transactionHash,
         };
       }
-
-      localStorage.setItem('role_requests', JSON.stringify(roleRequests));
-      return roleRequests[index];
     } catch (error) {
       console.error('[RoleRequestService] Error updating request:', error);
       throw error;
@@ -251,12 +186,13 @@ export const RoleRequestService = {
   },
 
   /**
-   * Delete a role request (not supported on Solana, just remove from local state)
+   * Delete a role request - not supported on Solana blockchain
+   * On-chain data is immutable; use reset_role_request instruction instead
    */
   deleteRoleRequest: async (id: string): Promise<void> => {
-    console.warn('[RoleRequestService] Delete not supported on Solana. Removing from local state only.');
-    roleRequests = roleRequests.filter(r => r.id !== id);
-    localStorage.setItem('role_requests', JSON.stringify(roleRequests));
+    console.warn('[RoleRequestService] Delete not supported on Solana. On-chain data is immutable.');
+    // Use reset_role_request if you need to clear the request state
+    void id;
   }
 };
 

@@ -100,6 +100,9 @@ export function useSolanaWeb3() {
   // Issue #40: Admin check should use on-chain role verification
   const isAdmin = false;
 
+  // Issue #211: defaultAdminAddress exposed for backward compatibility
+  const defaultAdminAddress = process.env.NEXT_PUBLIC_DEFAULT_ADMIN_ADDRESS;
+
   return {
     address,
     isConnected,
@@ -112,6 +115,7 @@ export function useSolanaWeb3() {
     isAdmin,
     walletName,
     publicKey,
+    defaultAdminAddress,
     // Expose modern API for direct usage
     walletActions,
     session,

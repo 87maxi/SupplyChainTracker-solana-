@@ -18,6 +18,8 @@ export default [
       "scripts/**",
       "test-*.js",
       "wagmi.config.js",
+      // Generated Codama client code — not committed to git, causes TS/ESLint errors
+      "src/generated/**",
     ],
   },
   {

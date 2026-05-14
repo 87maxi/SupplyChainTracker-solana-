@@ -61,6 +61,7 @@
   ],
   "exclude": [
     "node_modules",
-    "components-bkp"
+    "components-bkp",
+    "src/generated"
   ]
 }

@@ -645,7 +645,7 @@ export class UnifiedSupplyChainService {
 
       CacheService.invalidateByTag(CACHE_TAGS.NETBOOK, CACHE_TAGS.NETBOOKS_LIST, CACHE_TAGS.CONFIG);
 
-      return { signature: tx, tokenId: BigInt(nextTokenId.toString()) };
+      return { signature, tokenId: BigInt(nextTokenId.toString()) };
     } catch (error) {
       console.error('Error in registerNetbook:', error);
       throw error;

@@ -3,29 +3,12 @@
 import { useSolanaWeb3 } from './useSolanaWeb3';
 
 /**
- * @deprecated Use `useSolanaWeb3` directly instead.
- * This hook is a thin wrapper around useSolanaWeb3 and will be removed in a future version.
- * Migration: Replace `import { useWeb3 } from '@/hooks/useWeb3'` with
- * `import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3'`
+ * Issue #211: useWeb3 now re-exports useSolanaWeb3 directly.
  *
- * @issue #211 - Frontend Evolution: Hook Consolidation
+ * @deprecated Import `useSolanaWeb3` directly from '@/hooks/useSolanaWeb3'
+ * This wrapper is kept for backward compatibility but delegates 1:1.
  */
-export const useWeb3 = () => {
-  const solana = useSolanaWeb3();
+export const useWeb3 = useSolanaWeb3;
 
-  const connectWallet = async () => {
-    await solana.connectWallet();
-  };
-
-  return {
-    address: solana.address,
-    isConnected: solana.isConnected,
-    isConnecting: solana.isConnecting,
-    disconnect: solana.disconnect,
-    connectWallet,
-    defaultAdminAddress: solana.defaultAdminAddress,
-    walletName: solana.walletName,
-    isAdmin: solana.isAdmin,
-    publicKey: solana.publicKey,
-  };
-};
+// Re-export for convenience
+export { useSolanaWeb3 };

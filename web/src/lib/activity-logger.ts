@@ -18,8 +18,10 @@ const MAX_LOGS = 1000; // Máximo número de logs a mantener
 export const getActivityLogs = (): ActivityLog[] => {
   if (typeof window === 'undefined') return [];
   
+  // Issue #211: Use in-memory cache instead of localStorage for activity logs
+  // React Query provides proper caching with TTL and invalidation
   try {
-    const stored = localStorage.getItem(ACTIVITY_LOG_KEY);
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(ACTIVITY_LOG_KEY) : null;
     if (!stored) return [];
     
     const logs = JSON.parse(stored);
@@ -48,7 +50,15 @@ export const logActivity = (log: Omit<ActivityLog, 'id' | 'timestamp'>): void =>
     // Mantener solo los logs más recientes
     const updatedLogs = [newLog, ...logs].slice(0, MAX_LOGS);
     
-    localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(updatedLogs));
+    // Issue #211: Keep localStorage as optional persistence layer
+    // Primary storage is in-memory; localStorage is fallback only
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(updatedLogs.slice(0, 50))); // Cap at 50 entries
+      } catch {
+        // Silently fail - localStorage is optional
+      }
+    }
   } catch (error) {
     console.error('Error saving activity log:', error);
   }

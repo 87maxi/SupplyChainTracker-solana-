@@ -33,22 +33,21 @@ export function TrackingCard({ netbook, onAction }: TrackingCardProps) {
 
     return (
         <>
-            <Card className="hover:bg-white/5 transition-all duration-200 border-white/5 group relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-
+            {/* Issue #211: Warm Technical Tracking Card */}
+            <Card className="glass-card group relative overflow-hidden">
                 <div className="p-5">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                         {/* Main Info Section */}
                         <div className="flex-1 space-y-4">
                             <div className="flex items-start justify-between">
-                                <div className="space-y-1">
+                                <div className="space-y-1.5">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider">Serial Number</span>
-                                        <Badge variant="outline" className="font-mono text-sm font-bold tracking-tight border-primary/20 text-primary bg-primary/5">
+                                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Serial</span>
+                                        <Badge variant="outline" className="font-mono text-xs font-semibold tracking-tight border-primary/20 text-primary bg-primary/5 px-2 py-0.5">
                                             {netbook.serialNumber}
                                         </Badge>
                                     </div>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                         <Calendar className="h-3 w-3" />
                                         <span>
                                             {netbook.currentState === 'FABRICADA' ? 'Registrado: ' : 'Actualizado: '}
@@ -60,22 +59,22 @@ export function TrackingCard({ netbook, onAction }: TrackingCardProps) {
                                     <StatusBadge status={netbook.currentState as NetbookState} />
                                     <button
                                         onClick={() => setIsModalOpen(true)}
-                                        className="text-[10px] font-bold text-primary hover:underline uppercase tracking-tighter"
+                                        className="text-[10px] font-semibold text-primary hover:text-primary/80 hover:underline uppercase tracking-wider transition-colors"
                                     >
-                                        Ver más detalles
+                                        Ver detalles
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Details Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                                <div className="flex items-center gap-3 p-2 rounded-lg bg-white/5 border border-white/5">
-                                    <div className="p-2 rounded-md bg-blue-500/10 text-blue-400">
+                            {/* Details Grid - Issue #211: Soft backgrounds */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                                <div className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/30 border border-border/50">
+                                    <div className="p-1.5 rounded-md bg-blue-50 text-blue-600">
                                         <Box className="h-4 w-4" />
                                     </div>
                                     <div>
-                                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Lote (Batch ID)</p>
-                                        <p className="text-sm font-medium truncate" title={netbook.batchId || 'N/A'}>
+                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Lote</p>
+                                        <p className="text-sm font-medium truncate font-mono" title={netbook.batchId || 'N/A'}>
                                             {netbook.batchId || 'N/A'}
                                         </p>
                                     </div>

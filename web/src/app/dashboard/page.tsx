@@ -45,19 +45,37 @@ import { TrackingCard } from './components/TrackingCard';
 
 // Importar Event Provider para eventos en tiempo real
 import { useSolanaEventContext } from '@/lib/solana/event-provider';
+// Issue #211: Real-time components
+import { SolanaActivityFeed } from '@/components/real-time/SolanaActivityFeed';
+import { ConnectionIndicator } from '@/components/real-time/ConnectionIndicator';
 
-// Summary Card Component
-function SummaryCard({ title, count, description, icon: Icon, color }: { title: string, count: number, description: string, icon: React.ElementType, color: string }) {
+// Summary Card Component - Issue #211: Enhanced with warm technical design
+function SummaryCard({ title, count, description, icon: Icon, color, statusClass }: { title: string, count: number, description: string, icon: React.ElementType, color: string, statusClass?: string }) {
   return (
-    <Card className="relative overflow-hidden group">
-      <div className={cn("absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity", color)}>
-        <Icon className="h-16 w-16" />
+    <Card className={cn(
+      "relative overflow-hidden group glass-card",
+      statusClass
+    )}>
+      {/* Background icon with subtle opacity */}
+      <div className={cn("absolute top-3 right-3 opacity-5 group-hover:opacity-10 transition-all duration-300", color)}>
+        <Icon className="h-20 w-20" />
       </div>
+      
+      {/* Status indicator dot */}
+      <div className="absolute top-4 right-4">
+        <span className={cn("inline-block w-2 h-2 rounded-full", color.replace('text-', 'bg-'))} />
+      </div>
+      
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
+        <div className="flex items-center gap-2">
+          <div className={cn("p-2 rounded-lg", color.replace('text-', 'bg-').replace('400', '100'))}>
+            <Icon className={cn("h-4 w-4", color)} />
+          </div>
+          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="text-4xl font-bold mb-1">{count}</div>
+        <div className="text-3xl font-bold mb-1 tracking-tight">{count}</div>
         <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
       </CardContent>
     </Card>
@@ -227,16 +245,18 @@ export default function ManagerDashboard() {
 
 
   return (
-    <div className="container mx-auto px-4 py-12 space-y-12 relative">
-      <div className="absolute inset-0 bg-gradient-overlay opacity-30 pointer-events-none"></div>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+    <div className="container mx-auto px-4 py-8 space-y-8 relative">
+      {/* Issue #211: Solana Activity Feed - Real-time network activity */}
+      <SolanaActivityFeed maxEntries={15} compact={true} />
+      
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Resumen General</h1>
-          <p className="text-muted-foreground">Estado actual de la cadena de suministro de netbooks.</p>
+          <h1 className="text-3xl font-bold tracking-tight mb-1">Panel de Control</h1>
+          <p className="text-sm text-muted-foreground">Estado actual de la cadena de suministro de netbooks.</p>
         </div>
-        <div className="flex items-center gap-3 bg-gradient-subtle p-2 rounded-xl border border-white/10 shadow-lg">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-sm font-medium">Sistema en línea</span>
+        <div className="flex items-center gap-3 bg-card p-2.5 rounded-xl border border-border/60 shadow-sm">
+          <ConnectionIndicator />
+          <span className="text-xs font-medium text-muted-foreground">Red Solana</span>
         </div>
       </div>
 
@@ -253,12 +273,20 @@ export default function ManagerDashboard() {
         </div>
       ) : (
         <>
-          {/* Summary Cards */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <SummaryCard title="En fabricación" count={summary.FABRICADA} description="Netbooks registradas pendientes de auditoría." icon={Package} color="text-blue-400" />
-            <SummaryCard title="HW Aprobado" count={summary.HW_APROBADO} description="Hardware verificado por auditores." icon={ShieldCheck} color="text-emerald-400" />
-            <SummaryCard title="SW Validado" count={summary.SW_VALIDADO} description="Software instalado y certificado." icon={Monitor} color="text-purple-400" />
-            <SummaryCard title="Entregadas" count={summary.DISTRIBUIDA} description="Distribuidas a instituciones finales." icon={Truck} color="text-amber-400" />
+          {/* Summary Cards - Issue #211: Enhanced with status classes and animations */}
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            <div className="animate-slide-up stagger-1">
+              <SummaryCard title="En fabricación" count={summary.FABRICADA} description="Registradas pendientes de auditoría." icon={Package} color="text-blue-500" statusClass="border-blue-200/50" />
+            </div>
+            <div className="animate-slide-up stagger-2">
+              <SummaryCard title="HW Aprobado" count={summary.HW_APROBADO} description="Hardware verificado por auditores." icon={ShieldCheck} color="text-emerald-500" statusClass="border-emerald-200/50" />
+            </div>
+            <div className="animate-slide-up stagger-3">
+              <SummaryCard title="SW Validado" count={summary.SW_VALIDADO} description="Software instalado y certificado." icon={Monitor} color="text-purple-500" statusClass="border-purple-200/50" />
+            </div>
+            <div className="animate-slide-up stagger-4">
+              <SummaryCard title="Entregadas" count={summary.DISTRIBUIDA} description="Distribuidas a instituciones." icon={Truck} color="text-amber-500" statusClass="border-amber-200/50" />
+            </div>
           </div>
 
           {/* Pending Tasks Section */}

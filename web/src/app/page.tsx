@@ -28,44 +28,35 @@ export default function Home() {
 
   return (
     <div className="relative isolate overflow-hidden min-h-screen">
-      {/* Background Glows - Full screen coverage */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute inset-x-0 -top-40 transform-gpu overflow-hidden blur-3xl sm:-top-80">
-          <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#0ea5e9] to-[#8b5cf6] opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"></div>
-        </div>
-        
-        <div className="absolute inset-x-0 top-[calc(100%-13rem)] transform-gpu overflow-hidden blur-3xl sm:top-[calc(100%-30rem)]">
-          <div className="relative left-[calc(50%+3rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 bg-gradient-to-tr from-[#8b5cf6] to-[#0ea5e9] opacity-20 sm:left-[calc(50%+36rem)] sm:w-[72.1875rem]"></div>
-        </div>
-      </div>
+      {/* Issue #211: Clean background - removed gradient blobs, using subtle overlay */}
+      <div className="fixed inset-0 -z-10 bg-gradient-overlay" />
 
-      <div className="container mx-auto px-4 py-24 sm:py-32 relative z-10">
+      <div className="container mx-auto px-4 py-20 sm:py-28 relative z-10">
         <div className="flex flex-col items-center text-center space-y-10">
           {/* Hero Section */}
-          <div className="space-y-6 max-w-4xl animate-float">
-            <Badge variant="outline-glow" className="px-4 py-1.5 text-sm uppercase tracking-widest">
+          <div className="space-y-6 max-w-4xl animate-fade-in">
+            <Badge variant="outline" className="px-4 py-1.5 text-xs font-medium uppercase tracking-widest border-primary/20 text-primary bg-primary/5">
               Web3 Supply Chain Solution
             </Badge>
-            <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight">
-              Trazabilidad <span className="text-gradient">Inmutable</span> para la Educación
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-tight">
+              Trazabilidad <span className="text-gradient">Inmutable</span>
+              <br />para la Educación
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Garantiza la transparencia y seguridad en la distribución de netbooks educativas utilizando tecnología blockchain de última generación.
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              Garantiza la transparencia y seguridad en la distribución de netbooks educativas
+              utilizando tecnología blockchain de última generación.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-4 animate-slide-up">
             {!mounted ? (
-              // Placeholder para evitar hydration mismatch
               <div className="h-12 w-48" />
             ) : !isConnected ? (
-              <div className="scale-110">
-                <WalletConnectButton />
-              </div>
+              <WalletConnectButton />
             ) : (
-              <Button asChild size="lg" variant="gradient" className="h-12 px-8 text-lg font-semibold">
+              <Button asChild size="lg" className="h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 hover:-translate-y-0.5">
                 <Link href="/dashboard">
-                  Ir al Panel <ArrowRight className="ml-2 h-5 w-5" />
+                  Ir al Panel <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             )}
@@ -116,18 +107,22 @@ export default function Home() {
   );
 }
 
+// Issue #211: Warm Technical Feature Card
 function FeatureCard({ icon: Icon, title, description, color }: { icon: React.ElementType, title: string, description: string, color: string }) {
   return (
-    <Card className="group relative overflow-hidden transition-all duration-500 hover:translate-y-[-8px]">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-      <CardHeader>
-        <div className={cn("p-3 rounded-2xl bg-white/5 w-fit mb-4 group-hover:scale-110 transition-transform duration-500", color)}>
-          <Icon className="h-8 w-8" />
+    <Card className="group relative overflow-hidden glass-card transition-all duration-300 hover:-translate-y-1">
+      <CardHeader className="pb-3">
+        <div className={cn(
+          "p-3 rounded-xl w-fit mb-3 group-hover:scale-110 transition-all duration-300",
+          color.replace('text-', 'bg-').replace('400', '100'),
+          color
+        )}>
+          <Icon className="h-6 w-6" />
         </div>
-        <CardTitle className="text-2xl group-hover:text-primary transition-colors">{title}</CardTitle>
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-muted-foreground leading-relaxed">
+        <p className="text-sm text-muted-foreground leading-relaxed">
           {description}
         </p>
       </CardContent>

@@ -15,6 +15,7 @@
 
 use anchor_lang::prelude::Pubkey;
 use sc_solana::ID;
+use sha2::{Digest, Sha256};
 use solana_rent::Rent;
 use std::collections::HashMap;
 
@@ -88,17 +89,13 @@ fn encode_string(s: &str) -> Vec<u8> {
 
 // ==================== Discriminators ====================
 
-/// Generate instruction discriminator using FNV-1a 64-bit hash for test verification
+/// Generate instruction discriminator using SHA256 (first 8 bytes),
+/// matching Anchor 1.0's discriminator generation approach.
 fn get_discriminator(name: &str) -> [u8; 8] {
     let mut disc = [0u8; 8];
     let key = format!("global:{}", name);
-    let bytes = key.as_bytes();
-    let mut hash: u64 = 14695981039346656037; // FNV-1a 64-bit offset basis (14695981039346656037)
-    for &byte in bytes {
-        hash ^= byte as u64;
-        hash = hash.wrapping_mul(1099511628211); // FNV-1a 64-bit prime (1099511628211)
-    }
-    disc.copy_from_slice(&hash.to_le_bytes());
+    let hash = Sha256::digest(key.as_bytes());
+    disc.copy_from_slice(&hash[..8]);
     disc
 }
 

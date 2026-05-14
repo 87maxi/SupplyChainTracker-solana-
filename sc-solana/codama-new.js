@@ -1,0 +1,21 @@
+export default {
+    idl: 'program/idl.json',
+    before: [],
+    scripts: {
+        js: {
+            from: '@codama/renderers-js',
+            args: [
+                'clients/js'
+            ]
+        },
+        rust: {
+            from: '@codama/renderers-rust',
+            args: [
+                'clients/rust',
+                {
+                    formatCode: true
+                }
+            ]
+        }
+    }
+}

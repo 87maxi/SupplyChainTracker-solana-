@@ -1,6 +1,7 @@
 /**
  * Solana Event Listener with Real-time Updates
- * Uses connection.onLogs() for real-time transaction monitoring
+ * Issue #211: Uses deprecated Connection for logs subscription
+ * (logsSubscribe not yet available in @solana/kit stable API)
  */
 
 'use client';
@@ -52,7 +53,7 @@ export class SolanaEventListener {
 
     try {
       const programPubkey = new PublicKey(PROGRAM_ID);
-      
+
       this.subscriptionId = connection.onLogs(
         programPubkey,
         (logs: Logs) => this.handleLogs(logs),
@@ -61,7 +62,7 @@ export class SolanaEventListener {
 
       this.isSubscribed = true;
       this.reconnectAttempts = 0;
-      
+
       console.log('✅ Subscribed to Solana program events');
       return true;
     } catch (error) {
@@ -88,7 +89,7 @@ export class SolanaEventListener {
   /** Register event callback */
   onEvent(callback: EventCallback): () => void {
     this.callbacks.add(callback);
-    
+
     // Return unsubscribe function
     return () => {
       this.callbacks.delete(callback);
@@ -121,7 +122,7 @@ export class SolanaEventListener {
       blockTime: number | null;
       err: unknown;
     };
-    
+
     const event: SolanaEvent = {
       signature: logsData.signature,
       slot: logsData.slot,
@@ -135,7 +136,7 @@ export class SolanaEventListener {
       try {
         callback(event);
       } catch (error) {
-         
+
         console.error('Error in event callback:', error);
       }
     }
@@ -149,11 +150,9 @@ export class SolanaEventListener {
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    
+
     console.log(`🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
-    
-     
-     
+
     setTimeout(async () => {
       await this.start();
     }, delay);

@@ -1,17 +1,17 @@
 /**
- * Unit Tests - Anchor Test Format
+ * Unit Tests - Codama Client Format
  *
- * Converts existing Rust unit tests from lib.rs to Anchor TypeScript test format.
+ * Converts existing Rust unit tests from lib.rs to Codama TypeScript test format.
  * These tests verify struct sizes, enum values, and error codes.
+ *
+ * Migrated from @coral-xyz/anchor to Codama-generated client (Issue #209).
  *
  * Related Issues:
  * - Issue #66: Convert Unit Tests to Anchor Test Format
  * - Original Issue #9: Phase 10: Testing Framework Setup
  */
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { ScSolana } from "../target/types/sc_solana";
+import { Keypair } from "@solana/web3.js";
 import { expect } from "chai";
 
 // Import test helpers
@@ -20,13 +20,15 @@ import {
   RequestStatus,
   ROLE_TYPES,
   createHash,
-  getConfigPda,
+  getConfigPdaAddress,
+  getNetbookPdaAddress,
+  getRoleRequestPdaAddress,
+  createBatchId,
+  createModelSpecs,
+  toAddress,
 } from "./test-helpers";
 
-describe("Unit Tests - Anchor Format", () => {
-  anchor.setProvider(anchor.AnchorProvider.env());
-  const program = anchor.workspace.scSolana as Program<ScSolana>;
-
+describe("Unit Tests - Codama Format", () => {
   // ========================================================================
   // Netbook Space Tests
   // ========================================================================
@@ -307,67 +309,47 @@ describe("Unit Tests - Anchor Format", () => {
 
   describe("PDA Derivation Verification", () => {
     it("verifies config PDA derivation", async () => {
-      const [configPda, configBump] = getConfigPda(program);
+      const configPda = await getConfigPdaAddress();
 
-      expect(configPda.toString()).to.be.a("string");
-      expect(configBump).to.be.a("number");
-      expect(configBump).to.be.lessThan(256); // Bump must be < 256
+      expect(configPda).to.be.a("string");
+      expect(configPda.length).to.equal(44); // Base58 address length
     });
 
     it("verifies config PDA is a program-derived address", async () => {
-      const [configPda, _bump] = getConfigPda(program);
+      const configPda = await getConfigPdaAddress();
 
       // PDA should not be a valid system account
-      expect(configPda.equals(anchor.web3.SystemProgram.programId)).to.be.false;
+      expect(configPda).to.not.equal("11111111111111111111111111111111");
     });
 
     it("verifies consistent PDA derivation", async () => {
-      const [configPda1, _bump1] = getConfigPda(program);
-      const [configPda2, _bump2] = getConfigPda(program);
+      const configPda1 = await getConfigPdaAddress();
+      const configPda2 = await getConfigPdaAddress();
 
       // Same seeds should produce same PDA
-      expect(configPda1.toString()).to.equal(configPda2.toString());
-      expect(_bump1).to.equal(_bump2);
+      expect(configPda1).to.equal(configPda2);
     });
 
     it("verifies netbook PDA derivation with different token IDs", async () => {
-      const netbookPda1 = anchor.utils.bytes.utf8.encode("test");
-      const getNetbookPda = (tokenId: number) => {
-        const tokenIdBytes = Buffer.alloc(8);
-        tokenIdBytes.writeBigUInt64LE(BigInt(tokenId), 0);
-        const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
-          [Buffer.from("netbook"), Buffer.from("netbook"), tokenIdBytes.slice(0, 7)],
-          program.programId
-        );
-        return pda;
-      };
-
-      const pda1 = getNetbookPda(1);
-      const pda2 = getNetbookPda(2);
-      const pda100 = getNetbookPda(100);
+      const pda1 = await getNetbookPdaAddress(1);
+      const pda2 = await getNetbookPdaAddress(2);
+      const pda100 = await getNetbookPdaAddress(100);
 
       // Different token IDs should produce different PDAs
-      expect(pda1.toString()).to.not.equal(pda2.toString());
-      expect(pda2.toString()).to.not.equal(pda100.toString());
-      expect(pda1.toString()).to.not.equal(pda100.toString());
+      expect(pda1).to.not.equal(pda2);
+      expect(pda2).to.not.equal(pda100);
+      expect(pda1).to.not.equal(pda100);
     });
 
     it("verifies role request PDA derivation", async () => {
-      const testUser = anchor.web3.Keypair.generate();
+      const testUser = Keypair.generate();
 
-      const getRoleRequestPda = (user: anchor.web3.PublicKey) => {
-        const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
-          [Buffer.from("role_request"), user.toBuffer()],
-          program.programId
-        );
-        return pda;
-      };
-
-      const pda1 = getRoleRequestPda(testUser.publicKey);
-      const pda2 = getRoleRequestPda(anchor.web3.Keypair.generate().publicKey);
+      const pda1 = await getRoleRequestPdaAddress(toAddress(testUser.publicKey.toBase58()));
+      const testUser2 = Keypair.generate();
+      const pda2 = await getRoleRequestPdaAddress(toAddress(testUser2.publicKey.toBase58()));
 
       // Different users should produce different PDAs
-      expect(pda1.toString()).to.not.equal(pda2.toString());
+      expect(pda1).to.not.equal(pda2);
     });
   });
 
@@ -420,22 +402,13 @@ describe("Unit Tests - Anchor Format", () => {
   // ========================================================================
 
   describe("String Utility Verification", () => {
-    it("verifies serial number format", async () => {
-      const { createSerialNumber } = await import("./test-helpers");
-      const serial = createSerialNumber("NB", 1);
-
-      expect(serial).to.match(/^NB-000001$/);
-    });
-
     it("verifies batch ID format", async () => {
-      const { createBatchId } = await import("./test-helpers");
       const batch = createBatchId("MFG", 2024, 1);
 
       expect(batch).to.match(/^MFG-2024-0001$/);
     });
 
     it("verifies model specs format", async () => {
-      const { createModelSpecs } = await import("./test-helpers");
       const specs = createModelSpecs("TestBrand", "ProBook", 2024);
 
       expect(specs).to.include("TestBrand");

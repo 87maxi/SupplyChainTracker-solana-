@@ -7,82 +7,51 @@
  * - close_deployer: Close deployer PDA and reclaim funds
  *
  * This replaces the previous pattern that required an external initializer signer.
+ *
+ * Migrated from @coral-xyz/anchor to Codama-generated client (Issue #209).
  */
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { ScSolana } from "../target/types/sc_solana";
 import { expect } from "chai";
-import { Keypair, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { createSignerFromKeyPair } from "@solana/kit";
+import {
+  createTestClient,
+  getConfigPdaAddress,
+  getSerialHashRegistryPdaAddress,
+  getAdminPdaAddress,
+  getDeployerPdaAddress,
+  fundKeypair,
+  toAddress,
+  type TestClient,
+} from "./test-helpers";
 
-// Enable global skipPreflight patching for PDA signing
-import "./test-helpers";
+const SYSTEM_PROGRAM = "11111111111111111111111111111111" as const;
 
 describe("Deployer PDA Architecture", () => {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
-
-  let program: Program<ScSolana>;
+  let client: TestClient;
   let funder: Keypair;
 
-  // Deployer PDA
-  const DEPLOYER_SEED = Buffer.from("deployer");
-  let deployerPda: anchor.web3.PublicKey;
-  let deployerBump: number;
-
-  // Config PDA
-  let configPda: anchor.web3.PublicKey;
-  let configBump: number;
-
-  // Serial Hash Registry PDA
-  let serialHashRegistryPda: anchor.web3.PublicKey;
-
-  // Admin PDA
-  let adminPda: anchor.web3.PublicKey;
+  // PDA addresses (typed as Address)
+  let deployerPda: string;
+  let configPda: string;
+  let serialHashRegistryPda: string;
+  let adminPda: string;
 
   before(async () => {
-    // Load program
-    if (anchor.workspace.scSolana) {
-      program = anchor.workspace.scSolana as Program<ScSolana>;
-    } else {
-      const idl = require("../target/idl/sc_solana.json");
-      const programIdStr = idl.address || "7xX49ydi4Sx6hJQjj26arXhLZgwZXpr5sNJAKb29aPaN";
-      program = new anchor.Program({ ...idl, address: programIdStr }, provider);
-    }
-
-    // Calculate PDAs
-    [deployerPda, deployerBump] = anchor.web3.PublicKey.findProgramAddressSync(
-      [DEPLOYER_SEED],
-      program.programId
-    );
-
-    [configPda, configBump] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("config")],
-      program.programId
-    );
-
-    [serialHashRegistryPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("serial_hashes"), configPda.toBuffer()],
-      program.programId
-    );
-
-    [adminPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("admin"), configPda.toBuffer()],
-      program.programId
-    );
-
     // Create funder account
     funder = Keypair.generate();
 
-    // Airdrop SOL to funder (need enough for 10 SOL transfer + rent)
-    const airdropTx = await provider.connection.requestAirdrop(
-      funder.publicKey,
-      15 * LAMPORTS_PER_SOL
-    );
-    await provider.connection.confirmTransaction(airdropTx, "confirmed");
+    // Create test client
+    client = await createTestClient("http://localhost:8899", funder);
+
+    // Calculate PDAs
+    configPda = await getConfigPdaAddress();
+    deployerPda = await getDeployerPdaAddress();
+    serialHashRegistryPda = await getSerialHashRegistryPdaAddress(toAddress(configPda));
+    adminPda = await getAdminPdaAddress(toAddress(configPda));
 
     // Check if config already exists (from parallel test initialization)
-    const existingConfig = await provider.connection.getAccountInfo(configPda);
+    const existingConfig = await client.rpc.getAccountInfo(toAddress(configPda));
     if (existingConfig) {
       console.log("⚠️  Config already exists (from parallel tests) - deployer-pda tests will be skipped");
       (global as any).deployerPdaSkipped = true;
@@ -93,46 +62,39 @@ describe("Deployer PDA Architecture", () => {
 
   describe("fund_deployer", () => {
     it("should create and fund the deployer PDA", async () => {
-      const amount = new anchor.BN(10 * LAMPORTS_PER_SOL); // 10 SOL
+      const amountSol = 10;
+      const funderSigner = await createSignerFromKeyPair(funder);
 
-      // Use (program.methods as any) to bypass IDL type checking until anchor build regenerates types
-      const tx = await (program.methods as any)
-        .fundDeployer(amount)
-        .accounts({
-          deployer: deployerPda,
-          funder: funder.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([funder])
-        .rpc();
+      const tx = await client.scSolana.instructions.fundDeployer({
+        deployer: toAddress(deployerPda),
+        funder: funderSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        amount: BigInt(amountSol * LAMPORTS_PER_SOL),
+      }).sendAndConfirm();
 
-      await provider.connection.confirmTransaction(tx, "confirmed");
+      console.log("Fund deployer TX:", tx);
 
       // Verify deployer PDA exists by fetching account info
-      const deployerInfo = await provider.connection.getAccountInfo(deployerPda);
+      const deployerInfo = await client.rpc.getAccountInfo(toAddress(deployerPda));
       expect(deployerInfo).to.not.be.null;
-      expect(deployerInfo!.owner.toBase58()).to.equal(program.programId.toBase58());
 
-      console.log(`✅ Deployer PDA created at: ${deployerPda.toBase58()}`);
-      console.log(`✅ Deployer bump: ${deployerBump}`);
+      console.log(`✅ Deployer PDA created at: ${deployerPda}`);
     });
 
     it("should add more funds to existing deployer PDA", async () => {
-      const additionalAmount = new anchor.BN(5 * LAMPORTS_PER_SOL);
+      const additionalAmountSol = 5;
+      const funderSigner = await createSignerFromKeyPair(funder);
 
-      const tx = await (program.methods as any)
-        .fundDeployer(additionalAmount)
-        .accounts({
-          deployer: deployerPda,
-          funder: funder.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([funder])
-        .rpc();
+      const tx = await client.scSolana.instructions.fundDeployer({
+        deployer: toAddress(deployerPda),
+        funder: funderSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        amount: BigInt(additionalAmountSol * LAMPORTS_PER_SOL),
+      }).sendAndConfirm();
 
-      await provider.connection.confirmTransaction(tx, "confirmed");
+      console.log("Additional funds TX:", tx);
 
-      const deployerInfo = await provider.connection.getAccountInfo(deployerPda);
+      const deployerInfo = await client.rpc.getAccountInfo(toAddress(deployerPda));
       expect(deployerInfo).to.not.be.null;
 
       console.log(`✅ Additional funds added to deployer PDA`);
@@ -141,111 +103,44 @@ describe("Deployer PDA Architecture", () => {
 
   describe("initialize with deployer PDA", () => {
     it("should initialize config using deployer PDA (no external signer)", async () => {
-      // Build transaction manually to handle PDA signing (admin + deployer)
-      const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
-        commitment: "confirmed",
-      });
+      const funderSigner = await createSignerFromKeyPair(funder);
 
-      const initInstruction = await (program.methods as any)
-        .initialize()
-        .accounts({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          admin: adminPda,
-          deployer: deployerPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .instruction();
+      const tx = await client.scSolana.instructions.initialize({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        admin: toAddress(adminPda),
+        deployer: toAddress(deployerPda),
+        funder: funderSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+      }).sendAndConfirm();
 
-      const walletSigner = (provider.wallet as any).payer as Keypair;
-      const initTx = new anchor.web3.Transaction({
-        blockhash,
-        lastValidBlockHeight,
-        feePayer: provider.wallet.publicKey,
-      }).add(initInstruction);
-
-      initTx.partialSign(walletSigner);
-
-      // Add PDA signature for admin
-      const [_, adminBump] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("admin"), configPda.toBuffer()],
-        program.programId
-      );
-      const adminSig = Buffer.alloc(64);
-      adminSig[0] = adminBump;
-      initTx.addSignature(adminPda, adminSig);
-
-      // Add PDA signature for deployer
-      const deployerSig = Buffer.alloc(64);
-      deployerSig[0] = deployerBump;
-      initTx.addSignature(deployerPda, deployerSig);
-
-      const serializedTx = initTx.serialize({ requireAllSignatures: false, verifySignatures: false });
-      const txSig = await provider.connection.sendRawTransaction(serializedTx, {
-        skipPreflight: true,
-        maxRetries: 5,
-      });
-      await provider.connection.confirmTransaction({ signature: txSig, blockhash, lastValidBlockHeight }, "confirmed");
+      console.log("Initialize TX:", tx);
 
       // Verify config was created
-      const configInfo = await provider.connection.getAccountInfo(configPda);
+      const configInfo = await client.rpc.getAccountInfo(toAddress(configPda));
       expect(configInfo).to.not.be.null;
-      expect(configInfo!.owner.toBase58()).to.equal(program.programId.toBase58());
 
       // Verify serial hash registry was created
-      const registryInfo = await provider.connection.getAccountInfo(serialHashRegistryPda);
+      const registryInfo = await client.rpc.getAccountInfo(toAddress(serialHashRegistryPda));
       expect(registryInfo).to.not.be.null;
-      expect(registryInfo!.owner.toBase58()).to.equal(program.programId.toBase58());
 
-      console.log(`✅ Config initialized at: ${configPda.toBase58()}`);
-      console.log(`✅ Admin PDA: ${adminPda.toBase58()}`);
-      console.log(`✅ Serial Hash Registry: ${serialHashRegistryPda.toBase58()}`);
+      console.log(`✅ Config initialized at: ${configPda}`);
+      console.log(`✅ Admin PDA: ${adminPda}`);
+      console.log(`✅ Serial Hash Registry: ${serialHashRegistryPda}`);
     });
 
     it("should fail to initialize again (already exists)", async () => {
+      const funderSigner = await createSignerFromKeyPair(funder);
+
       try {
-        const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
-          commitment: "confirmed",
-        });
-
-        const initInstruction = await (program.methods as any)
-          .initialize()
-          .accounts({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            admin: adminPda,
-            deployer: deployerPda,
-            systemProgram: SystemProgram.programId,
-          })
-          .instruction();
-
-        const walletSigner = (provider.wallet as any).payer as Keypair;
-        const initTx = new anchor.web3.Transaction({
-          blockhash,
-          lastValidBlockHeight,
-          feePayer: provider.wallet.publicKey,
-        }).add(initInstruction);
-
-        initTx.partialSign(walletSigner);
-
-        const [_, adminBump] = anchor.web3.PublicKey.findProgramAddressSync(
-          [Buffer.from("admin"), configPda.toBuffer()],
-          program.programId
-        );
-        const adminSig = Buffer.alloc(64);
-        adminSig[0] = adminBump;
-        initTx.addSignature(adminPda, adminSig);
-
-        const deployerSig = Buffer.alloc(64);
-        deployerSig[0] = deployerBump;
-        initTx.addSignature(deployerPda, deployerSig);
-
-        const serializedTx = initTx.serialize({ requireAllSignatures: false, verifySignatures: false });
-        const txSig = await provider.connection.sendRawTransaction(serializedTx, {
-          skipPreflight: true,
-          maxRetries: 5,
-        });
-        await provider.connection.confirmTransaction({ signature: txSig, blockhash, lastValidBlockHeight }, "confirmed");
+        await client.scSolana.instructions.initialize({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          admin: toAddress(adminPda),
+          deployer: toAddress(deployerPda),
+          funder: funderSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+        }).sendAndConfirm();
         expect.fail("Should have thrown an error");
       } catch (error: any) {
         expect(error.message).to.include("already been initialized");
@@ -256,93 +151,35 @@ describe("Deployer PDA Architecture", () => {
 
   describe("close_deployer", () => {
     it("should close deployer PDA and transfer remaining funds", async () => {
-      const deployerBalanceBefore = await provider.connection.getBalance(deployerPda);
-      expect(deployerBalanceBefore).to.be.greaterThan(0);
+      const deployerBalanceBefore = await client.rpc.getBalance(toAddress(deployerPda));
+      expect(Number(deployerBalanceBefore)).to.be.greaterThan(0);
 
-      // Build transaction manually for PDA signing
-      const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
-        commitment: "confirmed",
-      });
+      const funderSigner = await createSignerFromKeyPair(funder);
 
-      const closeInstruction = await (program.methods as any)
-        .closeDeployer()
-        .accounts({
-          config: configPda,
-          deployer: deployerPda,
-          admin: adminPda,
-        })
-        .instruction();
+      const tx = await client.scSolana.instructions.closeDeployer({
+        config: toAddress(configPda),
+        deployer: toAddress(deployerPda),
+        admin: funderSigner,
+      }).sendAndConfirm();
 
-      const walletSigner = (provider.wallet as any).payer as Keypair;
-      const closeTx = new anchor.web3.Transaction({
-        blockhash,
-        lastValidBlockHeight,
-        feePayer: provider.wallet.publicKey,
-      }).add(closeInstruction);
-
-      closeTx.partialSign(walletSigner);
-
-      // Add PDA signature for admin
-      const [_, adminBump] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("admin"), configPda.toBuffer()],
-        program.programId
-      );
-      const adminSig = Buffer.alloc(64);
-      adminSig[0] = adminBump;
-      closeTx.addSignature(adminPda, adminSig);
-
-      const serializedCloseTx = closeTx.serialize({ requireAllSignatures: false, verifySignatures: false });
-      const closeTxSig = await provider.connection.sendRawTransaction(serializedCloseTx, {
-        skipPreflight: true,
-        maxRetries: 5,
-      });
-      await provider.connection.confirmTransaction({ signature: closeTxSig, blockhash, lastValidBlockHeight }, "confirmed");
+      console.log("Close deployer TX:", tx);
 
       // Verify deployer PDA is closed
-      const deployerBalanceAfter = await provider.connection.getBalance(deployerPda);
-      expect(deployerBalanceAfter).to.equal(0);
+      const deployerBalanceAfter = await client.rpc.getBalance(toAddress(deployerPda));
+      expect(Number(deployerBalanceAfter)).to.equal(0);
 
-      console.log(`✅ Deployer PDA closed, ${deployerBalanceBefore / LAMPORTS_PER_SOL} SOL reclaimed`);
+      console.log(`✅ Deployer PDA closed, ${Number(deployerBalanceBefore / BigInt(LAMPORTS_PER_SOL))} SOL reclaimed`);
     });
 
     it("should fail to close non-existent deployer", async () => {
+      const funderSigner = await createSignerFromKeyPair(funder);
+
       try {
-        const { blockhash, lastValidBlockHeight } = await provider.connection.getLatestBlockhash({
-          commitment: "confirmed",
-        });
-
-        const closeInstruction = await (program.methods as any)
-          .closeDeployer()
-          .accounts({
-            config: configPda,
-            deployer: deployerPda,
-            admin: adminPda,
-          })
-          .instruction();
-
-        const walletSigner = (provider.wallet as any).payer as Keypair;
-        const closeTx = new anchor.web3.Transaction({
-          blockhash,
-          lastValidBlockHeight,
-          feePayer: provider.wallet.publicKey,
-        }).add(closeInstruction);
-
-        closeTx.partialSign(walletSigner);
-
-        const [_, adminBump] = anchor.web3.PublicKey.findProgramAddressSync(
-          [Buffer.from("admin"), configPda.toBuffer()],
-          program.programId
-        );
-        const adminSig = Buffer.alloc(64);
-        adminSig[0] = adminBump;
-        closeTx.addSignature(adminPda, adminSig);
-
-        const serializedCloseTx = closeTx.serialize({ requireAllSignatures: false, verifySignatures: false });
-        const closeTxSig = await provider.connection.sendRawTransaction(serializedCloseTx, {
-          skipPreflight: true,
-          maxRetries: 5,
-        });
-        await provider.connection.confirmTransaction({ signature: closeTxSig, blockhash, lastValidBlockHeight }, "confirmed");
+        await client.scSolana.instructions.closeDeployer({
+          config: toAddress(configPda),
+          deployer: toAddress(deployerPda),
+          admin: funderSigner,
+        }).sendAndConfirm();
         expect.fail("Should have thrown an error");
       } catch (error: any) {
         expect(error.message).to.match(/(does not exist|not found|Account does not exist|already been initialized)/i);
@@ -354,22 +191,12 @@ describe("Deployer PDA Architecture", () => {
   describe("PDA Derivation Consistency", () => {
     it("should derive consistent PDAs from program ID", async () => {
       // Verify deployer PDA derivation
-      const [derivedDeployer, derivedDeployerBump] =
-        anchor.web3.PublicKey.findProgramAddressSync(
-          [DEPLOYER_SEED],
-          program.programId
-        );
-      expect(derivedDeployer.toBase58()).to.equal(deployerPda.toBase58());
-      expect(derivedDeployerBump).to.equal(deployerBump);
+      const derivedDeployer = await getDeployerPdaAddress();
+      expect(derivedDeployer).to.equal(deployerPda);
 
       // Verify config PDA derivation
-      const [derivedConfig, derivedConfigBump] =
-        anchor.web3.PublicKey.findProgramAddressSync(
-          [Buffer.from("config")],
-          program.programId
-        );
-      expect(derivedConfig.toBase58()).to.equal(configPda.toBase58());
-      expect(derivedConfigBump).to.equal(configBump);
+      const derivedConfig = await getConfigPdaAddress();
+      expect(derivedConfig).to.equal(configPda);
 
       console.log("✅ All PDA derivations are consistent with program ID");
     });

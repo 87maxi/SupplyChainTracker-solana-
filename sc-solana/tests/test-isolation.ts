@@ -8,6 +8,8 @@
  * 3. "RoleAlreadyGranted" errors because roles granted in one test persist
  * 4. "config is undefined" because accounts can't be re-initialized
  *
+ * Migrated from @coral-xyz/anchor to Codama-generated client (Issue #209).
+ *
  * Related Issues:
  * - Issue #188: Test Isolation and State Cleanup
  */
@@ -20,8 +22,7 @@ import {
   Transaction,
   SystemProgram,
 } from "@solana/web3.js";
-import { AnchorProvider, Program } from "@coral-xyz/anchor";
-import type { ScSolana } from "../target/types/sc_solana";
+import type { TestClient } from "./test-helpers";
 
 // ============================================================================
 // Type Definitions
@@ -57,13 +58,13 @@ export interface ResetResult {
  * reset between test runs. It drains remaining balance to the wallet
  * and then refills each account to the specified minimum.
  *
- * @param provider - Anchor provider for connection and wallet
+ * @param connection - Solana connection
  * @param accounts - Array of keypairs to reset
  * @param minSol - Minimum SOL per account after reset (default: 5)
  * @returns Result of the reset operation
  */
 export async function resetTestState(
-  provider: AnchorProvider,
+  connection: Connection,
   accounts: Keypair[],
   minSol: number = 5
 ): Promise<ResetResult> {
@@ -79,15 +80,15 @@ export async function resetTestState(
   // Step 1: Drain all accounts to the wallet
   for (const account of accounts) {
     try {
-      const balance = await provider.connection.getBalance(account.publicKey);
+      const balance = await connection.getBalance(account.publicKey);
 
       if (balance > LAMPORTS_PER_SOL) {
         // Only drain if balance is above minimum rent exemption
-        const signature = await provider.connection.sendTransaction(
+        const signature = await connection.sendTransaction(
           new Transaction().add(
             SystemProgram.transfer({
               fromPubkey: account.publicKey,
-              toPubkey: provider.wallet.publicKey,
+              toPubkey: account.publicKey,
               lamports: balance,
             })
           ),
@@ -105,7 +106,7 @@ export async function resetTestState(
   if (signatures.length > 0) {
     for (const sig of signatures) {
       try {
-        await provider.connection.confirmTransaction(sig, "confirmed");
+        await connection.confirmTransaction(sig, "confirmed");
       } catch (e: any) {
         result.errors.push(`Failed to confirm drain transaction ${sig}: ${e.message}`);
       }
@@ -115,16 +116,16 @@ export async function resetTestState(
   // Step 3: Refill each account
   for (const account of accounts) {
     try {
-      const balance = await provider.connection.getBalance(account.publicKey);
+      const balance = await connection.getBalance(account.publicKey);
       const minLamports = minSol * LAMPORTS_PER_SOL;
 
       if (balance < minLamports) {
         const amount = minLamports - balance;
-        const sig = await provider.connection.requestAirdrop(
+        const sig = await connection.requestAirdrop(
           account.publicKey,
           amount
         );
-        await provider.connection.confirmTransaction(sig, "confirmed");
+        await connection.confirmTransaction(sig, "confirmed");
         result.accountsRefilled++;
       }
     } catch (e: any) {
@@ -167,7 +168,7 @@ export async function getProgramAccounts(
     accountMap.set(pubkey.toBase58(), {
       lamports: account.lamports,
       owner: account.owner.toBase58(),
-      data: account.data,
+      data: Buffer.from(account.data),
       executable: account.executable,
       rentEpoch: account.rentEpoch,
     });
@@ -219,16 +220,16 @@ export async function isTestStateClean(
 /**
  * Check if the config account exists.
  *
- * @param program - Anchor program instance
+ * @param client - Codama test client
  * @param configPda - Config PDA address
  * @returns true if config exists, false otherwise
  */
 export async function doesConfigExist(
-  program: Program<ScSolana>,
-  configPda: PublicKey
+  client: TestClient,
+  configPda: string
 ): Promise<boolean> {
   try {
-    await program.account.supplyChainConfig.fetch(configPda);
+    await client.scSolana.accounts.supplyChainConfig.fetch(configPda);
     return true;
   } catch {
     return false;
@@ -246,31 +247,31 @@ export async function doesConfigExist(
  * the Anchor program doesn't support closing accounts from tests.
  * Instead, it returns a signal that the test state needs to be reset.
  *
- * @param program - Anchor program instance
+ * @param client - Codama test client
  * @param configPda - Config PDA address
  * @returns 'reset_needed' if config exists, '' if config doesn't exist
  */
 export async function forceInitializeConfig(
-  program: Program<ScSolana>,
-  configPda: PublicKey
+  client: TestClient,
+  configPda: string
 ): Promise<"reset_needed" | ""> {
-  const exists = await doesConfigExist(program, configPda);
+  const exists = await doesConfigExist(client, configPda);
   return exists ? "reset_needed" : "";
 }
 
 /**
  * Get detailed config information if it exists.
  *
- * @param program - Anchor program instance
+ * @param client - Codama test client
  * @param configPda - Config PDA address
  * @returns Config data or null if not found
  */
 export async function getConfigInfo(
-  program: Program<ScSolana>,
-  configPda: PublicKey
+  client: TestClient,
+  configPda: string
 ): Promise<any> {
   try {
-    return await program.account.supplyChainConfig.fetch(configPda);
+    return await client.scSolana.accounts.supplyChainConfig.fetch(configPda);
   } catch {
     return null;
   }
@@ -288,18 +289,18 @@ export async function getConfigInfo(
  * 2. Checks if config exists
  * 3. Returns recommendations for cleanup if needed
  *
- * @param provider - Anchor provider
- * @param program - Anchor program instance
+ * @param client - Codama test client
+ * @param programId - Program ID
  * @param configPda - Config PDA address
  * @returns Comprehensive test environment status
  */
 export async function preFlightCheck(
-  provider: AnchorProvider,
-  program: Program<ScSolana>,
-  configPda: PublicKey
+  client: TestClient,
+  programId: PublicKey,
+  configPda: string
 ): Promise<TestEnvironmentStatus> {
-  const stateCheck = await isTestStateClean(provider.connection, program.programId);
-  const configExists = await doesConfigExist(program, configPda);
+  const stateCheck = await isTestStateClean(client.rpc, programId);
+  const configExists = await doesConfigExist(client, configPda);
 
   const needsReset = !stateCheck.clean || configExists;
 
@@ -361,19 +362,19 @@ function generateRecommendations(
  * This is useful for cleaning up specific accounts between tests.
  * The account must be a signer to be closed.
  *
- * @param provider - Anchor provider
+ * @param connection - Solana connection
  * @param accountToClose - Keypair of the account to close (must be signer)
  * @param recipient - Public key to receive the lamports
  * @returns Transaction signature
  */
 export async function closeAccount(
-  provider: AnchorProvider,
+  connection: Connection,
   accountToClose: Keypair,
   recipient: PublicKey
 ): Promise<string> {
-  const balance = await provider.connection.getBalance(accountToClose.publicKey);
+  const balance = await connection.getBalance(accountToClose.publicKey);
 
-  const tx = await provider.connection.sendTransaction(
+  const tx = await connection.sendTransaction(
     new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: accountToClose.publicKey,
@@ -384,35 +385,37 @@ export async function closeAccount(
     [accountToClose]
   );
 
-  await provider.connection.confirmTransaction(tx, "confirmed");
+  await connection.confirmTransaction(tx, "confirmed");
   return tx;
 }
 
 /**
  * Drain all lamports from an account to the wallet.
  *
- * @param provider - Anchor provider
+ * @param connection - Solana connection
+ * @param walletPublicKey - Wallet public key to receive lamports
  * @param accountToDrain - Keypair of the account to drain (must be signer)
  * @returns Transaction signature
  */
 export async function drainAccount(
-  provider: AnchorProvider,
+  connection: Connection,
+  walletPublicKey: PublicKey,
   accountToDrain: Keypair
 ): Promise<string> {
-  const balance = await provider.connection.getBalance(accountToDrain.publicKey);
+  const balance = await connection.getBalance(accountToDrain.publicKey);
 
-  const tx = await provider.connection.sendTransaction(
+  const tx = await connection.sendTransaction(
     new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: accountToDrain.publicKey,
-        toPubkey: provider.wallet.publicKey,
+        toPubkey: walletPublicKey,
         lamports: balance,
       })
     ),
     [accountToDrain]
   );
 
-  await provider.connection.confirmTransaction(tx, "confirmed");
+  await connection.confirmTransaction(tx, "confirmed");
   return tx;
 }
 
@@ -426,20 +429,20 @@ export async function drainAccount(
  * Useful when running multiple test suites that each have their own
  * set of accounts.
  *
- * @param provider - Anchor provider
+ * @param connection - Solana connection
  * @param accountGroups - Array of account groups to reset
  * @param minSol - Minimum SOL per account (default: 5)
  * @returns Array of reset results
  */
 export async function resetMultipleTestStates(
-  provider: AnchorProvider,
+  connection: Connection,
   accountGroups: Keypair[][],
   minSol: number = 5
 ): Promise<ResetResult[]> {
   const results: ResetResult[] = [];
 
   for (const accounts of accountGroups) {
-    const result = await resetTestState(provider, accounts, minSol);
+    const result = await resetTestState(connection, accounts, minSol);
     results.push(result);
   }
 
@@ -449,18 +452,18 @@ export async function resetMultipleTestStates(
 /**
  * Check multiple test environments for cleanliness.
  *
- * @param provider - Anchor provider
+ * @param connection - Solana connection
  * @param programIds - Array of program IDs to check
  * @returns Array of test state checks
  */
 export async function checkMultipleTestStates(
-  provider: AnchorProvider,
+  connection: Connection,
   programIds: PublicKey[]
 ): Promise<TestStateCheck[]> {
   const results: TestStateCheck[] = [];
 
   for (const programId of programIds) {
-    const check = await isTestStateClean(provider.connection, programId);
+    const check = await isTestStateClean(connection, programId);
     results.push(check);
   }
 
@@ -476,18 +479,18 @@ export async function checkMultipleTestStates(
  *
  * Useful for debugging test failures related to state persistence.
  *
- * @param provider - Anchor provider
- * @param program - Anchor program instance
+ * @param client - Codama test client
+ * @param programId - Program ID
  * @param configPda - Config PDA address
  */
 export async function logTestEnvironment(
-  provider: AnchorProvider,
-  program: Program<ScSolana>,
-  configPda: PublicKey
+  client: TestClient,
+  programId: PublicKey,
+  configPda: string
 ): Promise<void> {
   console.log("\n=== Test Environment Status ===");
 
-  const status = await preFlightCheck(provider, program, configPda);
+  const status = await preFlightCheck(client, programId, configPda);
 
   console.log(`Environment Clean: ${status.environmentClean}`);
   console.log(`Program Accounts: ${status.programAccountCount}`);

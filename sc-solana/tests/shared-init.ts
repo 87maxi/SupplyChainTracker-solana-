@@ -6,12 +6,12 @@
  * performs the fund+initialize sequence, while others wait.
  *
  * This solves #178: Shared initialization para tests en paralelo (P0)
+ *
+ * Migrated from @coral-xyz/anchor to Codama-generated client (Issue #209).
  */
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { ScSolana } from "../target/types/sc_solana";
 import { Keypair } from "@solana/web3.js";
+import type { TestClient } from "./test-helpers";
 
 // Module-level singleton state
 let initPromise: Promise<void> | null = null;
@@ -23,16 +23,14 @@ let initialized = false;
  * Ensures that only one test file performs the fund+initialize sequence.
  * Other test files will wait for the initialization to complete.
  *
- * @param program - Anchor program instance
- * @param provider - Anchor provider
+ * @param client - Codama test client instance
  * @param funder - Keypair to fund the deployer PDA
  * @param amount - Amount of lamports to fund (default: 20 SOL for parallel tests)
  */
 export async function sharedInit(
-  program: Program<ScSolana>,
-  provider: anchor.AnchorProvider,
+  client: TestClient,
   funder: Keypair,
-  amount: number = 20 * anchor.web3.LAMPORTS_PER_SOL
+  amount: number = 20 * 1_000_000_000 // 20 SOL in lamports
 ): Promise<void> {
   // Already initialized, skip
   if (initialized) {
@@ -51,7 +49,7 @@ export async function sharedInit(
   initPromise = (async () => {
     try {
       const { fundAndInitialize } = await import("./test-helpers");
-      await fundAndInitialize(program, provider, funder, amount);
+      await fundAndInitialize(client, funder, amount);
       initialized = true;
       console.log("Shared init: Initialization complete");
     } finally {
@@ -67,27 +65,33 @@ export async function sharedInit(
  * Uses airdrop from the faucet, so safe to call from multiple
  * test files in parallel.
  *
- * @param connection - Solana connection
+ * @param client - Codama test client instance
  * @param accounts - Array of keypairs or public keys to fund
  * @param amount - Amount of lamports per account (default: 5 SOL)
  */
 export async function fundAccounts(
-  connection: anchor.web3.Connection,
-  accounts: (Keypair | anchor.web3.PublicKey)[],
-  amount: number = 5 * anchor.web3.LAMPORTS_PER_SOL
+  client: TestClient,
+  accounts: (Keypair | string)[],
+  amount: number = 5 * 1_000_000_000 // 5 SOL in lamports
 ): Promise<void> {
   const promises = accounts.map(async (account) => {
-    const pubkey = account instanceof Keypair ? account.publicKey : account;
+    const pubkey = account instanceof Keypair ? account.publicKey.toBase58() : account;
 
     // Check if account already has sufficient balance
-    const balance = await connection.getBalance(pubkey);
-    if (balance >= amount) {
+    const balance = await client.rpc.getBalance(pubkey);
+    if (balance >= BigInt(amount)) {
       return;
     }
 
-    const needed = amount - balance;
-    const sig = await connection.requestAirdrop(pubkey, needed);
-    await connection.confirmTransaction(sig, "confirmed");
+    const needed = BigInt(amount) - balance;
+    const sig = await client.rpc.requestAirdrop({
+      destination: pubkey,
+      lamports: needed,
+    });
+    await client.rpc.confirmTransaction({
+      signature: sig,
+      commitment: "confirmed",
+    });
   });
 
   await Promise.all(promises);

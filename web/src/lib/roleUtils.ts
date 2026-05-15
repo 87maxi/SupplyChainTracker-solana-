@@ -1,93 +1,49 @@
-// Role utilities - centralized role hash management
-import { ROLE_HASHES } from '@/lib/constants/roles';
-import { log } from '@/lib/logger';
+// Role utilities - centralized role string management for Solana
+// Solana stores roles as plain strings (not keccak256 hashes)
+import { ROLE_NAMES, ROLE_HASHES } from '@/lib/constants/roles';
 
-/** Role hash map type */
+/** Role string map type — matches Solana program constants */
 export type RoleMap = {
-  FABRICANTE_ROLE: `0x${string}`;
-  AUDITOR_HW_ROLE: `0x${string}`;
-  TECNICO_SW_ROLE: `0x${string}`;
-  ESCUELA_ROLE: `0x${string}`;
-  ADMIN_ROLE: `0x${string}`;
+  FABRICANTE_ROLE: string;
+  AUDITOR_HW_ROLE: string;
+  TECNICO_SW_ROLE: string;
+  ESCUELA_ROLE: string;
+  ADMIN_ROLE: string;
 };
 
 /** Role name keys */
 export type RoleKey = keyof RoleMap;
 
-/** Fallback zero hash */
-const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
-
-/** Initialize role hashes directly from constants */
-const directRoleHashes: RoleMap = {
-  FABRICANTE_ROLE: (ROLE_HASHES.FABRICANTE_ROLE || ZERO_HASH),
-  AUDITOR_HW_ROLE: (ROLE_HASHES.AUDITOR_HW_ROLE || ZERO_HASH),
-  TECNICO_SW_ROLE: (ROLE_HASHES.TECNICO_SW_ROLE || ZERO_HASH),
-  ESCUELA_ROLE: (ROLE_HASHES.ESCUELA_ROLE || ZERO_HASH),
-  ADMIN_ROLE: (ROLE_HASHES.ADMIN_ROLE || ZERO_HASH),
+/** Role strings directly from constants (Solana plain strings) */
+const directRoleStrings: RoleMap = {
+  FABRICANTE_ROLE: ROLE_NAMES.FABRICANTE_ROLE,
+  AUDITOR_HW_ROLE: ROLE_NAMES.AUDITOR_HW_ROLE,
+  TECNICO_SW_ROLE: ROLE_NAMES.TECNICO_SW_ROLE,
+  ESCUELA_ROLE: ROLE_NAMES.ESCUELA_ROLE,
+  ADMIN_ROLE: ROLE_NAMES.ADMIN_ROLE,
 };
 
-/** Cached role hashes for synchronous access */
-let cachedRoleHashes: RoleMap | null = directRoleHashes;
-
 /**
- * Validates a role hash format (0x + 64 hex chars = 66 total)
- */
-function validateHash(hash: string | undefined, roleName: string): `0x${string}` {
-  if (!hash) {
-    throw new Error(`${roleName} hash is undefined`);
-  }
-  if (typeof hash !== 'string' || !hash.startsWith('0x') || hash.length !== 66) {
-    throw new Error(`${roleName} hash is not a valid 32-byte hex string: ${hash}`);
-  }
-  return hash as `0x${string}`;
-}
-
-/**
- * Gets the role hashes map. Uses cached values when available.
+ * Gets the role strings map (synchronous — Solana uses plain strings).
  */
 export const getRoleHashes = async (): Promise<RoleMap> => {
-  if (cachedRoleHashes) {
-    return cachedRoleHashes;
-  }
-
-  try {
-    if (!ROLE_HASHES) {
-      log.warn('ROLE_HASHES is not defined, using fallback values');
-      cachedRoleHashes = directRoleHashes;
-      return cachedRoleHashes;
-    }
-
-    const result: RoleMap = {
-      FABRICANTE_ROLE: validateHash(ROLE_HASHES.FABRICANTE_ROLE, 'FABRICANTE_ROLE'),
-      AUDITOR_HW_ROLE: validateHash(ROLE_HASHES.AUDITOR_HW_ROLE, 'AUDITOR_HW_ROLE'),
-      TECNICO_SW_ROLE: validateHash(ROLE_HASHES.TECNICO_SW_ROLE, 'TECNICO_SW_ROLE'),
-      ESCUELA_ROLE: validateHash(ROLE_HASHES.ESCUELA_ROLE, 'ESCUELA_ROLE'),
-      ADMIN_ROLE: validateHash(ROLE_HASHES.ADMIN_ROLE, 'ADMIN_ROLE'),
-    };
-
-    cachedRoleHashes = result;
-    return result;
-  } catch (error) {
-    log.error('Unexpected error in getRoleHashes:', error);
-    cachedRoleHashes = directRoleHashes;
-    return cachedRoleHashes;
-  }
+  return directRoleStrings;
 };
 
 /**
- * Gets the hash for a specific role.
+ * Gets the role string for a specific role (synchronous).
  */
-export const getRoleHash = (roleName: RoleKey): `0x${string}` => {
-  return directRoleHashes[roleName];
+export const getRoleHash = (roleName: RoleKey): string => {
+  return directRoleStrings[roleName];
 };
 
 /**
- * Gets the role name from a hash.
+ * Gets the role name key from a role string value.
  */
-export const getRoleNameFromHash = (hash: `0x${string}`): RoleKey | null => {
-  for (const [roleName, roleHash] of Object.entries(ROLE_HASHES)) {
-    if (roleHash === hash) {
-      return roleName.replace('_ROLE', '') as RoleKey;
+export const getRoleNameFromHash = (roleString: string): RoleKey | null => {
+  for (const [roleName, roleValue] of Object.entries(ROLE_NAMES)) {
+    if (roleValue === roleString) {
+      return roleName as RoleKey;
     }
   }
   return null;
@@ -97,5 +53,5 @@ export const getRoleNameFromHash = (hash: `0x${string}`): RoleKey | null => {
  * Gets all role keys.
  */
 export const getRoleKeys = (): RoleKey[] => {
-  return Object.keys(directRoleHashes) as RoleKey[];
+  return Object.keys(directRoleStrings) as RoleKey[];
 };

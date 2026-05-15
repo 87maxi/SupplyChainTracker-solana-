@@ -1,0 +1,213 @@
+// Grant All Roles to Deployer Wallet
+// Grants FABRICANTE, AUDITOR_HW, TECNICO_SW, and ESCUELA roles to a single wallet
+// Usage: surfpool run grant-all-to-deployer --env localnet --browser -f
+//
+// This runbook replaces the following scripts:
+// - sc-solana/scripts/grant-all-to-wallet.mjs
+//
+// Use case: Single-operator setup where one wallet holds all roles
+//
+// Prerequisites:
+//   - Config must be initialized (run full-init.tx or initialize-config.tx first)
+//   - The deployer wallet must be the current admin
+
+// ============================================================================
+// Addon Configuration
+// ============================================================================
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// ============================================================================
+// Signers
+// ============================================================================
+signer "admin" "svm::web_wallet" {
+  description = "Admin account granting roles (must be config admin/deployer)"
+  keypair_path = env.GRANT_ALL_TARGET_KEYPAIR
+}
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// PDA Derivation
+// ============================================================================
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+// ============================================================================
+// Grant All Roles to Admin/Deployer
+// ============================================================================
+
+// Grant FABRICANTE role to deployer
+action "grant_fabricante" "svm::process_instructions" {
+  description = "Grant FABRICANTE role to deployer wallet"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["FABRICANTE"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+// Grant AUDITOR_HW role to deployer
+action "grant_auditor_hw" "svm::process_instructions" {
+  description = "Grant AUDITOR_HW role to deployer wallet"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["AUDITOR_HW"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+// Grant TECNICO_SW role to deployer
+action "grant_tecnico_sw" "svm::process_instructions" {
+  description = "Grant TECNICO_SW role to deployer wallet"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["TECNICO_SW"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+// Grant ESCUELA role to deployer
+action "grant_escuela" "svm::process_instructions" {
+  description = "Grant ESCUELA role to deployer wallet"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["ESCUELA"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.admin.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.admin]
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+output "config_pda_address" {
+  description = "Config PDA address"
+  value = variable.config_pda.pda
+}
+
+output "grant_fabricante_signature" {
+  description = "FABRICANTE role grant signature"
+  value = action.grant_fabricante.signatures | first()
+}
+
+output "grant_auditor_hw_signature" {
+  description = "AUDITOR_HW role grant signature"
+  value = action.grant_auditor_hw.signatures | first()
+}
+
+output "grant_tecnico_sw_signature" {
+  description = "TECNICO_SW role grant signature"
+  value = action.grant_tecnico_sw.signatures | first()
+}
+
+output "grant_escuela_signature" {
+  description = "ESCUELA role grant signature"
+  value = action.grant_escuela.signatures | first()
+}

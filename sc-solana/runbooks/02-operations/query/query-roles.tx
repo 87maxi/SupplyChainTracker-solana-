@@ -1,0 +1,173 @@
+// Query Role Assignments
+// Queries the current role assignments on-chain
+// Usage: surfpool run query-roles --env localnet --browser -f
+//
+// This runbook replaces the following scripts:
+// - sc-solana/scripts/check-roles.mjs
+//
+// Outputs:
+//   - Config account information (role holders, counters)
+//   - All RoleHolder PDA addresses
+//   - Role member counts
+
+// ============================================================================
+// Addon Configuration
+// ============================================================================
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// PDA Derivation
+// ============================================================================
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+// ============================================================================
+// Query Config Account
+// ============================================================================
+action "query_config" "svm::process_instructions" {
+  description = "Query the current system configuration including role counters"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_config"
+    instruction_args = []
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// ============================================================================
+// Query Role Members (FABRICANTE)
+// ============================================================================
+action "query_fabricante" "svm::process_instructions" {
+  description = "Query FABRICANTE role members"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_role"
+    instruction_args = ["FABRICANTE"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// ============================================================================
+// Query Role Members (AUDITOR_HW)
+// ============================================================================
+action "query_auditor_hw" "svm::process_instructions" {
+  description = "Query AUDITOR_HW role members"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_role"
+    instruction_args = ["AUDITOR_HW"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// ============================================================================
+// Query Role Members (TECNICO_SW)
+// ============================================================================
+action "query_tecnico_sw" "svm::process_instructions" {
+  description = "Query TECNICO_SW role members"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_role"
+    instruction_args = ["TECNICO_SW"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// ============================================================================
+// Query Role Members (ESCUELA)
+// ============================================================================
+action "query_escuela" "svm::process_instructions" {
+  description = "Query ESCUELA role members"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_role"
+    instruction_args = ["ESCUELA"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+output "config_pda_address" {
+  description = "Config PDA address"
+  value = variable.config_pda.pda
+}
+
+output "query_config_signature" {
+  description = "Config query transaction signature"
+  value = action.query_config.signatures | first()
+}
+
+output "query_fabricante_signature" {
+  description = "FABRICANTE query transaction signature"
+  value = action.query_fabricante.signatures | first()
+}
+
+output "query_auditor_hw_signature" {
+  description = "AUDITOR_HW query transaction signature"
+  value = action.query_auditor_hw.signatures | first()
+}
+
+output "query_tecnico_sw_signature" {
+  description = "TECNICO_SW query transaction signature"
+  value = action.query_tecnico_sw.signatures | first()
+}
+
+output "query_escuela_signature" {
+  description = "ESCUELA query transaction signature"
+  value = action.query_escuela.signatures | first()
+}

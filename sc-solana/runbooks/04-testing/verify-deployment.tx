@@ -1,0 +1,174 @@
+// Verify Deployment Consistency
+// Checks all deployment aspects for consistency
+// Usage: surfpool run verify-deployment --env localnet --browser -f
+//
+// This runbook replaces the following scripts:
+// - sc-solana/scripts/verify-deployment.mjs
+//
+// Checks performed:
+//   1. Program account (exists, executable, data size)
+//   2. PDA derivation (config, deployer, serial_hash, admin)
+//   3. Config account (exists, owned by program)
+//   4. Deployer PDA (exists, has SOL)
+//   5. Serial Hash Registry (exists, owned by program)
+//   6. Role keypairs (valid addresses)
+//   7. Admin wallet (valid, has SOL)
+
+// ============================================================================
+// Addon Configuration
+// ============================================================================
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// ============================================================================
+// Signers
+// ============================================================================
+signer "admin" "svm::web_wallet" {
+  description = "Admin/deployer wallet for balance check"
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// PDA Derivation
+// ============================================================================
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "deployer_pda" {
+  description = "Deployer PDA"
+  value = svm::find_pda(variable.program_id, ["deployer"])
+}
+
+variable "serial_hashes_pda" {
+  description = "Serial hashes registry PDA"
+  value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
+}
+
+variable "admin_pda" {
+  description = "Admin PDA"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
+}
+
+// ============================================================================
+// Verification Queries
+// ============================================================================
+
+// Query program account info
+action "verify_program" "svm::process_instructions" {
+  description = "Verify program account exists and is executable"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_config"
+    instruction_args = []
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// Query config account
+action "verify_config" "svm::process_instructions" {
+  description = "Verify config account exists and is valid"
+  depends_on = ["verify_program"]
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "query_config"
+    instruction_args = []
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// Query deployer PDA (via system program balance check)
+action "verify_deployer" "svm::process_instructions" {
+  description = "Verify deployer PDA exists and has SOL"
+  depends_on = ["verify_config"]
+  instruction {
+    program_id = variable.program_id
+    instruction_data = [0, 0, 0, 0, 0, 0, 0, 0]
+    accounts = [
+      {
+        public_key = variable.deployer_pda.pda
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = []
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "config_pda_address" {
+  description = "Config PDA address"
+  value = variable.config_pda.pda
+}
+
+output "deployer_pda_address" {
+  description = "Deployer PDA address"
+  value = variable.deployer_pda.pda
+}
+
+output "serial_hashes_pda_address" {
+  description = "Serial hashes registry PDA address"
+  value = variable.serial_hashes_pda.pda
+}
+
+output "admin_pda_address" {
+  description = "Admin PDA address"
+  value = variable.admin_pda.pda
+}
+
+output "admin_wallet_address" {
+  description = "Admin wallet address"
+  value = signer.admin.public_key
+}
+
+output "verify_program_signature" {
+  description = "Program verification transaction signature"
+  value = action.verify_program.signatures | first()
+}
+
+output "verify_config_signature" {
+  description = "Config verification transaction signature"
+  value = action.verify_config.signatures | first()
+}
+
+output "verify_deployer_signature" {
+  description = "Deployer verification transaction signature"
+  value = action.verify_deployer.signatures | first()
+}

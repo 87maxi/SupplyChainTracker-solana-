@@ -34,7 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TransactionConfirmation } from '@/components/contracts/TransactionConfirmation';
 import { truncateAddress, cn } from '@/lib/utils';
 import { getRoleHashes } from '@/lib/roleUtils';
-import { getRoleRequests, updateRoleRequestStatus, deleteRoleRequest } from '@/services/RoleRequestService';
+import { fetchRoleRequests, updateRoleRequestStatus } from '@/hooks/useRoleRequests';
 import { RoleRequest } from '@/types/role-request';
 import * as SupplyChainContract from '@/lib/contracts/SupplyChainContract';
 
@@ -101,9 +101,9 @@ export function DashboardOverview({ stats: initialStats }: { stats: DashboardSta
   const [userRoles, setUserRoles] = useState<UserRoleData[]>([]);
   const [pendingRequests, setPendingRequests] = useState<RoleRequest[]>([]);
 
-  const fetchRoleRequests = async () => {
+  const loadPendingRequests = async () => {
     try {
-      const requests = await getRoleRequests();
+      const requests = await fetchRoleRequests();
       setPendingRequests(requests.filter(req => req.status === 'pending'));
     } catch (error) {
       console.error('Error fetching role requests:', error);

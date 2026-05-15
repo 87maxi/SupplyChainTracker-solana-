@@ -48,14 +48,13 @@ cd sc-solana
 source config/config.env
 source runbooks/environments/localnet.env
 
-# 1. Deploy the program (opens browser UI for signing)
-surfpool run deploy-program --env localnet --browser -f --port 8488
+# Option A: Full initialization (recommended for single-wallet setup)
+surfpool run full-init --env localnet --browser -f
 
-# 2. Initialize configuration
-surfpool run initialize-config --env localnet --browser -f
-
-# 3. Grant initial roles
-surfpool run grant-roles --env localnet --browser -f
+# Option B: Step-by-step (for multi-wallet setup)
+# surfpool run deploy-program --env localnet --browser -f --port 8488
+# surfpool run initialize-config --env localnet --browser -f
+# surfpool run grant-roles --env localnet --browser -f
 ```
 
 For detailed instructions, see the Quick Start section above or the deployment runbooks in `01-deployment/`.
@@ -69,35 +68,38 @@ runbooks/
 │   ├── common.tx                       # Common patterns for all runbooks
 │   ├── pda-derivation.tx              # PDA derivation patterns
 │   └── env-vars.tx                    # Environment variable patterns
-├── deployment/                         # Phase 1: Deployment
+├── 01-deployment/                     # Phase 1: Deployment
 │   ├── deploy-program.tx              # Deploy the program
 │   ├── initialize-config.tx           # Initialize configuration
-│   ├── grant-roles.tx                 # Grant initial roles
-│   # upgrade-program removed (program is non-upgradeable)
-├── operations/                         # Phase 2: Operations
-│   ├── register-netbook.tx            # Register single netbook
-│   ├── register-netbooks-batch.tx     # Register batch of netbooks
-│   ├── audit-hardware.tx              # Hardware audit
-│   ├── validate-software.tx           # Software validation
-│   ├── assign-student.tx              # Assign to student
-│   ├── query-netbook.tx               # Query netbook state
-│   ├── request-role.tx                # Request a role
-│   └── revoke-role.tx                 # Revoke a role
-├── 02-operations/query/               # Query operations
-│   ├── query-config.tx                # Query system configuration
-│   └── query-role.tx                  # Query role holders
+│   ├── grant-roles.tx                 # Grant initial roles to separate keypairs
+│   ├── grant-all-to-deployer.tx       # Grant all roles to single deployer wallet
+│   └── full-init.tx                   # Full initialization (fund + init + grant all)
+├── 02-operations/                     # Phase 2: Operations
+│   ├── netbook/                       # Netbook lifecycle operations
+│   │   ├── register-netbook.tx        # Register single netbook
+│   │   ├── register-netbooks-batch.tx # Register batch of netbooks
+│   │   ├── audit-hardware.tx          # Hardware audit
+│   │   ├── validate-software.tx       # Software validation
+│   │   ├── assign-student.tx          # Assign to student
+│   │   └── query-netbook.tx           # Query netbook state
+│   └── query/                         # Query operations
+│       ├── query-config.tx            # Query system configuration
+│       ├── query-role.tx              # Query role holders
+│       └── query-roles.tx             # Query all role assignments
 ├── 03-role-management/                # Phase 3: Role Management
 │   ├── approve-role-request.tx        # Approve role request
 │   ├── reject-role-request.tx         # Reject role request
 │   ├── add-role-holder.tx             # Add role holder
 │   ├── remove-role-holder.tx          # Remove role holder
+│   ├── revoke-role.tx                 # Revoke a role
 │   └── transfer-admin.tx              # Transfer admin ownership
 ├── 04-testing/                        # Phase 4: Testing
-│   └── role-workflow.tx               # Role workflow test
-├── testing/                           # Legacy testing runbooks
-│   ├── setup-test-env.tx              # Setup test environment
 │   ├── full-lifecycle.tx              # Full lifecycle test
-│   └── edge-cases.tx                  # Edge case tests
+│   ├── edge-cases.tx                  # Edge case tests
+│   ├── role-workflow.tx               # Role workflow test
+│   └── verify-deployment.tx           # Verify deployment consistency
+├── testing/                           # Legacy testing runbooks (deprecated)
+│   └── setup-test-env.tx              # Setup test environment
 └── environments/                      # Environment configurations
     ├── localnet.env                   # Localnet (Surfpool)
     ├── devnet.env                     # Devnet
@@ -111,9 +113,10 @@ runbooks/
 | Runbook | Description | Usage |
 |---------|-------------|-------|
 | `deploy-program` | Deploy program to network | `surfpool run deploy-program --env localnet --browser -f` |
-| `initialize-config` | Initialize config PDA | `surfpool run initialize-config --env localnet --browser -f` |
-| `grant-roles` | Grant initial roles | `surfpool run grant-roles --env localnet --browser -f` |
-| `upgrade-program` | Upgrade deployed program | `surfpool run upgrade-program --env localnet --browser -f` |
+| `full-init` | **FULL INITIALIZATION** - Fund deployer + Initialize config + Grant all roles (recommended) | `surfpool run full-init --env localnet --browser -f` |
+| `initialize-config` | Initialize config PDA (standalone) | `surfpool run initialize-config --env localnet --browser -f` |
+| `grant-roles` | Grant initial roles to separate keypairs | `surfpool run grant-roles --env localnet --browser -f` |
+| `grant-all-to-deployer` | Grant all roles to single deployer wallet | `surfpool run grant-all-to-deployer --env localnet --browser -f` |
 
 ### Operations Runbooks - Netbook Lifecycle
 
@@ -127,11 +130,12 @@ runbooks/
 
 ### Query Runbooks
 
-| Runbook | Description |
-|---------|-------------|
-| `query-netbook` | Query netbook state |
-| `query-config` | Query system configuration |
-| `query-role` | Query role holders |
+| Runbook | Description | Usage |
+|---------|-------------|-------|
+| `query-netbook` | Query netbook state | `surfpool run query-netbook --env localnet --browser -f` |
+| `query-config` | Query system configuration | `surfpool run query-config --env localnet --browser -f` |
+| `query-role` | Query role holders | `surfpool run query-role --env localnet --browser -f` |
+| `query-roles` | **Query all role assignments** (recommended) | `surfpool run query-roles --env localnet --browser -f` |
 
 ### Role Management Runbooks
 
@@ -147,12 +151,12 @@ runbooks/
 
 ### Testing Runbooks
 
-| Runbook | Description |
-|---------|-------------|
-| `setup-test-env` | Setup test environment |
-| `full-lifecycle` | Complete lifecycle test |
-| `edge-cases` | Edge case tests |
-| `role-workflow` | Role workflow test |
+| Runbook | Description | Usage |
+|---------|-------------|-------|
+| `full-lifecycle` | Complete lifecycle test | `surfpool run full-lifecycle --env localnet --browser -f` |
+| `edge-cases` | Edge case tests | `surfpool run edge-cases --env localnet --browser -f` |
+| `role-workflow` | Role workflow test | `surfpool run role-workflow --env localnet --browser -f` |
+| `verify-deployment` | **Verify deployment consistency** (recommended) | `surfpool run verify-deployment --env localnet --browser -f` |
 
 ## Keypair Management
 
@@ -181,6 +185,7 @@ All configuration is centralized in `config/config.env`:
 | `AUDITOR_HW_KEYPAIR` | Hardware auditor keypair path |
 | `TECNICO_SW_KEYPAIR` | Software technician keypair path |
 | `ESCUELA_KEYPAIR` | School keypair path |
+| `GRANT_ALL_TARGET_KEYPAIR` | Target wallet for grant-all-to-deployer runbook |
 
 ## Templates
 
@@ -267,7 +272,31 @@ The following SVM functions are confirmed available in Surfpool:
 | 2024-05-07 | [`02-operations/netbook/register-netbook.tx`](02-operations/netbook/register-netbook.tx) | Fixed Netbook PDA derivation + added token_id tracking | Anchor: `seeds = [b"netbook", b"netbook", &next_token_id[0..7]]` |
 | 2024-05-07 | [`02-operations/netbook/request-role.tx`](02-operations/netbook/request-role.tx) | Fixed config writable + account order | Anchor: `config (mut)`, `role_request (init)`, `user (mut, signer)` |
 
-## Related Issues
+## Deprecated Scripts
+
+The following JavaScript/TypeScript scripts have been replaced by Surfpool/txtx runbooks. **Do not use these scripts in new workflows.**
+
+| Script | Replacement Runbook | Status |
+|--------|---------------------|--------|
+| `scripts/init-quick.mjs` | `01-deployment/full-init.tx` | ❌ DEPRECATED |
+| `scripts/init-local.ts` | `01-deployment/full-init.tx` | ❌ DEPRECATED |
+| `scripts/grant-all-to-wallet.mjs` | `01-deployment/grant-all-to-deployer.tx` | ❌ DEPRECATED |
+| `scripts/grant-roles.mjs` | `01-deployment/grant-roles.tx` | ❌ DEPRECATED |
+| `scripts/check-roles.mjs` | `02-operations/query/query-roles.tx` | ❌ DEPRECATED |
+| `scripts/verify-deployment.mjs` | `04-testing/verify-deployment.tx` | ❌ DEPRECATED |
+
+### Migration Guide
+
+| Old Command | New Command |
+|-------------|-------------|
+| `node scripts/init-quick.mjs` | `surfpool run full-init --env localnet --browser -f` |
+| `ts-node scripts/init-local.ts` | `surfpool run full-init --env localnet --browser -f` |
+| `node scripts/grant-all-to-wallet.mjs` | `surfpool run grant-all-to-deployer --env localnet --browser -f` |
+| `node scripts/grant-roles.mjs` | `surfpool run grant-roles --env localnet --browser -f` |
+| `node scripts/check-roles.mjs` | `surfpool run query-roles --env localnet --browser -f` |
+| `node scripts/verify-deployment.mjs` | `surfpool run verify-deployment --env localnet --browser -f` |
+
+**Note:** Deprecated scripts will be removed in a future release. All scripts have deprecation notices at the top of their files with migration instructions.
 
 - **Issue #123**: [Análisis de problemas que impiden la ejecución de runbooks Surfpool/txtx](https://github.com/your-org/SupplyChainTracker-solana/issues/123)
 - **Issue #124**: [🔴 Inconsistencias en Runbooks: PDA Derivation y System Program Transfer no funcionan en Surfpool](https://github.com/87maxi/SupplyChainTracker-solana-/issues/124)

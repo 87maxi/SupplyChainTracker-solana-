@@ -1,0 +1,379 @@
+// Full Initialization Runbook
+// Combines: fund deployer + initialize config + grant all roles
+// Usage: surfpool run full-init --env localnet --browser -f
+//
+// This runbook replaces the following scripts:
+// - sc-solana/scripts/init-quick.mjs
+// - sc-solana/scripts/init-local.ts
+//
+// Prerequisites:
+//   - Program must be deployed (run deploy-program.tx first)
+//   - Role keypairs must exist in config/keypairs/
+//
+// Flow:
+//   1. Fund deployer PDA with SOL
+//   2. Initialize config (creates Config, SerialHashRegistry, derives Admin PDA)
+//   3. Grant FABRICANTE role
+//   4. Grant AUDITOR_HW role
+//   5. Grant TECNICO_SW role
+//   6. Grant ESCUELA role
+
+// ============================================================================
+// Addon Configuration
+// ============================================================================
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// ============================================================================
+// Signers
+// ============================================================================
+signer "funder" "svm::web_wallet" {
+  description = "Wallet that funds the deployer PDA and signs all transactions"
+  keypair_path = env.DEPLOYER_KEYPAIR
+}
+
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account receiving FABRICANTE role"
+  keypair_path = env.FABRICANTE_KEYPAIR
+}
+
+signer "auditor_hw" "svm::web_wallet" {
+  description = "Hardware auditor account receiving AUDITOR_HW role"
+  keypair_path = env.AUDITOR_HW_KEYPAIR
+}
+
+signer "tecnico_sw" "svm::web_wallet" {
+  description = "Software technician account receiving TECNICO_SW role"
+  keypair_path = env.TECNICO_SW_KEYPAIR
+}
+
+signer "escuela" "svm::web_wallet" {
+  description = "School account receiving ESCUELA role"
+  keypair_path = env.ESCUELA_KEYPAIR
+}
+
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// PDA Derivation
+// ============================================================================
+variable "deployer_pda" {
+  description = "Deployer PDA (seed: deployer)"
+  value = svm::find_pda(variable.program_id, ["deployer"])
+}
+
+variable "config_pda" {
+  description = "Config account PDA (seed: config)"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "serial_hashes_pda" {
+  description = "Serial hashes registry PDA (seed: serial_hashes + config_pda)"
+  value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
+}
+
+variable "admin_pda" {
+  description = "Admin PDA (seed: admin + config_pda)"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
+}
+
+// ============================================================================
+// Instruction Data (Manual Discriminators for txtx compatibility)
+// ============================================================================
+
+// fund_deployer: sha256("global:fund_deployer")[:8] + amount (u64 LE)
+// Amount: 20 SOL = 20000000000 lamports = 0x00496A3200000000
+variable "fund_deployer_data" {
+  description = "Complete instruction data for fund_deployer (discriminator + amount)"
+  value = [223, 191, 31, 96, 237, 187, 189, 54, 0, 228, 11, 84, 2, 0, 0, 0]
+}
+
+// initialize: sha256("global:initialize")[:8] - no arguments
+variable "initialize_data" {
+  description = "Instruction data for initialize (discriminator only, no arguments)"
+  value = [175, 175, 109, 31, 13, 152, 155, 237]
+}
+
+// ============================================================================
+// Step 0: Fund Deployer PDA
+// ============================================================================
+action "fund_deployer" "svm::process_instructions" {
+  description = "Create and fund the deployer PDA with 20 SOL"
+  instruction {
+    program_id = variable.program_id
+    instruction_data = variable.fund_deployer_data
+    accounts = [
+      {
+        public_key = variable.deployer_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.funder.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.funder]
+}
+
+// ============================================================================
+// Step 1: Initialize Config
+// ============================================================================
+action "initialize" "svm::process_instructions" {
+  description = "Initialize supply chain configuration (creates Config, SerialHashRegistry, derives Admin PDA)"
+  depends_on = ["fund_deployer"]
+  instruction {
+    program_id = variable.program_id
+    instruction_data = variable.initialize_data
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.serial_hashes_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.admin_pda.pda
+        writable = false
+        signer = false
+      },
+      {
+        public_key = variable.deployer_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.funder.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.funder]
+}
+
+// ============================================================================
+// Step 2: Grant FABRICANTE Role
+// ============================================================================
+action "grant_fabricante" "svm::process_instructions" {
+  description = "Grant FABRICANTE role to manufacturer account"
+  depends_on = ["initialize"]
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["FABRICANTE"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.funder.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.fabricante.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.funder, signer.fabricante]
+}
+
+// ============================================================================
+// Step 3: Grant AUDITOR_HW Role
+// ============================================================================
+action "grant_auditor_hw" "svm::process_instructions" {
+  description = "Grant AUDITOR_HW role to hardware auditor account"
+  depends_on = ["initialize"]
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["AUDITOR_HW"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.funder.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.auditor_hw.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.funder, signer.auditor_hw]
+}
+
+// ============================================================================
+// Step 4: Grant TECNICO_SW Role
+// ============================================================================
+action "grant_tecnico_sw" "svm::process_instructions" {
+  description = "Grant TECNICO_SW role to software technician account"
+  depends_on = ["initialize"]
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["TECNICO_SW"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.funder.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.tecnico_sw.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.funder, signer.tecnico_sw]
+}
+
+// ============================================================================
+// Step 5: Grant ESCUELA Role
+// ============================================================================
+action "grant_escuela" "svm::process_instructions" {
+  description = "Grant ESCUELA role to school account"
+  depends_on = ["initialize"]
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "grant_role"
+    instruction_args = ["ESCUELA"]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.funder.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = signer.escuela.public_key
+        writable = false
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.funder, signer.escuela]
+}
+
+// ============================================================================
+// Outputs
+// ============================================================================
+output "program_id" {
+  description = "Program ID"
+  value = variable.program_id
+}
+
+output "deployer_pda_address" {
+  description = "Deployer PDA address"
+  value = variable.deployer_pda.pda
+}
+
+output "config_pda_address" {
+  description = "Config PDA address"
+  value = variable.config_pda.pda
+}
+
+output "admin_pda_address" {
+  description = "Admin PDA address"
+  value = variable.admin_pda.pda
+}
+
+output "fund_deployer_signature" {
+  description = "Fund deployer transaction signature"
+  value = action.fund_deployer.signatures | first()
+}
+
+output "initialize_signature" {
+  description = "Initialize config transaction signature"
+  value = action.initialize.signatures | first()
+}
+
+output "grant_fabricante_signature" {
+  description = "FABRICANTE role grant signature"
+  value = action.grant_fabricante.signatures | first()
+}
+
+output "grant_auditor_hw_signature" {
+  description = "AUDITOR_HW role grant signature"
+  value = action.grant_auditor_hw.signatures | first()
+}
+
+output "grant_tecnico_sw_signature" {
+  description = "TECNICO_SW role grant signature"
+  value = action.grant_tecnico_sw.signatures | first()
+}
+
+output "grant_escuela_signature" {
+  description = "ESCUELA role grant signature"
+  value = action.grant_escuela.signatures | first()
+}

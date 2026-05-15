@@ -40,6 +40,10 @@ import {
   // Account fetchers
   fetchMaybeSupplyChainConfig,
   fetchMaybeNetbook,
+  fetchMaybeRoleRequest,
+  fetchMaybeRoleHolder,
+  getRoleRequestDiscriminatorBytes,
+  getRoleHolderDiscriminatorBytes,
   // Program ID
   SC_SOLANA_PROGRAM_ADDRESS,
 } from '@/generated/src/generated';
@@ -83,6 +87,7 @@ export interface NetbookData {
 
 export interface ConfigData {
   admin: Address;
+  deployer: Address;
   fabricante: Address;
   auditorHw: Address;
   tecnicoSw: Address;
@@ -447,6 +452,7 @@ export class UnifiedSupplyChainService {
       const data = configAccount.data;
       const configData: ConfigData = {
         admin: data.admin,
+        deployer: data.deployer,
         fabricante: data.fabricante,
         auditorHw: data.auditorHw,
         tecnicoSw: data.tecnicoSw,
@@ -500,21 +506,90 @@ export class UnifiedSupplyChainService {
     if (cached !== null) return cached;
 
     try {
+      // Start with the original role assignees from Config
       const config = await this.queryConfig();
       if (!config) return [];
 
-      const members = [
+      const members = new Set<string>([
         config.admin,
         config.fabricante,
         config.auditorHw,
         config.tecnicoSw,
         config.escuela,
-      ].filter(pk => !pk.startsWith('1111') && !pk.startsWith('0000'));
+      ].filter(pk => !pk.startsWith('1111') && !pk.startsWith('0000')));
 
-      CacheService.set(cacheKey, members, { tags: [CACHE_TAGS.ROLE] });
-      return members;
+      // Query RoleHolder PDAs for multi-holder support
+      const roleHolders = await this.getAllRoleHolders(role);
+      for (const holder of roleHolders) {
+        members.add(holder.account);
+      }
+
+      const result = Array.from(members);
+      CacheService.set(cacheKey, result, { tags: [CACHE_TAGS.ROLE] });
+      return result;
     } catch (error) {
       console.error('Error getting role members:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch all RoleHolder accounts for a given role by scanning program accounts.
+   * Uses getProgramAccounts with discriminator filter for efficiency.
+   */
+  async getAllRoleHolders(role: string): Promise<RoleHolderData[]> {
+    if (!this.connection) {
+      throw new Error('Connection not initialized. Call initialize() first.');
+    }
+
+    try {
+      const discriminator = getRoleHolderDiscriminatorBytes();
+      const discriminatorBase64 = Buffer.from(discriminator).toString('base64');
+      const filter = {
+        memcmp: {
+          bytes: discriminatorBase64,
+          encoding: 'base64' as const,
+          offset: 0,
+        },
+      };
+
+      const accounts = await this.connection.getProgramAccounts(
+        new PublicKey(PROGRAM_ID),
+        { filters: [filter] }
+      );
+
+      const rpc = getRpcTransport(this.connection);
+      const holders: RoleHolderData[] = [];
+
+      // Fetch and decode each account in batches
+      const batchSize = 10;
+      for (let i = 0; i < accounts.length; i += batchSize) {
+        const batch = accounts.slice(i, i + batchSize);
+        const addresses = batch.map(a => (a.pubkey.toBase58() as Address));
+        const results = await Promise.all(
+          addresses.map(addr => fetchMaybeRoleHolder(rpc, addr))
+        );
+
+        for (const result of results) {
+          if (result.exists) {
+            const data = result.data;
+            // Filter by role if specified
+            if (!role || data.role === role) {
+              holders.push({
+                id: data.id,
+                account: data.account,
+                role: data.role,
+                grantedBy: data.grantedBy,
+                timestamp: data.timestamp,
+              });
+            }
+          }
+        }
+      }
+
+      return holders;
+    } catch (error) {
+      console.error('Error fetching role holders:', error);
       return [];
     }
   }
@@ -529,28 +604,59 @@ export class UnifiedSupplyChainService {
       const config = await this.queryConfig();
       if (!config) return false;
 
-      // Support both *_ROLE format (FABRICANTE_ROLE) and lowercase (fabricante)
-      const roleMap: Record<string, Address> = {
-        'ADMIN_ROLE': config.admin,
-        'FABRICANTE_ROLE': config.fabricante,
-        'AUDITOR_HW_ROLE': config.auditorHw,
-        'TECNICO_SW_ROLE': config.tecnicoSw,
-        'ESCUELA_ROLE': config.escuela,
+      // Normalize role name: strip *_ROLE suffix to get on-chain role string
+      const roleStringMap: Record<string, string> = {
+        'ADMIN_ROLE': 'ADMIN',
+        'FABRICANTE_ROLE': 'FABRICANTE',
+        'AUDITOR_HW_ROLE': 'AUDITOR_HW',
+        'TECNICO_SW_ROLE': 'TECNICO_SW',
+        'ESCUELA_ROLE': 'ESCUELA',
         // Legacy lowercase support
-        'admin': config.admin,
-        'fabricante': config.fabricante,
-        'auditor_hw': config.auditorHw,
-        'tecnico_sw': config.tecnicoSw,
-        'escuela': config.escuela,
+        'admin': 'ADMIN',
+        'fabricante': 'FABRICANTE',
+        'auditor_hw': 'AUDITOR_HW',
+        'tecnico_sw': 'TECNICO_SW',
+        'escuela': 'ESCUELA',
+        // Direct on-chain role strings
+        'ADMIN': 'ADMIN',
+        'FABRICANTE': 'FABRICANTE',
+        'AUDITOR_HW': 'AUDITOR_HW',
+        'TECNICO_SW': 'TECNICO_SW',
+        'ESCUELA': 'ESCUELA',
       };
 
-      const targetRole = roleMap[role];
-      if (!targetRole) {
-        console.warn(`[hasRole] Unknown role: ${role}, available: ${Object.keys(roleMap).join(', ')}`);
-        return false;
+      const roleString = roleStringMap[role];
+      if (!roleString) return false;
+
+      // 1. Check legacy single-address config fields (grant_role stores here)
+      if (roleString !== 'ADMIN') {
+        const configFieldMap: Record<string, Address> = {
+          'FABRICANTE': config.fabricante,
+          'AUDITOR_HW': config.auditorHw,
+          'TECNICO_SW': config.tecnicoSw,
+          'ESCUELA': config.escuela,
+        };
+        const configAddress = configFieldMap[roleString];
+        if (configAddress && configAddress === address) {
+          return true;
+        }
+      } else {
+        // For ADMIN, check if the address matches the deployer field (wallet that signed init)
+        // The admin field stores a PDA which can never match a wallet address
+        if (config.deployer === address) {
+          return true;
+        }
       }
 
-      return targetRole === address;
+      // 2. Check RoleHolder PDAs (add_role_holder creates these)
+      const roleHolders = await this.getAllRoleHolders(roleString);
+      for (const holder of roleHolders) {
+        if (holder.account === address) {
+          return true;
+        }
+      }
+
+      return false;
     } catch (error) {
       console.error('Error checking role:', error);
       return false;
@@ -567,10 +673,48 @@ export class UnifiedSupplyChainService {
     }
 
     try {
-      const config = await this.queryConfig();
-      if (!config) return [];
+      // Use getProgramAccounts with discriminator filter to find all RoleRequest accounts
+      const discriminator = getRoleRequestDiscriminatorBytes();
+      const discriminatorBase64 = Buffer.from(discriminator).toString('base64');
+      const filter = {
+        memcmp: {
+          bytes: discriminatorBase64,
+          encoding: 'base64' as const,
+          offset: 0,
+        },
+      };
 
+      const accounts = await this.connection.getProgramAccounts(
+        new PublicKey(PROGRAM_ID),
+        { filters: [filter] }
+      );
+
+      const rpc = getRpcTransport(this.connection);
       const requests: RoleRequestData[] = [];
+
+      // Fetch and decode each account in batches for efficiency
+      const batchSize = 10;
+      for (let i = 0; i < accounts.length; i += batchSize) {
+        const batch = accounts.slice(i, i + batchSize);
+        const addresses = batch.map(a => (a.pubkey.toBase58() as Address));
+        const results = await Promise.all(
+          addresses.map(addr => fetchMaybeRoleRequest(rpc, addr))
+        );
+
+        for (const result of results) {
+          if (result.exists) {
+            const data = result.data;
+            requests.push({
+              id: data.id,
+              user: data.user,
+              role: data.role,
+              status: data.status,
+              timestamp: data.timestamp,
+            });
+          }
+        }
+      }
+
       CacheService.set(cacheKey, requests, { tags: [CACHE_TAGS.ROLE_REQUESTS] });
       return requests;
     } catch (error) {
@@ -1051,6 +1195,29 @@ export class UnifiedSupplyChainService {
     await this.connection.confirmTransaction(signature);
 
     return signature;
+  }
+
+  /**
+   * Revoke all roles for a given address.
+   * Iterates over all known role types and revokes each one.
+   * Returns a summary of which roles were revoked vs. already absent.
+   */
+  async revokeAllRoles(address: Address): Promise<{ success: boolean; revoked: string[]; errors: string[] }> {
+    const roles = ['ADMIN_ROLE', 'FABRICANTE_ROLE', 'AUDITOR_HW_ROLE', 'TECNICO_SW_ROLE', 'ESCUELA_ROLE'];
+    const revoked: string[] = [];
+    const errors: string[] = [];
+
+    for (const role of roles) {
+      try {
+        await this.revokeRole(role, address);
+        revoked.push(role);
+      } catch (error: any) {
+        errors.push(`${role}: ${error.message ?? 'unknown error'}`);
+      }
+    }
+
+    CacheService.invalidateByTag(CACHE_TAGS.ROLE, CACHE_TAGS.CONFIG);
+    return { success: revoked.length > 0, revoked, errors };
   }
 
   clearCaches(): void {

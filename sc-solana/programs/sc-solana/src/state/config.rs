@@ -10,6 +10,8 @@ use anchor_lang::prelude::*;
 #[derive(Debug)]
 pub struct SupplyChainConfig {
     pub admin: Pubkey,
+    /// Deployer wallet address - the actual wallet that signed initialization (can act as ADMIN)
+    pub deployer: Pubkey,
     // Legacy single-role fields maintained for backward compatibility
     pub fabricante: Pubkey,
     pub auditor_hw: Pubkey,
@@ -30,12 +32,13 @@ pub struct SupplyChainConfig {
 impl SupplyChainConfig {
     pub const INIT_SPACE: usize = 8
         + 32  // admin
+        + 32  // deployer (wallet address that can act as ADMIN)
         + 32  // fabricante
         + 32  // auditor_hw
         + 32  // tecnico_sw
         + 32  // escuela
         + 1   // admin_bump
-        + 1   // admin_pda_bump (NEW: for admin PDA derivation)
+        + 1   // admin_pda_bump (for admin PDA derivation)
         + 8   // next_token_id
         + 8   // total_netbooks
         + 8   // role_requests_count
@@ -43,7 +46,7 @@ impl SupplyChainConfig {
         + 8   // auditor_hw_count
         + 8   // tecnico_sw_count
         + 8; // escuela_count
-             // Total: 8 + 281 = 289 bytes
+              // Total: 8 + 313 = 321 bytes
 }
 
 impl SupplyChainConfig {

@@ -247,6 +247,7 @@ mod tests {
         // Updated: Added admin_pda_bump field
         let config = SupplyChainConfig {
             admin: Pubkey::default(),
+            deployer: Pubkey::default(),
             fabricante: Pubkey::default(),
             auditor_hw: Pubkey::default(),
             tecnico_sw: Pubkey::default(),

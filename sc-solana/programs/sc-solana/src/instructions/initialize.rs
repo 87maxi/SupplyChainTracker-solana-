@@ -61,6 +61,7 @@ pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
 
     let config = &mut ctx.accounts.config;
     config.admin = admin_pda_key;
+    config.deployer = ctx.accounts.funder.key(); // Store deployer wallet for ADMIN role check
     config.admin_pda_bump = admin_pda_bump;
     config.fabricante = ctx.accounts.funder.key();
     config.auditor_hw = Pubkey::default();

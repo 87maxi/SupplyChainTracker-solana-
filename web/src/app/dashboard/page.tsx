@@ -11,7 +11,7 @@ import { useNetbookStats } from '@/hooks/useNetbookStats';
 import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
 
 // Services
-import { SupplyChainService } from '@/services/SupplyChainService';
+import { UnifiedSupplyChainService } from '@/services/UnifiedSupplyChainService';
 
 // Types
 import { Netbook } from '@/types/supply-chain-types';
@@ -20,6 +20,7 @@ import { Netbook } from '@/types/supply-chain-types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 // Icons
@@ -31,6 +32,7 @@ import {
   Search,
   LayoutDashboard,
   Loader2,
+  User,
 } from 'lucide-react';
 
 // Dashboard Components
@@ -191,13 +193,13 @@ export default function ManagerDashboard() {
     }
 
     try {
-      const service = SupplyChainService.getInstance();
-      const result = await service.revokeAllRoles(address);
+      const service = UnifiedSupplyChainService.getInstance();
+      const result = await service.revokeAllRoles(address as import('@solana/kit').Address);
 
       if (result.success) {
         fetchDashboardData();
       } else {
-        alert(`Error al eliminar roles: ${result.error}`);
+        alert(`Error al eliminar roles: ${result.errors.join(', ')}`);
       }
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -274,73 +276,81 @@ export default function ManagerDashboard() {
             </div>
           </div>
 
-          {/* Pending Tasks Section - Normalized layout */}
-          <section className="space-y-5 animate-slide-up stagger-3">
-            <div className="flex items-center justify-between pb-2 border-b border-border/40">
-              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2.5">
-                <span className="p-1.5 rounded-lg bg-emerald-500/10">
-                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                </span>
-                Tareas Pendientes
-              </h2>
-              {pendingTasks.length > 0 && (
-                <Badge variant="success" className="px-2.5 py-0.5 text-xs animate-scale-in">
-                  {pendingTasks.length} Acciones requeridas
-                </Badge>
+          {/* Main Content Tabs - Pending Tasks + Data Tables */}
+          <Tabs defaultValue="tasks" className="w-full animate-slide-up stagger-4">
+            <TabsList className="grid w-full grid-cols-3 max-w-md">
+              <TabsTrigger value="tasks" className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" />
+                <span className="hidden sm:inline">Tareas</span>
+                {pendingTasks.length > 0 && (
+                  <Badge variant="success" className="ml-1 h-5 px-1.5 text-[10px] rounded-full">
+                    {pendingTasks.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="users" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span className="hidden sm:inline">Usuarios</span>
+              </TabsTrigger>
+              <TabsTrigger value="netbooks" className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                <span className="hidden sm:inline">Netbooks</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Pending Tasks Tab */}
+            <TabsContent value="tasks" className="mt-6 space-y-5">
+              <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                <h2 className="text-xl font-bold tracking-tight flex items-center gap-2.5">
+                  <span className="p-1.5 rounded-lg bg-emerald-500/10">
+                    <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  </span>
+                  Tareas Pendientes
+                </h2>
+              </div>
+
+              {pendingTasks.length > 0 ? (
+                <div className="grid gap-3">
+                  {pendingTasks.map((netbook, index) => (
+                    <div key={netbook.serialNumber} className="animate-spring-in" style={{ animationDelay: `${(index + 4) * 60}ms` }}>
+                      <TrackingCard netbook={netbook} onAction={handleAction} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Card className="border-dashed border-border/50 bg-gradient-to-br from-card to-muted/20 texture-dots">
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                    <div className="p-4 rounded-full bg-emerald-500/10 text-emerald-500 animate-float">
+                      <ShieldCheck className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="font-semibold text-lg">¡Todo al día!</h3>
+                      <p className="text-muted-foreground max-w-sm mx-auto text-sm">
+                        No tienes tareas pendientes asignadas a tu rol en este momento.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
-            </div>
+            </TabsContent>
 
-            {pendingTasks.length > 0 ? (
-              <div className="grid gap-3">
-                {pendingTasks.map((netbook, index) => (
-                  <div key={netbook.serialNumber} className="animate-spring-in" style={{ animationDelay: `${(index + 4) * 60}ms` }}>
-                    <TrackingCard netbook={netbook} onAction={handleAction} />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <Card className="border-dashed border-border/50 bg-gradient-to-br from-card to-muted/20 texture-dots">
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-                  <div className="p-4 rounded-full bg-emerald-500/10 text-emerald-500 animate-float">
-                    <ShieldCheck className="h-8 w-8" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-semibold text-lg">¡Todo al día!</h3>
-                    <p className="text-muted-foreground max-w-sm mx-auto text-sm">
-                      No tienes tareas pendientes asignadas a tu rol en este momento.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </section>
+            {/* Users Tab */}
+            <TabsContent value="users" className="mt-6">
+              <UserDataTable
+                data={users as any}
+                onFilterChange={handleUserFilterChange}
+                onDelete={handleDeleteUser}
+              />
+            </TabsContent>
 
-          {/* Data Tables Section - Normalized grid layout */}
-          <section className="space-y-5 animate-slide-up stagger-4">
-            <div className="flex items-center justify-between pb-2 border-b border-border/40">
-              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2.5">
-                <span className="p-1.5 rounded-lg bg-primary/10">
-                  <Search className="h-4 w-4 text-primary" />
-                </span>
-                Registros
-              </h2>
-            </div>
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="animate-spring-in stagger-5">
-                <UserDataTable
-                  data={users as any}
-                  onFilterChange={handleUserFilterChange}
-                  onDelete={handleDeleteUser}
-                />
-              </div>
-              <div className="animate-spring-in stagger-6">
-                <NetbookDataTable
-                  data={netbooksTable}
-                  onFilterChange={handleNetbookFilterChange}
-                />
-              </div>
-            </div>
-          </section>
+            {/* Netbooks Tab */}
+            <TabsContent value="netbooks" className="mt-6">
+              <NetbookDataTable
+                data={netbooksTable}
+                onFilterChange={handleNetbookFilterChange}
+              />
+            </TabsContent>
+          </Tabs>
         </>
       )}
 

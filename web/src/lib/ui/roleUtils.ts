@@ -1,15 +1,15 @@
 'use server';
 
-import { getRoleHashes } from '@/lib/roleUtils';
+import { getRoleHashes, type RoleMap } from '@/lib/roleUtils';
 
-// This utility function can be used in server components
-// to get role hashes for rendering or data processing
-export async function getServerRoleHashes() {
+/**
+ * Server-side utility to get role hashes.
+ * Can be used in Server Components for rendering or data processing.
+ */
+export async function getServerRoleHashes(): Promise<RoleMap> {
   try {
-    const roleHashes = await getRoleHashes();
-    return roleHashes;
-  } catch (error) {
-    console.error('Error fetching role hashes on server:', error);
+    return await getRoleHashes();
+  } catch {
     throw new Error('Failed to fetch role hashes');
   }
 }

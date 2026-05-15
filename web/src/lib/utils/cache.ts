@@ -1,6 +1,9 @@
 // web/src/lib/utils/cache.ts
 // Global cache utilities for the application
 
+import { log } from '@/lib/logger';
+
+/** Cache item with metadata */
 interface CacheItem<T> {
   data: T;
   timestamp: number;
@@ -8,107 +11,109 @@ interface CacheItem<T> {
   staleAt: number;
 }
 
-// Global cache storage
-const globalCache = new Map<string, CacheItem<any>>();
-// Store to control revalidation and prevent multiple calls
+/** Cache statistics */
+export interface CacheStats {
+  totalItems: number;
+  expiredItems: number;
+  staleItems: number;
+  memoryUsage: number;
+  cacheKeys: string[];
+}
+
+/** Global cache storage */
+const globalCache = new Map<string, CacheItem<unknown>>();
+
+/** Revalidation queue to prevent duplicate calls */
 const revalidationQueue = new Map<string, boolean>();
 
-// Cache configuration
-const CACHE_CONFIG = {
+/** Cache TTL configuration (milliseconds) */
+export const CACHE_CONFIG = {
   TTL: {
-    USER_ROLES: 30 * 1000, // 30 seconds
-    STATIC_DATA: 5 * 60 * 1000, // 5 minutes
-    ROLE_MEMBERS: 2 * 60 * 1000, // 2 minutes
-    NETBOOK_INFO: 15 * 1000 // 15 seconds
-  },
+    USER_ROLES: 30_000,
+    STATIC_DATA: 300_000,
+    ROLE_MEMBERS: 120_000,
+    NETBOOK_INFO: 15_000,
+  } as const,
   STALE_WHILE_REVALIDATE: {
     USER_ROLES: true,
     STATIC_DATA: true,
     ROLE_MEMBERS: false,
-    NETBOOK_INFO: true
-  }
+    NETBOOK_INFO: true,
+  } as const,
 };
 
 /**
- * Gets an item from the cache
- * @param key Cache key
- * @returns Cached data or null if not found or expired
+ * Gets an item from the cache.
+ * @returns Cached data or null if not found or expired.
  */
 export const getCache = <T>(key: string): T | null => {
   const item = globalCache.get(key);
   if (!item) return null;
 
   const now = Date.now();
-  
-  // If expired, remove and return null
+
   if (item.expiresAt <= now) {
     globalCache.delete(key);
     return null;
   }
-  
+
   return item.data as T;
 };
 
 /**
- * Sets an item in the cache
- * @param key Cache key
- * @param data Data to cache
- * @param ttl Time to live in milliseconds
- * @param staleWhileRevalidate Whether to allow stale data while revalidating
+ * Sets an item in the cache.
  */
-export const setCache = <T>(key: string, data: T, ttl: number, staleWhileRevalidate: boolean = false): void => {
+export const setCache = <T>(
+  key: string,
+  data: T,
+  ttl: number,
+  staleWhileRevalidate = false
+): void => {
   const now = Date.now();
   const expiresAt = now + ttl;
   const staleAt = staleWhileRevalidate ? now + (ttl / 2) : expiresAt;
-  
+
   globalCache.set(key, {
     data,
     timestamp: now,
     expiresAt,
-    staleAt
+    staleAt,
   });
 };
 
 /**
- * Checks if cache item is stale (needs revalidation)
- * @param key Cache key
- * @returns Boolean indicating if item is stale
+ * Checks if cache item is stale (needs revalidation).
  */
 export const isCacheStale = (key: string): boolean => {
   const item = globalCache.get(key);
   if (!item) return true;
-  
+
   return Date.now() >= item.staleAt;
 };
 
 /**
- * Checks if a revalidation is in progress
- * @param key Cache key
- * @returns Boolean indicating if revalidation is in progress
+ * Checks if a revalidation is in progress.
  */
 export const isRevalidating = (key: string): boolean => {
   return revalidationQueue.has(key);
 };
 
 /**
- * Marks a revalidation as started
- * @param key Cache key
+ * Marks a revalidation as started.
  */
 export const startRevalidation = (key: string): void => {
   revalidationQueue.set(key, true);
 };
 
 /**
- * Marks a revalidation as completed
- * @param key Cache key
+ * Marks a revalidation as completed.
  */
 export const completeRevalidation = (key: string): void => {
   revalidationQueue.delete(key);
 };
 
 /**
- * Clears a specific cache item
- * @param key Cache key
+ * Clears a specific cache item.
  */
 export const clearCache = (key: string): void => {
   globalCache.delete(key);
@@ -116,40 +121,43 @@ export const clearCache = (key: string): void => {
 };
 
 /**
- * Clears all cache
+ * Clears all cache.
  */
 export const clearAllCache = (): void => {
   globalCache.clear();
   revalidationQueue.clear();
+  log.debug('Cache cleared');
 };
 
 /**
- * Gets cache stats
- * @returns Object with cache statistics
+ * Gets cache statistics.
  */
-export const getCacheStats = () => {
+export const getCacheStats = (): CacheStats => {
   const now = Date.now();
-  const stats = {
+  const values = Array.from(globalCache.values());
+
+  return {
     totalItems: globalCache.size,
-    expiredItems: Array.from(globalCache.values()).filter(
-      item => item.expiresAt <= now
-    ).length,
-    staleItems: Array.from(globalCache.values()).filter(
-      item => item.staleAt <= now
-    ).length,
-    memoryUsage: JSON.stringify(Array.from(globalCache.values())).length,
-    cacheKeys: Array.from(globalCache.keys())
+    expiredItems: values.filter(item => item.expiresAt <= now).length,
+    staleItems: values.filter(item => item.staleAt <= now).length,
+    memoryUsage: JSON.stringify(values).length,
+    cacheKeys: Array.from(globalCache.keys()),
   };
-  
-  return stats;
 };
 
-// Cleanup expired items periodically
+/** Cleanup expired items every minute */
 setInterval(() => {
   const now = Date.now();
+  let cleaned = 0;
+
   for (const [key, item] of globalCache.entries()) {
     if (item.expiresAt <= now) {
       globalCache.delete(key);
+      cleaned++;
     }
   }
-}, 60 * 1000); // Every minute
+
+  if (cleaned > 0) {
+    log.debug(`Cache cleanup: removed ${cleaned} expired items`);
+  }
+}, 60_000);

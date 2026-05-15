@@ -53,8 +53,21 @@ export const connection = new Connection(httpUrl);
 
 /**
  * WebSocket subscription client for real-time events (v2 API)
+ * Lazy-initialized to avoid connection errors when validator is not running.
  */
-export const rpcSubscriptions = createSolanaRpcSubscriptions(wsUrl);
+let _rpcSubscriptions: ReturnType<typeof createSolanaRpcSubscriptions> | null = null;
+
+export function getRpcSubscriptions() {
+  if (!_rpcSubscriptions) {
+    try {
+      _rpcSubscriptions = createSolanaRpcSubscriptions(wsUrl);
+    } catch {
+      // Validator not running - subscriptions unavailable
+      _rpcSubscriptions = null;
+    }
+  }
+  return _rpcSubscriptions;
+}
 
 /**
  * Check Solana connection

@@ -1,17 +1,28 @@
-// web/src/app/dashboard/page.tsx
 "use client";
 
-// Importaciones actualizadas
-import { useWeb3 } from '@/hooks/useWeb3'; // Usar el contexto correcto
-import { useSupplyChainService } from '@/hooks/useSupplyChainService'; // Usar el hook del servicio
-import { SupplyChainService } from '@/services/SupplyChainService';
-import { Netbook, NetbookState } from '@/types/supply-chain-types'; // Usar el tipo correcto
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useEffect, useState, useCallback, useRef } from 'react'; // Asegurar useCallback para funciones
-import { RoleActions } from './components/RoleActions';
-import { PendingRoleApprovals } from './components/role-approval/PendingRoleApprovals';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
+// Hooks
+import { useWeb3 } from '@/hooks/useWeb3';
+import { useSupplyChainService } from '@/hooks/useSupplyChainService';
+import { useUserRoles } from '@/hooks/useUserRoles';
+import { useUserStats } from '@/hooks/useUserStats';
+import { useNetbookStats } from '@/hooks/useNetbookStats';
+import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
+
+// Services
+import { SupplyChainService } from '@/services/SupplyChainService';
+
+// Types
+import { Netbook } from '@/types/supply-chain-types';
+
+// UI Components
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+// Icons
 import {
   Package,
   ShieldCheck,
@@ -20,63 +31,69 @@ import {
   Search,
   LayoutDashboard,
   Loader2,
-  RefreshCw
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 
-import { useUserRoles } from '@/hooks/useUserRoles';
+// Dashboard Components
+import { RoleActions } from './components/RoleActions';
+import { PendingRoleApprovals } from './components/role-approval/PendingRoleApprovals';
+import { TrackingCard } from './components/TrackingCard';
+import { UserDataTable } from './components/UserDataTable';
+import { NetbookDataTable } from './components/NetbookDataTable';
+
+// Forms
 import { HardwareAuditForm } from '@/components/contracts/HardwareAuditForm';
 import { SoftwareValidationForm } from '@/components/contracts/SoftwareValidationForm';
 import { StudentAssignmentForm } from '@/components/contracts/StudentAssignmentForm';
 
-// Importar componentes de estadísticas y tablas
-import { UserStats } from '@/app/dashboard/components/UserStats';
-import { NetbookStats } from '@/app/dashboard/components/NetbookStats';
-import { UserDataTable } from '@/app/dashboard/components/UserDataTable';
-import { NetbookDataTable } from '@/app/dashboard/components/NetbookDataTable';
-
-// Importar hooks para obtener datos de MongoDB
-import { useUserStats } from '@/hooks/useUserStats';
-import { useNetbookStats } from '@/hooks/useNetbookStats';
-import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
-
-import { TrackingCard } from './components/TrackingCard';
-
-// Importar Event Provider para eventos en tiempo real
+// Real-time
 import { useSolanaEventContext } from '@/lib/solana/event-provider';
-// Issue #211: Real-time components
 import { SolanaActivityFeed } from '@/components/real-time/SolanaActivityFeed';
 import { ConnectionIndicator } from '@/components/real-time/ConnectionIndicator';
 
-// Summary Card Component - Issue #211: Enhanced with warm technical design
+// Summary Card Component - Enhanced with textures, animations, and spatial composition
 function SummaryCard({ title, count, description, icon: Icon, color, statusClass }: { title: string, count: number, description: string, icon: React.ElementType, color: string, statusClass?: string }) {
+  const bgColor = color.replace('text-', 'bg-');
+  const tintBg = color.replace('text-', 'bg-').replace('500', '50');
+  const iconBg = color.replace('text-', 'bg-').replace('500', '100');
+
   return (
     <Card className={cn(
-      "relative overflow-hidden group glass-card",
+      "relative overflow-hidden group glass-card hover-lift texture-noise",
       statusClass
     )}>
-      {/* Background icon with subtle opacity */}
-      <div className={cn("absolute top-3 right-3 opacity-5 group-hover:opacity-10 transition-all duration-300", color)}>
-        <Icon className="h-20 w-20" />
+      {/* Gradient mesh overlay */}
+      <div className={cn(
+        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
+        `bg-gradient-to-br from-transparent via-transparent ${tintBg}/30`
+      )} />
+
+      {/* Background icon with scale animation */}
+      <div className={cn("absolute -bottom-2 -right-2 opacity-[0.04] group-hover:opacity-[0.08] group-hover:scale-110 transition-all duration-500", color)}>
+        <Icon className="h-28 w-28" />
       </div>
-      
-      {/* Status indicator dot */}
+
+      {/* Animated status indicator */}
       <div className="absolute top-4 right-4">
-        <span className={cn("inline-block w-2 h-2 rounded-full", color.replace('text-', 'bg-'))} />
+        <span className={cn("inline-block w-2 h-2 rounded-full status-pulse", bgColor)} />
       </div>
-      
-      <CardHeader className="pb-2">
-        <div className="flex items-center gap-2">
-          <div className={cn("p-2 rounded-lg", color.replace('text-', 'bg-').replace('400', '100'))}>
+
+      {/* Top accent bar */}
+      <div className={cn("h-0.5 w-full scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left", bgColor)} />
+
+      <CardHeader className="pb-2 relative z-10">
+        <div className="flex items-center gap-2.5">
+          <div className={cn(
+            "p-2 rounded-lg group-hover:scale-110 transition-transform duration-300",
+            iconBg
+          )}>
             <Icon className={cn("h-4 w-4", color)} />
           </div>
-          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</CardTitle>
+          <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">{title}</CardTitle>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold mb-1 tracking-tight">{count}</div>
-        <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+      <CardContent className="relative z-10">
+        <div className={cn("text-4xl font-bold mb-1.5 tracking-tight animate-count-in")}>{count}</div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">{description}</p>
       </CardContent>
     </Card>
   );
@@ -107,84 +124,62 @@ function TempDashboard({ onConnect }: { onConnect: () => void }) {
 }
 
 export default function ManagerDashboard() {
-  // Obtener estadísticas desde MongoDB usando los nuevos endpoints
-  const { stats: userStatsData, isLoading: usersLoading } = useUserStats();
-  const { stats: netbookStatsData, isLoading: netbooksLoading } = useNetbookStats();
+  // Stats from MongoDB
+  const { isLoading: usersLoading } = useUserStats();
+  const { isLoading: netbooksLoading } = useNetbookStats();
 
-  // Obtener datos procesados combinados de usuarios y netbooks
+  // Combined processed data
   const { users, netbooks: netbooksTable, isLoading: dataLoading, refetch: fetchDashboardData } = useProcessedUserAndNetbookData();
 
-  // Combinar estados de carga
   const isLoading = usersLoading || netbooksLoading || dataLoading;
 
-  // Funciones para manejar filtros
-  const handleUserFilterChange = (filter: { key: string; value: string }) => {
-    console.log('User filter changed:', filter);
+  // Filter handlers
+  const handleUserFilterChange = (_filter: { key: string; value: string }) => {
+    // Filter applied client-side via DataTable
   };
 
-  const handleNetbookFilterChange = (filter: { key: string; value: string }) => {
-    console.log('Netbook filter changed:', filter);
+  const handleNetbookFilterChange = (_filter: { key: string; value: string }) => {
+    // Filter applied client-side via DataTable
   };
 
   const { isConnected, connectWallet } = useWeb3();
-  const { getAllSerialNumbers, getNetbookState, getNetbookReport, clearCaches } = useSupplyChainService();
+  const { clearCaches } = useSupplyChainService();
   const { isHardwareAuditor, isSoftwareTechnician, isSchool, isAdmin } = useUserRoles();
 
-  // Event listener integration for real-time updates
-  const { events, isConnected: isEventConnected } = useSolanaEventContext();
-  const hasFetchedRef = useRef(false);
+  // Real-time event listener
+  const { events } = useSolanaEventContext();
 
-  // Listen for blockchain events and refresh dashboard data
+  // Refresh on blockchain events
   useEffect(() => {
     if (!isConnected || events.length === 0) return;
 
     for (const event of events) {
       if (event.type === 'success' && event.signature) {
-        // Invalidate caches and refresh data
         clearCaches();
-
-        // Refresh dashboard data with a delay
-         
-        setTimeout(() => {
-          fetchDashboardData();
-        }, 100);
+        setTimeout(() => fetchDashboardData(), 100);
         break;
       }
     }
   }, [events, isConnected, clearCaches, fetchDashboardData]);
 
-  // Utilizar los datos cargados desde MongoDB
-  // const [netbooks, setNetbooks] = useState<Netbook[]>([]);
-  // const [loading, setLoading] = useState(true);
-
-  // Utilizar datos de estadísticas desde MongoDB en lugar del conteo directo
-  // Calcular estadísticas reales desde los datos de la blockchain
+  // State summary
   const summary = {
-    FABRICADA: netbooksTable.filter((n: any) => n.currentState === 'FABRICADA').length,
-    HW_APROBADO: netbooksTable.filter((n: any) => n.currentState === 'HW_APROBADO').length,
-    SW_VALIDADO: netbooksTable.filter((n: any) => n.currentState === 'SW_VALIDADO').length,
-    DISTRIBUIDA: netbooksTable.filter((n: any) => n.currentState === 'DISTRIBUIDA').length
+    FABRICADA: netbooksTable.filter((n: Netbook) => n.currentState === 'FABRICADA').length,
+    HW_APROBADO: netbooksTable.filter((n: Netbook) => n.currentState === 'HW_APROBADO').length,
+    SW_VALIDADO: netbooksTable.filter((n: Netbook) => n.currentState === 'SW_VALIDADO').length,
+    DISTRIBUIDA: netbooksTable.filter((n: Netbook) => n.currentState === 'DISTRIBUIDA').length,
   };
 
-  // Utilizar usuarios y netbooks ya definidos anteriormente
-  // const { users } = useFetchUsers();
-  // const { netbooks } = useProcessedUserAndNetbookData();
-
-  // Filtrar tareas pendientes basado en roles
+  // Pending tasks by role
   const pendingTasks = netbooksTable.filter((n: Netbook) => {
     if (!n) return false;
-    if ((n.currentState === 'FABRICADA') && (isHardwareAuditor || isAdmin)) return true;
-    if ((n.currentState === 'HW_APROBADO') && (isSoftwareTechnician || isAdmin)) return true;
-    if ((n.currentState === 'SW_VALIDADO') && (isSchool || isAdmin)) return true;
+    if (n.currentState === 'FABRICADA' && (isHardwareAuditor || isAdmin)) return true;
+    if (n.currentState === 'HW_APROBADO' && (isSoftwareTechnician || isAdmin)) return true;
+    if (n.currentState === 'SW_VALIDADO' && (isSchool || isAdmin)) return true;
     return false;
   });
 
-  // Usar los datos de netbookStatsData para las estadísticas
-  // y los datos de fetch para las tablas con paginación
-  // Establecer netbooksForTable con los datos obtenidos de useFetchNetbooks
-  const netbooksForTable = netbooksTable;
-
-  // Form states
+  // Form state
   const [selectedSerial, setSelectedSerial] = useState<string>('');
   const [showAuditForm, setShowAuditForm] = useState(false);
   const [showValidationForm, setShowValidationForm] = useState(false);
@@ -200,7 +195,6 @@ export default function ManagerDashboard() {
       const result = await service.revokeAllRoles(address);
 
       if (result.success) {
-        console.log('User roles revoked successfully');
         fetchDashboardData();
       } else {
         alert(`Error al eliminar roles: ${result.error}`);
@@ -211,32 +205,21 @@ export default function ManagerDashboard() {
     }
   };
 
-  // Enhanced action handler with debugging
   const handleAction = useCallback((action: string, serial: string) => {
-    console.log('Handling action:', { action, serial });
     setSelectedSerial(serial);
 
     switch (action) {
       case 'audit':
         setShowAuditForm(true);
-        console.log('Audit form state set to:', true);
         break;
       case 'validate':
         setShowValidationForm(true);
-        console.log('Validation form state set to:', true);
         break;
       case 'assign':
         setShowAssignmentForm(true);
-        console.log('Assignment form state set to:', true);
         break;
     }
   }, [setSelectedSerial, setShowAuditForm, setShowValidationForm, setShowAssignmentForm]);
-
-
-
-  // El efecto para actualizar datos del dashboard se ha eliminado porque los datos
-  // ya vienen del hook useProcessedUserAndNetbookData
-  // y se actualizan automáticamente cada 30 segundos
 
   if (!isConnected) {
     return <TempDashboard onConnect={connectWallet} />;
@@ -245,16 +228,18 @@ export default function ManagerDashboard() {
 
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8 relative">
+    <div className="container mx-auto px-4 py-8 space-y-8 relative texture-mesh">
       {/* Issue #211: Solana Activity Feed - Real-time network activity */}
-      <SolanaActivityFeed maxEntries={15} compact={true} />
+      <div className="animate-fade-in">
+        <SolanaActivityFeed maxEntries={15} compact={true} />
+      </div>
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-slide-up">
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight mb-1">Panel de Control</h1>
           <p className="text-sm text-muted-foreground">Estado actual de la cadena de suministro de netbooks.</p>
         </div>
-        <div className="flex items-center gap-3 bg-card p-2.5 rounded-xl border border-border/60 shadow-sm">
+        <div className="flex items-center gap-3 bg-card p-2.5 rounded-xl border border-border/60 shadow-sm animate-scale-in">
           <ConnectionIndicator />
           <span className="text-xs font-medium text-muted-foreground">Red Solana</span>
         </div>
@@ -273,72 +258,89 @@ export default function ManagerDashboard() {
         </div>
       ) : (
         <>
-          {/* Summary Cards - Issue #211: Enhanced with status classes and animations */}
+          {/* Summary Cards - Enhanced with spring animations and textures */}
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            <div className="animate-slide-up stagger-1">
+            <div className="animate-spring-in stagger-1">
               <SummaryCard title="En fabricación" count={summary.FABRICADA} description="Registradas pendientes de auditoría." icon={Package} color="text-blue-500" statusClass="border-blue-200/50" />
             </div>
-            <div className="animate-slide-up stagger-2">
+            <div className="animate-spring-in stagger-2">
               <SummaryCard title="HW Aprobado" count={summary.HW_APROBADO} description="Hardware verificado por auditores." icon={ShieldCheck} color="text-emerald-500" statusClass="border-emerald-200/50" />
             </div>
-            <div className="animate-slide-up stagger-3">
+            <div className="animate-spring-in stagger-3">
               <SummaryCard title="SW Validado" count={summary.SW_VALIDADO} description="Software instalado y certificado." icon={Monitor} color="text-purple-500" statusClass="border-purple-200/50" />
             </div>
-            <div className="animate-slide-up stagger-4">
+            <div className="animate-spring-in stagger-4">
               <SummaryCard title="Entregadas" count={summary.DISTRIBUIDA} description="Distribuidas a instituciones." icon={Truck} color="text-amber-500" statusClass="border-amber-200/50" />
             </div>
           </div>
 
-          {/* Pending Tasks Section */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                <ShieldCheck className="h-6 w-6 text-emerald-400" />
+          {/* Pending Tasks Section - Normalized layout */}
+          <section className="space-y-5 animate-slide-up stagger-3">
+            <div className="flex items-center justify-between pb-2 border-b border-border/40">
+              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2.5">
+                <span className="p-1.5 rounded-lg bg-emerald-500/10">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                </span>
                 Tareas Pendientes
               </h2>
               {pendingTasks.length > 0 && (
-                <Badge variant="success" className="px-3">
+                <Badge variant="success" className="px-2.5 py-0.5 text-xs animate-scale-in">
                   {pendingTasks.length} Acciones requeridas
                 </Badge>
               )}
             </div>
 
             {pendingTasks.length > 0 ? (
-              <div className="grid gap-4">
-                {pendingTasks.map((netbook) => (
-                  <TrackingCard key={netbook.serialNumber} netbook={netbook} onAction={handleAction} />
+              <div className="grid gap-3">
+                {pendingTasks.map((netbook, index) => (
+                  <div key={netbook.serialNumber} className="animate-spring-in" style={{ animationDelay: `${(index + 4) * 60}ms` }}>
+                    <TrackingCard netbook={netbook} onAction={handleAction} />
+                  </div>
                 ))}
               </div>
             ) : (
-              <Card className="border-dashed border-white/10 bg-white/5">
+              <Card className="border-dashed border-border/50 bg-gradient-to-br from-card to-muted/20 texture-dots">
                 <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-                  <div className="p-4 rounded-full bg-emerald-500/10 text-emerald-500">
+                  <div className="p-4 rounded-full bg-emerald-500/10 text-emerald-500 animate-float">
                     <ShieldCheck className="h-8 w-8" />
                   </div>
                   <div className="space-y-1">
                     <h3 className="font-semibold text-lg">¡Todo al día!</h3>
-                    <p className="text-muted-foreground max-w-sm mx-auto">
+                    <p className="text-muted-foreground max-w-sm mx-auto text-sm">
                       No tienes tareas pendientes asignadas a tu rol en este momento.
                     </p>
                   </div>
                 </CardContent>
               </Card>
             )}
-          </div>
+          </section>
 
-          {/* Tracking List */}
-          {/* Renderizar las tablas con filtros */}
-          <div className="grid gap-8 md:grid-cols-2">
-            <UserDataTable
-              data={users as any}
-              onFilterChange={handleUserFilterChange}
-              onDelete={handleDeleteUser}
-            />
-            <NetbookDataTable
-              data={netbooksForTable}
-              onFilterChange={handleNetbookFilterChange}
-            />
-          </div>
+          {/* Data Tables Section - Normalized grid layout */}
+          <section className="space-y-5 animate-slide-up stagger-4">
+            <div className="flex items-center justify-between pb-2 border-b border-border/40">
+              <h2 className="text-xl font-bold tracking-tight flex items-center gap-2.5">
+                <span className="p-1.5 rounded-lg bg-primary/10">
+                  <Search className="h-4 w-4 text-primary" />
+                </span>
+                Registros
+              </h2>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="animate-spring-in stagger-5">
+                <UserDataTable
+                  data={users as any}
+                  onFilterChange={handleUserFilterChange}
+                  onDelete={handleDeleteUser}
+                />
+              </div>
+              <div className="animate-spring-in stagger-6">
+                <NetbookDataTable
+                  data={netbooksTable}
+                  onFilterChange={handleNetbookFilterChange}
+                />
+              </div>
+            </div>
+          </section>
         </>
       )}
 
@@ -348,9 +350,7 @@ export default function ManagerDashboard() {
           isOpen={showAuditForm}
           onOpenChange={setShowAuditForm}
           onComplete={() => {
-            console.log('Audit form completed, refetching data');
             fetchDashboardData();
-            // Reset form state
             setSelectedSerial('');
             setShowAuditForm(false);
           }}
@@ -362,9 +362,7 @@ export default function ManagerDashboard() {
           isOpen={showValidationForm}
           onOpenChange={setShowValidationForm}
           onComplete={() => {
-            console.log('Validation form completed, refetching data');
             fetchDashboardData();
-            // Reset form state
             setSelectedSerial('');
             setShowValidationForm(false);
           }}
@@ -376,9 +374,7 @@ export default function ManagerDashboard() {
           isOpen={showAssignmentForm}
           onOpenChange={setShowAssignmentForm}
           onComplete={() => {
-            console.log('Assignment form completed, refetching data');
             fetchDashboardData();
-            // Reset form state
             setSelectedSerial('');
             setShowAssignmentForm(false);
           }}

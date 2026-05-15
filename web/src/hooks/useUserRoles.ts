@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSolanaWeb3 } from '@/hooks/useSolanaWeb3';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { CacheService } from '@/lib/cache/cache-service';
-// Issue #211: PublicKey usage migrated - useSolanaWeb3 already returns address as string
+import { log } from '@/lib/logger';
 
 interface UseUserRoles {
   isAdmin: boolean;
@@ -20,7 +20,7 @@ interface UseUserRoles {
 
 export const useUserRoles = (): UseUserRoles => {
   const { publicKey, isConnected } = useSolanaWeb3();
-  const { hasRole: checkUserHasRole } = useSupplyChainService();
+  const { hasRole: checkUserHasRole, initialized: serviceInitialized } = useSupplyChainService();
   
   const cacheKey = `user_roles_${publicKey || 'unknown'}`;
   
@@ -46,8 +46,8 @@ export const useUserRoles = (): UseUserRoles => {
   });
 
   const checkRoles = useCallback(async () => {
-    // Early return if not connected or missing required data
-    if (!isConnected || !publicKey) {
+    // Early return if not connected, missing data, or service not initialized
+    if (!isConnected || !publicKey || !serviceInitialized) {
       setUserRoles(prev => ({ ...prev, isLoading: false }));
       return;
     }
@@ -68,7 +68,7 @@ export const useUserRoles = (): UseUserRoles => {
       setUserRoles(prev => ({ ...prev, isLoading: true }));
     }
 
-    console.log('[useUserRoles] Starting role check for address:', userAddress);
+    log.debug('[useUserRoles] Starting role check for address:', { address: userAddress });
 
     try {
       // Use Solana service to check roles (role names directly, pass address as string)
@@ -80,7 +80,7 @@ export const useUserRoles = (): UseUserRoles => {
         checkUserHasRole('ESCUELA_ROLE', userAddress)
       ]);
 
-      console.log('Role check results:', {
+      log.debug('Role check results:', {
         isAdmin,
         isManufacturer,
         isHardwareAuditor,
@@ -125,20 +125,20 @@ export const useUserRoles = (): UseUserRoles => {
       setUserRoles(newRoles);
       
     } catch (error) {
-      console.error('Error fetching user roles:', error);
+      log.error('Error fetching user roles:', error);
       
       // If we have stale data and we're revalidating, keep showing it
       setUserRoles(prev => ({ ...prev, isLoading: false }));
     }
-  }, [publicKey, isConnected, cacheKey, checkUserHasRole]);
+  }, [publicKey, isConnected, cacheKey, checkUserHasRole, serviceInitialized]);
 
-  // Initialize role check when wallet connects or changes
+  // Initialize role check when wallet connects or changes (after service is ready)
   useEffect(() => {
-    if (isConnected && publicKey) {
-      console.log('Wallet changed, refreshing roles for:', publicKey);
+    if (isConnected && publicKey && serviceInitialized) {
+      log.debug('Wallet changed, refreshing roles for:', { address: publicKey });
       checkRoles();
     }
-  }, [isConnected, publicKey]);
+  }, [isConnected, publicKey, serviceInitialized]);
 
   // Escucha los cambios de rol para actualizar automáticamente
   useEffect(() => {
@@ -146,11 +146,11 @@ export const useUserRoles = (): UseUserRoles => {
     
     import('@/lib/events').then(({ eventBus, EVENTS }) => {
       unsubscribe = eventBus.on(EVENTS.ROLE_UPDATED, () => {
-        console.log('[useUserRoles] Role update detected, refreshing roles...');
+        log.debug('[useUserRoles] Role update detected, refreshing roles...');
         checkRoles();
       });
     }).catch(error => {
-      console.error('Failed to import events module:', error);
+      log.error('Failed to import events module:', error);
     });
     
     return () => {

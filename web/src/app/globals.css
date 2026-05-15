@@ -76,7 +76,8 @@
   --status-distribuida: 38 92% 50%;
 }
 
-/* Subtle grid pattern background */
+/* Layered background textures */
+/* Base grid pattern */
 body::before {
   content: '';
   position: fixed;
@@ -84,7 +85,18 @@ body::before {
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Dot noise texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.015) 1px, transparent 1px);
+  background-size: 16px 16px;
   pointer-events: none;
   z-index: 0;
 }
@@ -272,9 +284,154 @@ body::before {
 
   /* Staggered animation delays */
   .stagger-1 { animation-delay: 0ms; }
-  .stagger-2 { animation-delay: 50ms; }
-  .stagger-3 { animation-delay: 100ms; }
-  .stagger-4 { animation-delay: 150ms; }
-  .stagger-5 { animation-delay: 200ms; }
+  .stagger-2 { animation-delay: 60ms; }
+  .stagger-3 { animation-delay: 120ms; }
+  .stagger-4 { animation-delay: 180ms; }
+  .stagger-5 { animation-delay: 240ms; }
+  .stagger-6 { animation-delay: 300ms; }
+
+  /* Card entrance with spring physics */
+  .animate-spring-in {
+    animation: springIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes springIn {
+    from {
+      opacity: 0;
+      transform: translateY(24px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Border draw animation */
+  .animate-border-draw {
+    animation: borderDraw 0.8s ease-out forwards;
+  }
+
+  @keyframes borderDraw {
+    from {
+      border-color: transparent;
+    }
+    to {
+      border-color: hsl(var(--border) / 0.6);
+    }
+  }
+
+  /* Gradient shift animation for card backgrounds */
+  .animate-gradient-shift {
+    background-size: 200% 200%;
+    animation: gradientShift 8s ease infinite;
+  }
+
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Subtle noise texture for cards */
+  .texture-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+  }
+
+  /* Dot pattern texture */
+  .texture-dots {
+    background-image: radial-gradient(circle, hsl(var(--primary) / 0.06) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Diagonal lines texture */
+  .texture-lines {
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      hsl(var(--primary) / 0.03) 10px,
+      hsl(var(--primary) / 0.03) 11px
+    );
+  }
+
+  /* Soft mesh gradient background */
+  .texture-mesh {
+    background:
+      radial-gradient(ellipse at 20% 80%, hsl(var(--primary) / 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, hsl(var(--chart-4) / 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, hsl(var(--chart-2) / 0.04) 0%, transparent 60%);
+  }
+
+  /* Card hover lift with shadow expansion */
+  .hover-lift {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow:
+      0 8px 24px -4px rgb(0 0 0 / 0.08),
+      0 4px 8px -4px rgb(0 0 0 / 0.04);
+  }
+
+  /* Animated underline for links */
+  .underline-animated {
+    background-image: linear-gradient(transparent calc(100% - 2px), hsl(var(--primary) / 0.4) calc(100% - 2px));
+    background-repeat: no-repeat;
+    background-size: 0% 100%;
+    transition: background-size 0.3s ease;
+  }
+
+  .underline-animated:hover {
+    background-size: 100% 100%;
+  }
+
+  /* Row hover highlight */
+  .row-highlight {
+    transition: background-color 0.2s ease, transform 0.15s ease;
+  }
+
+  .row-highlight:hover {
+    background-color: hsl(var(--accent) / 0.5);
+    transform: translateX(2px);
+  }
+
+  /* Pulse dot animation for status */
+  .status-pulse {
+    animation: statusPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes statusPulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+    50% { opacity: 0.7; box-shadow: 0 0 0 4px transparent; }
+  }
+
+  /* Count-up animation for numbers */
+  .animate-count-in {
+    animation: countIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes countIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Table header gradient */
+  .table-header-gradient {
+    background: linear-gradient(180deg, hsl(var(--muted) / 0.8) 0%, hsl(var(--muted) / 0.4) 100%);
+  }
+
+  /* Section divider with gradient */
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, hsl(var(--border) / 0.5), transparent);
+  }
 }
 

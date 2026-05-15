@@ -61,7 +61,8 @@ export default function RootLayout({
                 <Toaster />
                 <NotificationContainer />
               </div>
-              {process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' && (
+              {/* Debug components - only in development with explicit flag */}
+              {process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' && (
                 <>
                   <DiagnosticRunner />
                   <DebugComponent />

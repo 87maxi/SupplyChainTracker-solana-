@@ -1,12 +1,15 @@
-
-import { test as base, expect as baseExpect } from "@playwright/test";
-
 /**
- * @deprecated Use base test directly. Wallet mocking is now handled by MockWalletAdapter.
+ * Wallet Middleware - Re-exports from wallet-fixture
+ * 
+ * This module re-exports the test fixtures from wallet-fixture.ts
+ * which provides mock wallet injection via addInitScript.
+ * 
+ * The mock wallet correctly implements the Wallet Standard protocol
+ * by listening for 'wallet-standard:register-wallet' events and
+ * registering itself via callback.register(wallet).
+ * 
+ * @see ./wallet-fixture.ts
+ * @see ./mock-wallet-injection.ts
  */
-export const test = base;
 
-/**
- * @deprecated Use base expect directly.
- */
-export const expect = baseExpect;
+export { test, expect, verifyMockWallet, getMockWalletState, connectMockWallet } from "./wallet-fixture";

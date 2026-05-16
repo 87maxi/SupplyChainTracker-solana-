@@ -1,128 +1,75 @@
 /**
- * Playwright Global Setup - SINGLE BROWSER SESSION
- *
+ * Playwright Global Setup - Mock Wallet Injection
+ * 
  * This file runs once before all tests.
- * Configures a single browser session with mock wallet connector injected.
- *
- * For modern @solana/react-hooks API, we inject a mock wallet connector
- * that implements the Wallet Standard interface.
+ * It injects a mock wallet that correctly implements the Wallet Standard protocol.
+ * 
+ * ## How it works
+ * 
+ * 1. Creates a browser context with addInitScript
+ * 2. The script listens for 'wallet-standard:register-wallet' event
+ * 3. When the event fires (dispatched by getWallets() from @wallet-standard/app),
+ *    the mock wallet registers itself via callback.register(wallet)
+ * 4. autoDiscover() then finds the wallet via getWallets().get()
+ * 
+ * ## Wallet Standard Protocol Flow
+ * 
+ * ```
+ * getWallets() called by @solana/client
+ *   ↓
+ * Dispatches 'wallet-standard:app-ready' event
+ *   ↓
+ * Listens for 'wallet-standard:register-wallet' event
+ *   ↓
+ * Mock wallet receives callback(api)
+ *   ↓
+ * Mock wallet calls api.register(mockWallet)
+ *   ↓
+ * getWallets().get() returns [mockWallet]
+ *   ↓
+ * autoDiscover() creates connectors from wallets
+ * ```
  */
 
 import { FullConfig, chromium } from "@playwright/test";
-import fs from "fs";
-import path from "path";
-
-/**
- * Injects a mock wallet connector into the browser that works with
- * @solana/react-hooks autoDiscover() pattern.
- */
-async function injectMockWalletConnector(page: any): Promise<void> {
-  await page.addInitScript(() => {
-    // Store connected state
-    let isConnected = false;
-    let currentConnector: any = null;
-
-    // Mock wallet connector that implements Wallet Standard
-    const mockConnector = {
-      id: "wallet-standard:phantom",
-      name: "Phantom",
-      icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiB2aWV3Qm94PSIwIDAgMjU2IDI1NiI+PHBhdGggZmlsbD0iIzVGNDU2RSIgZD0iTTI0NS4yOCAxNzEuMzZsLTM2LjgtOTIuOGMtMS42LTQuMS01LjYtNi45LTEwLTYuOWgtNTUuMmMtNC40IDAtOC40IDIuOC05LjYgNi45bC0zNi44IDkyLjhjLTEuMiAzLjEuMyA2LjYgMy4zIDguNGw0Mi40IDI0LjRjMi40IDEuNCA1LjYgMS40IDgtMGw0Mi40IDI0LjRjMy4xIDEuOCA2LjYgMC4zIDguNC0zLjNsMzYuOC05Mi44Yy40LTEuMi40LTIuNSAwLTMuNnoiLz48L3N2Zz4=",
-      url: "https://phantom.app",
-      ready: true,
-      canAutoConnect: true,
-      type: "browser-extension" as const,
-      features: {
-        solana: {},
-        "solana-sign-and-transfer-transaction": {},
-      },
-      accounts: [
-        {
-          address: "Mock1111111111111111111111111111111111111",
-          publicKey: new Uint8Array(32).map((_, i) => i),
-        },
-      ],
-      connect: async () => {
-        isConnected = true;
-        currentConnector = mockConnector;
-        return {
-          account: {
-            address: "Mock1111111111111111111111111111111111111",
-            publicKey: new Uint8Array(32).map((_, i) => i),
-          },
-          connector: mockConnector,
-          status: "connected" as const,
-          signTransaction: async (tx: any) => tx,
-          signMessage: async (msg: any) => msg,
-        };
-      },
-      disconnect: async () => {
-        isConnected = false;
-        currentConnector = null;
-      },
-      signTransaction: async (tx: any) => tx,
-      signMessage: async (msg: any) => msg,
-    };
-
-    // Override autoDiscover to return our mock connector
-    const originalAutoDiscover =
-      (window as any).__SOLANA_MOCK_AUTO_DISCOVER ?? (() => [mockConnector]);
-    (window as any).__SOLANA_MOCK_AUTO_DISCOVER = () => [mockConnector];
-
-    // Expose mock state for testing
-    (window as any).__MOCK_WALLET_STATE = {
-      get isConnected() {
-        return isConnected;
-      },
-      get connector() {
-        return currentConnector;
-      },
-      connect: async () => {
-        isConnected = true;
-        currentConnector = mockConnector;
-      },
-      disconnect: async () => {
-        isConnected = false;
-        currentConnector = null;
-      },
-    };
-  });
-}
+import { MOCK_WALLET_INJECTION_SCRIPT } from "./mock-wallet-injection";
 
 /**
  * Global setup function for Playwright.
- * Creates a browser context with mock wallet injected.
+ * Injects mock wallet via addInitScript before any page loads.
  */
 async function globalSetup(config: FullConfig) {
-  // Create browser context
   const browser = await chromium.launch({
     headless: process.env.CI ? true : false,
   });
 
-  const context = await browser.newContext({
-    viewport: { width: 1280, height: 720 },
-    storageState: undefined,
-  });
-
+  const context = await browser.newContext();
   const page = await context.newPage();
 
-  // Inject mock wallet connector before any page loads
-  await injectMockWalletConnector(page);
+  // CRITICAL: Inject mock wallet BEFORE any page navigation
+  // This ensures the script runs before @solana/client calls autoDiscover()
+  await page.addInitScript({
+    content: MOCK_WALLET_INJECTION_SCRIPT,
+  });
 
-  // Navigate to the app to initialize
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
-  await page.goto(baseUrl);
+  // Navigate to a blank page to trigger the injection
+  // The addInitScript runs immediately, setting up the event listener
+  await page.goto("about:blank");
 
-  // Wait for the app to load
-  await page.waitForLoadState("networkidle");
+  // Wait a bit for the injection to complete
+  await page.waitForTimeout(500);
 
-  // Save storage state for reuse
-  const authDir = path.join(process.cwd(), "e2e/.auth");
-  if (!fs.existsSync(authDir)) {
-    fs.mkdirSync(authDir, { recursive: true });
+  // Verify injection worked
+  const injected = await page.evaluate(() => {
+    return !!(window as any).__PLAYWRIGHT_MOCK_WALLET_INJECTED;
+  });
+
+  if (injected) {
+    console.log("[GlobalSetup] Mock wallet injection verified successfully");
+  } else {
+    console.warn("[GlobalSetup] Mock wallet injection may not have worked");
   }
-  await context.storageState({ path: path.join(authDir, "user.json") });
 
-  // Close browser
   await browser.close();
 }
 

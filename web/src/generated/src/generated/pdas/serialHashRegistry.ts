@@ -23,7 +23,7 @@ export async function findSerialHashRegistryPda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb" as Address<"7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb">,
+    programAddress = "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW" as Address<"BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

@@ -149,7 +149,7 @@ import {
 } from "../pdas";
 
 export const SC_SOLANA_PROGRAM_ADDRESS =
-  "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb" as Address<"7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb">;
+  "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW" as Address<"BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW">;
 
 export enum ScSolanaAccount {
   DeployerState,
@@ -502,7 +502,7 @@ export function identifyScSolanaInstruction(
 }
 
 export type ParsedScSolanaInstruction<
-  TProgram extends string = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb",
+  TProgram extends string = "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW",
 > =
   | ({
       instructionType: ScSolanaInstruction.AddRoleHolder;

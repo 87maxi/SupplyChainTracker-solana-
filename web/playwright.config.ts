@@ -164,7 +164,7 @@ export default defineConfig({
     env: {
       PORT: "3001",
       // Use local validator in CI/E2E, fallback to devnet for local dev
-      NEXT_PUBLIC_PROGRAM_ID: process.env.NEXT_PUBLIC_PROGRAM_ID || "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb",
+      NEXT_PUBLIC_PROGRAM_ID: process.env.NEXT_PUBLIC_PROGRAM_ID || "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW",
       NEXT_PUBLIC_RPC_URL: process.env.NEXT_PUBLIC_RPC_URL || "http://localhost:8899",
       NEXT_PUBLIC_CLUSTER: process.env.NEXT_PUBLIC_CLUSTER || "localnet",
       NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK || "localnet",

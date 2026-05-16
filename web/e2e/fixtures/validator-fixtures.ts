@@ -55,7 +55,7 @@ export const test = base.extend<TestFixtures>({
    */
   integration: async ({}, use) => {
     const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL || "http://localhost:8899";
-    const programId = process.env.NEXT_PUBLIC_PROGRAM_ID || "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb";
+    const programId = process.env.NEXT_PUBLIC_PROGRAM_ID || "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW";
 
     const options: IntegrationServiceOptions = {
       rpcUrl,

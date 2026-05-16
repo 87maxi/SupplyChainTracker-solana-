@@ -145,7 +145,7 @@ export class IntegrationService {
 
     this.options = {
       rpcUrl: options.rpcUrl || "http://localhost:8899",
-      programId: options.programId || "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb",
+      programId: options.programId || "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW",
       commitment: options.commitment || "confirmed",
       airdropAmount: options.airdropAmount ?? 5,
     };

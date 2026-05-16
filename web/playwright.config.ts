@@ -12,12 +12,38 @@
  */
 
 import { defineConfig, devices } from "@playwright/test";
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
  */
 // require('dotenv').config();
+
+/**
+ * Check if storage state file exists.
+ * Returns true if the file exists and is valid JSON, false otherwise.
+ * In CI, the .auth directory is gitignored, so we need to handle missing state gracefully.
+ */
+function storageStateExists(): boolean {
+  const authFile = path.join(__dirname, "e2e", ".auth", "user.json");
+  try {
+    return fs.existsSync(authFile) && fs.statSync(authFile).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get storage state path if available, null otherwise.
+ * When null, Playwright will create fresh browser state for each test run.
+ */
+function getStorageState(): string | undefined {
+  return storageStateExists() ? "e2e/.auth/user.json" : undefined;
+}
+
+const STORAGE_STATE = getStorageState();
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -86,8 +112,9 @@ export default defineConfig({
         trace: 'on',
         screenshot: 'on',
         // Storage state file to persist browser state between tests
-        // This ensures the same browser instance maintains cookies, localStorage, etc.
-        storageState: 'e2e/.auth/user.json',
+        // Only used if global-setup generated it (local dev).
+        // In CI, global-setup creates it before tests run.
+        ...(STORAGE_STATE ? { storageState: STORAGE_STATE } : {}),
         // Launch browser in headed mode for visual verification
         // headless: false will show the browser window
         launchOptions: {
@@ -105,7 +132,7 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         video: 'on',
         trace: 'on',
-        storageState: 'e2e/.auth/user.json',
+        ...(STORAGE_STATE ? { storageState: STORAGE_STATE } : {}),
       },
     },
     

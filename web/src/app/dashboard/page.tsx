@@ -52,7 +52,7 @@ import { useSolanaEventContext } from '@/lib/solana/event-provider';
 import { SolanaActivityFeed } from '@/components/real-time/SolanaActivityFeed';
 import { ConnectionIndicator } from '@/components/real-time/ConnectionIndicator';
 
-// Summary Card Component - Enhanced with textures, animations, and spatial composition
+// Summary Card Component — Premium v3 with enhanced depth, micro-interactions, and information density
 function SummaryCard({ title, count, description, icon: Icon, color, statusClass }: { title: string, count: number, description: string, icon: React.ElementType, color: string, statusClass?: string }) {
   const bgColor = color.replace('text-', 'bg-');
   const tintBg = color.replace('text-', 'bg-').replace('500', '50');
@@ -61,41 +61,59 @@ function SummaryCard({ title, count, description, icon: Icon, color, statusClass
   return (
     <Card className={cn(
       "relative overflow-hidden group glass-card hover-lift texture-noise",
+      "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
       statusClass
     )}>
-      {/* Gradient mesh overlay */}
+      {/* Animated gradient mesh overlay */}
       <div className={cn(
-        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
-        `bg-gradient-to-br from-transparent via-transparent ${tintBg}/30`
+        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700",
+        `bg-gradient-to-br from-transparent via-transparent ${tintBg}/40`
       )} />
 
-      {/* Background icon with scale animation */}
-      <div className={cn("absolute -bottom-2 -right-2 opacity-[0.04] group-hover:opacity-[0.08] group-hover:scale-110 transition-all duration-500", color)}>
-        <Icon className="h-28 w-28" />
+      {/* Corner accent triangle */}
+      <div className="absolute top-0 right-0 w-16 h-16 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+        <div className={cn("w-full h-full bg-gradient-to-bl to-transparent from-60%", tintBg)} />
       </div>
 
-      {/* Animated status indicator */}
-      <div className="absolute top-4 right-4">
-        <span className={cn("inline-block w-2 h-2 rounded-full status-pulse", bgColor)} />
+      {/* Background icon watermark with parallax */}
+      <div className={cn("absolute -bottom-3 -right-3 opacity-[0.03] group-hover:opacity-[0.07] group-hover:scale-110 transition-all duration-700", color)}>
+        <Icon className="h-32 w-32" />
       </div>
 
-      {/* Top accent bar */}
-      <div className={cn("h-0.5 w-full scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left", bgColor)} />
+      {/* Animated status indicator with glow */}
+      <div className="absolute top-3.5 right-3.5">
+        <span className={cn("inline-block w-2 h-2 rounded-full status-pulse shadow-sm", bgColor)} />
+      </div>
+
+      {/* Top accent bar with gradient */}
+      <div className="h-0.5 w-full scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-left bg-gradient-to-r from-transparent via-current to-transparent" style={{ color: bgColor.replace('bg-', '') }} />
 
       <CardHeader className="pb-2 relative z-10">
         <div className="flex items-center gap-2.5">
           <div className={cn(
-            "p-2 rounded-lg group-hover:scale-110 transition-transform duration-300",
+            "p-2 rounded-xl group-hover:scale-110 group-hover:shadow-md transition-all duration-500",
             iconBg
           )}>
             <Icon className={cn("h-4 w-4", color)} />
           </div>
-          <CardTitle className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">{title}</CardTitle>
+          <CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">{title}</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="relative z-10">
-        <div className={cn("text-4xl font-bold mb-1.5 tracking-tight animate-count-in")}>{count}</div>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">{description}</p>
+        <div className="flex items-baseline gap-2">
+          <div className={cn("text-5xl font-black tracking-tighter animate-count-in tabular-nums")}>{count}</div>
+          {count > 0 && (
+            <span className="text-xs font-medium text-muted-foreground/60">unidades</span>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">{description}</p>
+        {/* Progress bar indicator */}
+        <div className="mt-3 h-1 w-full bg-muted/50 rounded-full overflow-hidden">
+          <div
+            className={cn("h-full rounded-full transition-all duration-1000 ease-out", bgColor)}
+            style={{ width: `${Math.min(count * 10, 100)}%` }}
+          />
+        </div>
       </CardContent>
     </Card>
   );
@@ -236,14 +254,32 @@ export default function ManagerDashboard() {
         <SolanaActivityFeed maxEntries={15} compact={true} />
       </div>
       
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-slide-up">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight mb-1">Panel de Control</h1>
-          <p className="text-sm text-muted-foreground">Estado actual de la cadena de suministro de netbooks.</p>
-        </div>
-        <div className="flex items-center gap-3 bg-card p-2.5 rounded-xl border border-border/60 shadow-sm animate-scale-in">
-          <ConnectionIndicator />
-          <span className="text-xs font-medium text-muted-foreground">Red Solana</span>
+      {/* Enhanced Header Section with gradient accent */}
+      <div className="relative animate-slide-up">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent rounded-2xl -m-4" />
+        <div className="relative flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                <LayoutDashboard className="h-5 w-5" />
+              </div>
+              <h1 className="text-3xl font-black tracking-tight">Panel de Control</h1>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
+              Monitoreo en tiempo real de la cadena de suministro de netbooks.
+              <span className="ml-1.5 inline-flex items-center gap-1.5">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 status-pulse" />
+                <span className="text-xs font-medium text-emerald-600">Sistema activo</span>
+              </span>
+            </p>
+          </div>
+          <div className="flex items-center gap-3 bg-card px-4 py-2.5 rounded-xl border border-border/60 shadow-sm animate-scale-in backdrop-blur-sm">
+            <ConnectionIndicator />
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold text-foreground">Red Solana</span>
+              <span className="text-[10px] text-muted-foreground">Conexión en tiempo real</span>
+            </div>
+          </div>
         </div>
       </div>
 

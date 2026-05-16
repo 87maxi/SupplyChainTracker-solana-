@@ -36,6 +36,11 @@ import { FullConfig, chromium } from "@playwright/test";
 import { MOCK_WALLET_INJECTION_SCRIPT } from "./mock-wallet-injection";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+
+// ES Module polyfills for __dirname (Playwright transforms to ESM)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Storage state interface for Playwright.

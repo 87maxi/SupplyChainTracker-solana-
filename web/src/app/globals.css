@@ -21,59 +21,78 @@
   }
 }
 
-/* Issue #211: Warm Technical Design System v2 */
-/* Enhanced light theme with refined blue-teal palette and warm textures */
+/* Issue #211: Warm Technical Design System v3 */
+/* Premium light theme with refined blue-teal palette, warm textures, and enhanced depth */
 :root {
-  --radius: 0.75rem;
+  --radius: 0.875rem;
 
-  /* Warm off-white base (#FAF9F6) */
-  --background: 48 33% 97%;
-  --foreground: 224 71.4% 12%;
+  /* Warm off-white base (#FAF9F6) — refined warmth */
+  --background: 48 40% 97.5%;
+  --foreground: 224 76% 10%;
 
-  /* Pure white cards with subtle warmth */
+  /* Pure white cards with subtle warmth and depth */
   --card: 0 0% 100%;
-  --card-foreground: 224 71.4% 12%;
+  --card-foreground: 224 76% 10%;
 
   --popover: 0 0% 100%;
-  --popover-foreground: 224 71.4% 12%;
+  --popover-foreground: 224 76% 10%;
 
-  /* Blue-teal accent (warm ocean) - primary brand color */
-  --primary: 199 89% 60%;
-  --primary-foreground: 210 40% 98%;
+  /* Blue-teal accent (warm ocean) — primary brand color */
+  --primary: 199 92% 55%;
+  --primary-foreground: 210 45% 98%;
 
-  /* Soft secondary surfaces */
-  --secondary: 210 40% 96%;
+  /* Soft secondary surfaces — subtle blue tint */
+  --secondary: 210 45% 95%;
   --secondary-foreground: 222.2 47.4% 11.2%;
 
-  /* Muted text and backgrounds */
-  --muted: 210 30% 94%;
-  --muted-foreground: 215.4 16.3% 46.9%;
+  /* Muted text and backgrounds — warmer gray */
+  --muted: 210 35% 93%;
+  --muted-foreground: 215.4 18% 42%;
 
-  /* Accent states - light blue-teal tint */
-  --accent: 199 89% 95%;
-  --accent-foreground: 199 89% 40%;
+  /* Accent states — light blue-teal tint */
+  --accent: 199 92% 94%;
+  --accent-foreground: 199 92% 38%;
 
-  /* Destructive - warm coral red */
+  /* Destructive — warm coral red */
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
-  /* Soft borders - warm gray */
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 199 89% 60%;
+  /* Success — vibrant emerald */
+  --success: 160 84% 39%;
+  --success-foreground: 210 40% 98%;
 
-  /* Chart palette - harmonious blue-teal spectrum */
-  --chart-1: 199 89% 60%;
-  --chart-2: 173 58% 45%;
-  --chart-3: 25 80% 60%;
-  --chart-4: 280 65% 65%;
-  --chart-5: 340 75% 60%;
+  /* Warning — warm amber */
+  --warning: 38 92% 50%;
+  --warning-foreground: 224 76% 10%;
 
-  /* Status colors for supply chain states */
-  --status-fabricada: 221 83% 53%;
-  --status-hw-aprobado: 160 84% 39%;
+  /* Info — ocean blue */
+  --info: 199 92% 55%;
+  --info-foreground: 210 40% 98%;
+
+  /* Soft borders — warm gray with subtle blue */
+  --border: 214.3 33% 90%;
+  --input: 214.3 33% 90%;
+  --ring: 199 92% 55%;
+
+  /* Chart palette — harmonious blue-teal spectrum with better contrast */
+  --chart-1: 199 92% 55%;
+  --chart-2: 160 84% 42%;
+  --chart-3: 38 92% 55%;
+  --chart-4: 262 83% 58%;
+  --chart-5: 340 75% 58%;
+
+  /* Status colors for supply chain states — enhanced vibrancy */
+  --status-fabricada: 199 92% 55%;
+  --status-hw-aprobado: 160 84% 42%;
   --status-sw-validado: 262 83% 58%;
-  --status-distribuida: 38 92% 50%;
+  --status-distribuida: 38 92% 55%;
+
+  /* Shadow tokens for layered depth */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.03);
+  --shadow-md: 0 4px 8px -2px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  --shadow-lg: 0 12px 24px -4px rgb(0 0 0 / 0.08), 0 4px 8px -4px rgb(0 0 0 / 0.05);
+  --shadow-xl: 0 20px 40px -4px rgb(0 0 0 / 0.10), 0 8px 16px -4px rgb(0 0 0 / 0.06);
+  --shadow-glow: 0 0 20px hsl(var(--primary) / 0.15);
 }
 
 /* Layered background textures */

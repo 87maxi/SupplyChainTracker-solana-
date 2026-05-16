@@ -71,13 +71,29 @@ run_runbook_test() {
     fi
 }
 
-# Run syntax validation on all runbooks
+# Determine runbooks directory (04-testing contains test runbooks)
+RUNBOOKS_DIR="$PROJECT_ROOT/sc-solana/runbooks"
+TEST_RUNBOOKS_DIR="$RUNBOOKS_DIR/04-testing"
+
+# Fallback: if called from project root, adjust path
+if [ ! -d "$TEST_RUNBOOKS_DIR" ]; then
+    RUNBOOKS_DIR="$PROJECT_ROOT/runbooks"
+    TEST_RUNBOOKS_DIR="$RUNBOOKS_DIR/04-testing"
+fi
+
+# Run syntax validation on all test runbooks in 04-testing directory
 echo "=== Phase 1: Runbook Syntax Validation ==="
+echo "Test Runbooks Directory: $TEST_RUNBOOKS_DIR"
 echo ""
 
-for runbook in $(find "$SCRIPT_DIR" -name "*.tx" -type f | sort); do
-    run_runbook_test "$runbook"
-done
+if [ -d "$TEST_RUNBOOKS_DIR" ]; then
+    for runbook in $(find "$TEST_RUNBOOKS_DIR" -name "*.tx" -type f | sort); do
+        run_runbook_test "$runbook"
+    done
+else
+    echo -e "${YELLOW}WARNING: Test runbooks directory not found at $TEST_RUNBOOKS_DIR${NC}"
+    echo "Skipping runbook validation."
+fi
 
 echo ""
 echo "=== Phase 2: Mollusk Tests (In-Process SVM) ==="

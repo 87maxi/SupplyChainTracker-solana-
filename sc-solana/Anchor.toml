@@ -1,34 +1,27 @@
 [toolchain]
-package_manager = "yarn"
+package_manager = "npm"
 
 [features]
 resolution = true
 skip-lint = false
 
 [programs.localnet]
-sc_solana = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
-
-[registry]
-url = "https://api.apr.dev"
+sc_solana = "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
 
 [provider]
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-# Run tests sequentially to avoid parallel initialization conflicts (#178)
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 --file tests/shared-init.ts \"tests/**/*.ts\""
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 --file tests/shared-init.ts \"tests/**/*.ts\""
+
+[hooks]
 
 [test]
 startup_wait = 60000
 shutdown_wait = 2000
 upgradeable = false
 
-# Use existing Surfpool network instead of starting a new validator
-# Set ANCHOR_PROVIDER_URL=http://localhost:8899 before running tests
-# Or use: anchor test --skip-local-validator
-# Standard Solana ports: 8899 (RPC), 8900 (WS)
-# Aligned with localnet.env and txtx.yml for local development consistency
 [test.validator]
 bind_address = "127.0.0.1"
 ledger = ".anchor/test-ledger"

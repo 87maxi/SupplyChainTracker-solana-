@@ -5,7 +5,7 @@ export default {
         js: {
             from: '@codama/renderers-js',
             args: [
-                '../web/src/generated'
+                'src/generated'
             ]
         }
     }

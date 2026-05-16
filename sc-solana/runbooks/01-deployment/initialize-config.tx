@@ -27,7 +27,7 @@ signer "funder" "svm::web_wallet" {
 // This matches declare_id! in sc-solana/programs/sc-solana/src/lib.rs
 variable "program_id" {
   description = "Deployed program ID"
-  value = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+  value = "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
 }
 
 // Derive PDAs - all accounts are PDA-derivable from IDL

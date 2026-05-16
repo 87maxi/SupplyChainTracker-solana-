@@ -17,7 +17,7 @@ import {
   Keypair,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
-import { createSignerFromKeyPair } from "@solana/kit";
+import { createSignerFromKeyPair } from "./test-helpers";
 import { expect } from "chai";
 
 import {
@@ -89,7 +89,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: fabricanteSigner,
           role: FABRICANTE_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify role was granted
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -105,7 +105,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: auditorSigner,
           role: AUDITOR_HW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify role was granted
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -121,7 +121,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: tecnicoSigner,
           role: TECNICO_SW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify role was granted
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -137,7 +137,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: escuelaSigner,
           role: ESCUELA_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify role was granted
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -154,7 +154,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: fabricanteSigner,
             role: FABRICANTE_ROLE,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.include("RoleAlreadyGranted");
@@ -171,7 +171,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: randomUserSigner,
             role: "INVALID_ROLE",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.include("RoleNotFound");
@@ -189,7 +189,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: randomUserSigner,
             role: AUDITOR_HW_ROLE,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -208,7 +208,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: toAddress(randomUser.publicKey.toString()),
             role: TECNICO_SW_ROLE,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -230,7 +230,7 @@ describe("Role Management Integration Tests", () => {
           user: tecnicoSigner,
           role: TECNICO_SW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify role request was created
       const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -250,7 +250,7 @@ describe("Role Management Integration Tests", () => {
           user: escuelaSigner,
           role: ESCUELA_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify role request was created
       const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -273,7 +273,7 @@ describe("Role Management Integration Tests", () => {
           user: randomUserSigner,
           role: FABRICANTE_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Second request should fail
       try {
@@ -284,7 +284,7 @@ describe("Role Management Integration Tests", () => {
             user: randomUserSigner,
             role: FABRICANTE_ROLE,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -323,7 +323,7 @@ describe("Role Management Integration Tests", () => {
           roleRequest: toAddress(roleRequestPda),
           roleHolder: toAddress(roleHolderPda),
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify role request was approved
       const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -351,7 +351,7 @@ describe("Role Management Integration Tests", () => {
           roleRequest: toAddress(roleRequestPda),
           roleHolder: toAddress(roleHolderPda),
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify role request was approved
       const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -380,7 +380,7 @@ describe("Role Management Integration Tests", () => {
             roleRequest: toAddress(roleRequestPda),
             roleHolder: toAddress(roleHolderPda),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -411,7 +411,7 @@ describe("Role Management Integration Tests", () => {
             roleRequest: toAddress(roleRequestPda),
             roleHolder: toAddress(roleHolderPda),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -437,7 +437,7 @@ describe("Role Management Integration Tests", () => {
           user: nonAdminSigner,
           role: FABRICANTE_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       const roleHolderPda = await getRoleHolderByUserPdaAddress(
         toAddress(nonAdmin.publicKey.toString())
@@ -451,7 +451,7 @@ describe("Role Management Integration Tests", () => {
             roleRequest: toAddress(roleRequestPda),
             roleHolder: toAddress(roleHolderPda),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -478,7 +478,7 @@ describe("Role Management Integration Tests", () => {
           user: rejectUserSigner,
           role: TECNICO_SW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Now reject it
       await client.scSolana.instructions
@@ -487,7 +487,7 @@ describe("Role Management Integration Tests", () => {
           admin: toAddress(adminPda),
           roleRequest: toAddress(roleRequestPda),
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify role request was rejected
       const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -510,7 +510,7 @@ describe("Role Management Integration Tests", () => {
           user: rejectUserSigner,
           role: TECNICO_SW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       await client.scSolana.instructions
         .rejectRoleRequest({
@@ -518,7 +518,7 @@ describe("Role Management Integration Tests", () => {
           admin: toAddress(adminPda),
           roleRequest: toAddress(roleRequestPda),
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Try to reject again
       try {
@@ -528,7 +528,7 @@ describe("Role Management Integration Tests", () => {
             admin: toAddress(adminPda),
             roleRequest: toAddress(roleRequestPda),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -556,7 +556,7 @@ describe("Role Management Integration Tests", () => {
           user: rejectUserSigner,
           role: TECNICO_SW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       try {
         await client.scSolana.instructions
@@ -565,7 +565,7 @@ describe("Role Management Integration Tests", () => {
             admin: toAddress(rejectUser.publicKey.toString()),
             roleRequest: toAddress(roleRequestPda),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -590,7 +590,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: randomUserSigner,
             role: FABRICANTE_ROLE,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -615,7 +615,7 @@ describe("Role Management Integration Tests", () => {
           user: unauthorizedSigner,
           role: TECNICO_SW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       const roleHolderPda = await getRoleHolderByUserPdaAddress(
         toAddress(unauthorized.publicKey.toString())
@@ -629,7 +629,7 @@ describe("Role Management Integration Tests", () => {
             roleRequest: toAddress(roleRequestPda),
             roleHolder: toAddress(roleHolderPda),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -660,7 +660,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: multiRoleSigner,
           role: AUDITOR_HW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       await client.scSolana.instructions
         .grantRole({
@@ -669,7 +669,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: multiRoleSigner,
           role: TECNICO_SW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify both roles are granted
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -697,7 +697,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: user1Signer,
           role: AUDITOR_HW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       await client.scSolana.instructions
         .grantRole({
@@ -706,7 +706,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: user2Signer,
           role: TECNICO_SW_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       await client.scSolana.instructions
         .grantRole({
@@ -715,7 +715,7 @@ describe("Role Management Integration Tests", () => {
           accountToGrant: user3Signer,
           role: ESCUELA_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify all roles are granted to correct users
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -742,7 +742,7 @@ describe("Role Management Integration Tests", () => {
           user: lifecycleUserSigner,
           role: ESCUELA_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify pending status
       let roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -762,7 +762,7 @@ describe("Role Management Integration Tests", () => {
           roleRequest: toAddress(roleRequestPda),
           roleHolder: toAddress(roleHolderPda),
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify approved status and config update
       roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -788,7 +788,7 @@ describe("Role Management Integration Tests", () => {
           user: lifecycleUserSigner,
           role: FABRICANTE_ROLE,
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify pending status
       let roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -801,7 +801,7 @@ describe("Role Management Integration Tests", () => {
           admin: toAddress(adminPda),
           roleRequest: toAddress(roleRequestPda),
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Verify rejected status
       roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -820,7 +820,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: randomUserSigner,
             role: "NOT_A_VALID_ROLE",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.include("RoleNotFound");
@@ -841,7 +841,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: fabricanteSigner,
             role: FABRICANTE_ROLE,
           })
-          .sendAndConfirm();
+          .sendTransaction();
       }
 
       const fabricanteSigner = await createSignerFromKeyPair(fabricante);
@@ -853,7 +853,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: fabricanteSigner,
             role: FABRICANTE_ROLE,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.include("RoleAlreadyGranted");
@@ -879,7 +879,7 @@ describe("Role Management Integration Tests", () => {
             roleRequest: toAddress(roleRequestPda),
             roleHolder: toAddress(roleHolderPda),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -929,7 +929,7 @@ describe("Role Management Integration Tests", () => {
             user: fabricanteSigner,
             role: FABRICANTE_ROLE,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(
@@ -969,7 +969,7 @@ describe("Role Management Integration Tests", () => {
             user: user1Signer,
             role: TECNICO_SW_ROLE,
           })
-          .sendAndConfirm(),
+          .sendTransaction(),
 
         client.scSolana.instructions
           .requestRole({
@@ -978,7 +978,7 @@ describe("Role Management Integration Tests", () => {
             user: user2Signer,
             role: ESCUELA_ROLE,
           })
-          .sendAndConfirm(),
+          .sendTransaction(),
 
         client.scSolana.instructions
           .requestRole({
@@ -987,7 +987,7 @@ describe("Role Management Integration Tests", () => {
             user: user3Signer,
             role: AUDITOR_HW_ROLE,
           })
-          .sendAndConfirm(),
+          .sendTransaction(),
       ]);
 
       // Verify all requests are pending
@@ -1010,7 +1010,7 @@ describe("Role Management Integration Tests", () => {
             accountToGrant: randomUserSigner,
             role: "",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected transaction to fail");
       } catch (error: any) {
         expect(error.message).to.satisfy(

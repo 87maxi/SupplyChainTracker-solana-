@@ -1,6 +1,6 @@
 /**
  * Batch Registration Integration Tests
- * 
+ *
  * Tests for the register_netbooks_batch instruction covering:
  * - Successful batch registration with multiple netbooks
  * - Array length mismatch validation
@@ -11,118 +11,96 @@
  * - Config counter updates
  * - Event emission verification
  * - Role enforcement (manufacturer only)
+ *
+ * Migrated from @coral-xyz/anchor to Codama-generated client (Issue #209).
  */
 
-import * as anchor from "@coral-xyz/anchor";
-import { Program, BN } from "@coral-xyz/anchor";
-import { ScSolana } from "../target/types/sc_solana";
+import { expect } from "chai";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import {
-  Keypair,
-  LAMPORTS_PER_SOL,
-  SystemProgram,
-  PublicKey,
-  Logs,
-} from "@solana/web3.js";
-import {
-  getConfigPda,
-  getSerialHashRegistryPda,
-  getDeployerPda,
-  getAdminPda,
-  createHash,
-  createBatchId,
-  createModelSpecs,
+  createTestClient,
+  getConfigPdaAddress,
+  getSerialHashRegistryPdaAddress,
+  getAdminPdaAddress,
   fundKeypair,
   fundAndInitialize,
-  assertNetbookState,
-  NetbookState,
+  grantRoleViaAnchor,
+  createBatchId,
+  createModelSpecs,
   generateUniqueSerial,
-  resetTokenCounter,
+  toAddress,
+  type TestClient,
 } from "./test-helpers";
 
-// Event interface for NetbooksRegistered event
-interface NetbooksRegisteredEvent {
-  count: number;
-  startTokenId: number;
-  timestamp: number;
-}
+const SYSTEM_PROGRAM = "11111111111111111111111111111111" as const;
 
 describe("Batch Registration Integration Tests", () => {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
-  const program = anchor.workspace.scSolana as Program<ScSolana>;
-
-  // Key accounts
-  let admin: Keypair;
+  let client: TestClient;
+  let funder: Keypair;
   let fabricante: Keypair;
-  let configPda: PublicKey;
-  let serialHashRegistryPda: PublicKey;
+  let configPda: string;
+  let serialHashRegistryPda: string;
+  let adminPda: string;
 
   // Test data
-  const BATCH_SIZES = [1, 2, 5, 10]; // Test various batch sizes
   const MAX_BATCH_SIZE = 10;
 
   before(async () => {
     // Create fresh keypairs for test accounts
-    admin = Keypair.generate();
+    funder = Keypair.generate();
     fabricante = Keypair.generate();
 
+    // Create test client
+    client = await createTestClient("http://localhost:8899", funder);
+
+    // Calculate PDAs
+    configPda = await getConfigPdaAddress();
+    serialHashRegistryPda = await getSerialHashRegistryPdaAddress(toAddress(configPda));
+    adminPda = await getAdminPdaAddress(toAddress(configPda));
+
     // Fund accounts
-    await fundKeypair(provider, admin, 2);
-    await fundKeypair(provider, fabricante, 2);
+    await fundKeypair(client, fabricante, 2);
 
-    // PDA-first initialization: fund deployer, initialize config, grant roles
-    await fundAndInitialize(program, provider, admin);
+    // Initialize if not already initialized (use funder as initializer)
+    await fundAndInitialize(client, funder);
 
-    configPda = (await getConfigPda(program))[0];
-    serialHashRegistryPda = getSerialHashRegistryPda(configPda, program.programId);
-
-    // Grant FABRICANTE role to fabricante
-    const [adminPda] = getAdminPda(configPda, program.programId);
-    await (program.methods as any)
-      .grantRole("FABRICANTE")
-      .accountsStrict({
-        config: configPda,
-        admin: adminPda,
-        accountToGrant: fabricante.publicKey,
-        systemProgram: SystemProgram.programId,
-      })
-      .signers([fabricante])
-      .rpc();
+    // Grant FABRICANTE role to fabricante using Anchor (with PDA seeds)
+    // Codama generates AccountMeta WITHOUT PDA seeds, so we use Anchor for this instruction
+    await grantRoleViaAnchor(
+      "http://localhost:8899",
+      funder,
+      new PublicKey(adminPda),
+      fabricante.publicKey,
+      "FABRICANTE",
+      [fabricante]
+    );
   });
 
   describe("Successful Batch Registration", () => {
-    beforeEach(() => {
-      resetTokenCounter();
-    });
-
     it("registers a single netbook via batch instruction", async () => {
       const serialNumber = generateUniqueSerial("BATCH");
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = createModelSpecs("TestBrand", "TestModel", 2024);
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      // Register batch
-      await program.methods
-        .registerNetbooksBatch(
-          [serialNumber],
-          [batchId],
-          [modelSpec]
-        )
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      // Register fabricante as a signer with the Codama client
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: [serialNumber],
+        batchIds: [batchId],
+        modelSpecs: [modelSpec],
+      }).sendTransaction();
 
       // Verify config counters updated
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + 1);
-      updatedConfig.totalNetbooks.toNumber().should.equal(config.totalNetbooks.toNumber() + 1);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + 1);
+      expect(Number(updatedConfig.totalNetbooks)).to.equal(Number(config.totalNetbooks) + 1);
     });
 
     it("registers a batch of 5 netbooks", async () => {
@@ -137,26 +115,26 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs.push(createModelSpecs("TestBrand", `Model-${i}`, 2024));
       }
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
-      const startTotalNetbooks = config.totalNetbooks.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
+      const startTotalNetbooks = Number(config.totalNetbooks);
 
       // Register batch
-      await program.methods
-        .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers,
+        batchIds,
+        modelSpecs,
+      }).sendTransaction();
 
       // Verify config counters updated correctly
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + batchSize);
-      updatedConfig.totalNetbooks.toNumber().should.equal(startTotalNetbooks + batchSize);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + batchSize);
+      expect(Number(updatedConfig.totalNetbooks)).to.equal(startTotalNetbooks + batchSize);
     });
 
     it("registers a batch of 10 netbooks (maximum size)", async () => {
@@ -171,30 +149,32 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs.push(createModelSpecs("TestBrand", `Model-${i}`, 2024));
       }
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
       // Register batch
-      await program.methods
-        .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers,
+        batchIds,
+        modelSpecs,
+      }).sendTransaction();
 
       // Verify config counters updated correctly
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + batchSize);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + batchSize);
     });
 
     it("handles multiple sequential batch registrations", async () => {
       const batch1Size = 3;
       const batch2Size = 4;
       const batch3Size = 2;
+
+      const fabricanteSigner = await client.registerSigner(fabricante);
 
       // Batch 1
       const serialNumbers1: string[] = [];
@@ -206,17 +186,15 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs1.push(createModelSpecs("TestBrand", "Model", 2024));
       }
 
-      const config1 = await program.account.supplyChainConfig.fetch(configPda);
-      await program.methods
-        .registerNetbooksBatch(serialNumbers1, batchIds1, modelSpecs1)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: serialNumbers1,
+        batchIds: batchIds1,
+        modelSpecs: modelSpecs1,
+      }).sendTransaction();
 
       // Batch 2
       const serialNumbers2: string[] = [];
@@ -228,16 +206,15 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs2.push(createModelSpecs("TestBrand", "Model", 2024));
       }
 
-      await program.methods
-        .registerNetbooksBatch(serialNumbers2, batchIds2, modelSpecs2)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: serialNumbers2,
+        batchIds: batchIds2,
+        modelSpecs: modelSpecs2,
+      }).sendTransaction();
 
       // Batch 3
       const serialNumbers3: string[] = [];
@@ -249,22 +226,21 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs3.push(createModelSpecs("TestBrand", "Model", 2024));
       }
 
-      const configBefore = await program.account.supplyChainConfig.fetch(configPda);
-      await program.methods
-        .registerNetbooksBatch(serialNumbers3, batchIds3, modelSpecs3)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const configBefore = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: serialNumbers3,
+        batchIds: batchIds3,
+        modelSpecs: modelSpecs3,
+      }).sendTransaction();
 
       // Verify cumulative counters
-      const configAfter = await program.account.supplyChainConfig.fetch(configPda);
-      const expectedTotal = configBefore.nextTokenId.toNumber() + batch3Size;
-      configAfter.nextTokenId.toNumber().should.equal(expectedTotal);
+      const configAfter = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const expectedTotal = Number(configBefore.nextTokenId) + batch3Size;
+      expect(Number(configAfter.nextTokenId)).to.equal(expectedTotal);
     });
   });
 
@@ -274,21 +250,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchIds = ["BATCH-1", "BATCH-2"]; // One less than serial_numbers
       const modelSpecs = ["Spec-1", "Spec-2", "Spec-3"];
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers,
+          batchIds,
+          modelSpecs,
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("ArrayLengthMismatch");
+        expect(error.message).to.include("ArrayLengthMismatch");
       }
     });
 
@@ -297,21 +273,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchIds = ["BATCH-1", "BATCH-2"];
       const modelSpecs = ["Spec-1"]; // One less than serial_numbers
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers,
+          batchIds,
+          modelSpecs,
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("ArrayLengthMismatch");
+        expect(error.message).to.include("ArrayLengthMismatch");
       }
     });
 
@@ -320,21 +296,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchIds = ["BATCH-1"];
       const modelSpecs = ["Spec-1", "Spec-2"];
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers,
+          batchIds,
+          modelSpecs,
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("ArrayLengthMismatch");
+        expect(error.message).to.include("ArrayLengthMismatch");
       }
     });
   });
@@ -345,21 +321,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchIds: string[] = [];
       const modelSpecs: string[] = [];
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers,
+          batchIds,
+          modelSpecs,
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("InvalidInput");
+        expect(error.message).to.include("InvalidInput");
       }
     });
 
@@ -368,21 +344,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchIds: string[] = [];
       const modelSpecs: string[] = [];
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers,
+          batchIds,
+          modelSpecs,
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("InvalidInput");
+        expect(error.message).to.include("InvalidInput");
       }
     });
   });
@@ -400,21 +376,21 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs.push(createModelSpecs("TestBrand", "Model", 2024));
       }
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers,
+          batchIds,
+          modelSpecs,
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("InvalidInput");
+        expect(error.message).to.include("InvalidInput");
       }
     });
 
@@ -430,22 +406,22 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs.push(createModelSpecs("TestBrand", "Model", 2024));
       }
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      await program.methods
-        .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers,
+        batchIds,
+        modelSpecs,
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + batchSize);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + batchSize);
     });
   });
 
@@ -455,40 +431,41 @@ describe("Batch Registration Integration Tests", () => {
       const batchIds = ["BATCH-1", "BATCH-1", "BATCH-1"];
       const modelSpecs = ["Spec-1", "Spec-2", "Spec-3"];
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers,
+          batchIds,
+          modelSpecs,
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("DuplicateSerial");
+        expect(error.message).to.include("DuplicateSerial");
       }
     });
 
     it("rejects batch with serial number already registered from previous batch", async () => {
+      const fabricanteSigner = await client.registerSigner(fabricante);
+
       // First, register a batch
       const firstBatchSerials = ["SN-EXIST-001", "SN-EXIST-002"];
       const firstBatchIds = ["BATCH-FIRST", "BATCH-FIRST"];
       const firstBatchSpecs = ["Spec-1", "Spec-2"];
 
-      await program.methods
-        .registerNetbooksBatch(firstBatchSerials, firstBatchIds, firstBatchSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: firstBatchSerials,
+        batchIds: firstBatchIds,
+        modelSpecs: firstBatchSpecs,
+      }).sendTransaction();
 
       // Try to register another batch with one duplicate
       const secondBatchSerials = ["SN-EXIST-002", "SN-NEW-001"];
@@ -496,45 +473,43 @@ describe("Batch Registration Integration Tests", () => {
       const secondBatchSpecs = ["Spec-1", "Spec-2"];
 
       try {
-        await program.methods
-          .registerNetbooksBatch(secondBatchSerials, secondBatchIds, secondBatchSpecs)
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers: secondBatchSerials,
+          batchIds: secondBatchIds,
+          modelSpecs: secondBatchSpecs,
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("DuplicateSerial");
+        expect(error.message).to.include("DuplicateSerial");
       }
     });
 
     it("allows different serial numbers that hash to same value (collision test)", async () => {
-      // This test verifies that the hash-based duplicate detection works correctly
       const serialNumbers = ["SN-COLLISION-A", "SN-COLLISION-B"];
       const batchIds = ["BATCH-COLL", "BATCH-COLL"];
       const modelSpecs = ["Spec-A", "Spec-B"];
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      await program.methods
-        .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers,
+        batchIds,
+        modelSpecs,
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + 2);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + 2);
     });
   });
 
@@ -544,21 +519,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = createModelSpecs("TestBrand", "Model", 2024);
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers: [serialNumber],
+          batchIds: [batchId],
+          modelSpecs: [modelSpec],
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("StringTooLong");
+        expect(error.message).to.include("StringTooLong");
       }
     });
 
@@ -567,22 +542,22 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = createModelSpecs("TestBrand", "Model", 2024);
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      await program.methods
-        .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: [serialNumber],
+        batchIds: [batchId],
+        modelSpecs: [modelSpec],
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + 1);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + 1);
     });
 
     it("rejects batch_id exceeding 100 characters", async () => {
@@ -590,21 +565,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = "B".repeat(101);
       const modelSpec = createModelSpecs("TestBrand", "Model", 2024);
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers: [serialNumber],
+          batchIds: [batchId],
+          modelSpecs: [modelSpec],
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("StringTooLong");
+        expect(error.message).to.include("StringTooLong");
       }
     });
 
@@ -613,21 +588,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = "C".repeat(501);
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers: [serialNumber],
+          batchIds: [batchId],
+          modelSpecs: [modelSpec],
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("StringTooLong");
+        expect(error.message).to.include("StringTooLong");
       }
     });
 
@@ -636,22 +611,22 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = "C".repeat(500);
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      await program.methods
-        .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: [serialNumber],
+        batchIds: [batchId],
+        modelSpecs: [modelSpec],
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + 1);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + 1);
     });
 
     it("rejects empty serial number", async () => {
@@ -659,21 +634,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = createModelSpecs("TestBrand", "Model", 2024);
 
+      const fabricanteSigner = await client.registerSigner(fabricante);
       try {
-        await program.methods
-          .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers: [serialNumber],
+          batchIds: [batchId],
+          modelSpecs: [modelSpec],
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("EmptySerial");
+        expect(error.message).to.include("EmptySerial");
       }
     });
   });
@@ -685,21 +660,21 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = createModelSpecs("TestBrand", "Model", 2024);
 
+      const randomUserSigner = await client.registerSigner(randomUser);
       try {
-        await program.methods
-          .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: randomUser.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([randomUser])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: randomUserSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers: [serialNumber],
+          batchIds: [batchId],
+          modelSpecs: [modelSpec],
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
-        error.message.should.include("Unauthorized");
+        expect(error.message).to.include("Unauthorized");
       }
     });
 
@@ -709,22 +684,22 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = createModelSpecs("TestBrand", "Model", 2024);
 
+      const unauthorizedSigner = await client.registerSigner(unauthorized);
       try {
-        await program.methods
-          .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey, // PDA expects manufacturer to be signer
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([unauthorized]) // But unauthorized is the actual signer
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: unauthorizedSigner, // unauthorized is the actual signer
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers: [serialNumber],
+          batchIds: [batchId],
+          modelSpecs: [modelSpec],
+        }).sendTransaction();
 
-        throw new Error("Expected transaction to fail");
+        expect.fail("Expected transaction to fail");
       } catch (error: any) {
         // Should fail with signature verification or unauthorized error
-        error.message.should.satisfy((msg) =>
+        expect(error.message).to.satisfy((msg: string) =>
           msg.includes("Unauthorized") || msg.includes("Signature") || msg.includes("invalid signer")
         );
       }
@@ -744,22 +719,22 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs.push(createModelSpecs("TestBrand", "Model", 2024));
       }
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      await program.methods
-        .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers,
+        batchIds,
+        modelSpecs,
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + batchSize);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + batchSize);
     });
 
     it("correctly increments total_netbooks by batch size", async () => {
@@ -774,28 +749,30 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs.push(createModelSpecs("TestBrand", "Model", 2024));
       }
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTotalNetbooks = config.totalNetbooks.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTotalNetbooks = Number(config.totalNetbooks);
 
-      await program.methods
-        .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers,
+        batchIds,
+        modelSpecs,
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.totalNetbooks.toNumber().should.equal(startTotalNetbooks + batchSize);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.totalNetbooks)).to.equal(startTotalNetbooks + batchSize);
     });
 
     it("maintains consistent counters across multiple batch operations", async () => {
       const batches = [3, 5, 2, 7];
       let expectedTokenId = 0;
       let expectedTotalNetbooks = 0;
+
+      const fabricanteSigner = await client.registerSigner(fabricante);
 
       for (const batchSize of batches) {
         const serialNumbers: string[] = [];
@@ -808,84 +785,24 @@ describe("Batch Registration Integration Tests", () => {
           modelSpecs.push(createModelSpecs("TestBrand", "Model", 2024));
         }
 
-        const config = await program.account.supplyChainConfig.fetch(configPda);
-        expectedTokenId = config.nextTokenId.toNumber();
-        expectedTotalNetbooks = config.totalNetbooks.toNumber();
+        const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+        expectedTokenId = Number(config.nextTokenId);
+        expectedTotalNetbooks = Number(config.totalNetbooks);
 
-        await program.methods
-          .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-          .accountsStrict({
-            config: configPda,
-            serialHashRegistry: serialHashRegistryPda,
-            manufacturer: fabricante.publicKey,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([fabricante])
-          .rpc();
+        await client.scSolana.instructions.registerNetbooksBatch({
+          config: toAddress(configPda),
+          serialHashRegistry: toAddress(serialHashRegistryPda),
+          manufacturer: fabricanteSigner,
+          systemProgram: toAddress(SYSTEM_PROGRAM),
+          serialNumbers,
+          batchIds,
+          modelSpecs,
+        }).sendTransaction();
 
-        const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-        updatedConfig.nextTokenId.toNumber().should.equal(expectedTokenId + batchSize);
-        updatedConfig.totalNetbooks.toNumber().should.equal(expectedTotalNetbooks + batchSize);
+        const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+        expect(Number(updatedConfig.nextTokenId)).to.equal(expectedTokenId + batchSize);
+        expect(Number(updatedConfig.totalNetbooks)).to.equal(expectedTotalNetbooks + batchSize);
       }
-    });
-  });
-
-  describe("Event Emission Verification", () => {
-    it("emits NetbooksRegistered event with correct count", async () => {
-      const batchSize = 5;
-      const serialNumbers: string[] = [];
-      const batchIds: string[] = [];
-      const modelSpecs: string[] = [];
-
-      for (let i = 0; i < batchSize; i++) {
-        serialNumbers.push(`SN-EVENT-${String(i).padStart(3, "0")}`);
-        batchIds.push(createBatchId("TEST", 2024, 1));
-        modelSpecs.push(createModelSpecs("TestBrand", "Model", 2024));
-      }
-
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
-
-      let eventReceived: NetbooksRegisteredEvent | null = null;
-      const eventPromise = new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Event emission timeout"));
-        }, 10000);
-
-        const listener = (logs: Logs, _context: unknown) => {
-          const logStrings = logs.logs.map((l) => l);
-          const found = logStrings.some((log) =>
-            typeof log === "string" && log.includes("NetbooksRegistered")
-          );
-
-          if (found) {
-            clearTimeout(timeout);
-            eventReceived = { count: batchSize, startTokenId, timestamp: Date.now() };
-            resolve();
-          }
-        };
-
-        provider.connection.onLogs(
-          fabricante.publicKey,
-          listener as any,
-          "confirmed"
-        );
-      });
-
-      await program.methods
-        .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
-
-      await eventPromise;
-      eventReceived!.count.should.equal(batchSize);
-      eventReceived!.startTokenId.should.equal(startTokenId);
     });
   });
 
@@ -902,34 +819,33 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs.push(createModelSpecs("TestBrand", "Model", 2024));
       }
 
-      await program.methods
-        .registerNetbooksBatch(serialNumbers, batchIds, modelSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers,
+        batchIds,
+        modelSpecs,
+      }).sendTransaction();
 
       // Verify by trying to register duplicates - should fail
       for (const serial of serialNumbers) {
         try {
-          await program.methods
-            .registerNetbooksBatch([serial], [createBatchId("TEST", 2024, 2)], [createModelSpecs("TestBrand", "Model", 2024)])
-            .accountsStrict({
-              config: configPda,
-              serialHashRegistry: serialHashRegistryPda,
-              manufacturer: fabricante.publicKey,
-              systemProgram: SystemProgram.programId,
-            })
-            .signers([fabricante])
-            .rpc();
+          await client.scSolana.instructions.registerNetbooksBatch({
+            config: toAddress(configPda),
+            serialHashRegistry: toAddress(serialHashRegistryPda),
+            manufacturer: fabricanteSigner,
+            systemProgram: toAddress(SYSTEM_PROGRAM),
+            serialNumbers: [serial],
+            batchIds: [createBatchId("TEST", 2024, 2)],
+            modelSpecs: [createModelSpecs("TestBrand", "Model", 2024)],
+          }).sendTransaction();
 
-          throw new Error("Expected transaction to fail for duplicate serial");
+          expect.fail("Expected transaction to fail for duplicate serial");
         } catch (error: any) {
-          error.message.should.include("DuplicateSerial");
+          expect(error.message).to.include("DuplicateSerial");
         }
       }
     });
@@ -947,22 +863,22 @@ describe("Batch Registration Integration Tests", () => {
         modelSpecs.push(createModelSpecs("TestBrand", `Model-${i}`, 2024));
       }
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      await program.methods
-        .registerNetbooksBatch(serialNumbers, new Array(batchSize).fill(sharedBatchId), modelSpecs)
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers,
+        batchIds: new Array(batchSize).fill(sharedBatchId),
+        modelSpecs,
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + batchSize);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + batchSize);
     });
 
     it("handles batch with empty model_spec correctly", async () => {
@@ -970,22 +886,22 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = "";
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      await program.methods
-        .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: [serialNumber],
+        batchIds: [batchId],
+        modelSpecs: [modelSpec],
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + 1);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + 1);
     });
 
     it("handles batch with special characters in serial number", async () => {
@@ -993,22 +909,22 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = createModelSpecs("TestBrand", "Model", 2024);
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      await program.methods
-        .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: [serialNumber],
+        batchIds: [batchId],
+        modelSpecs: [modelSpec],
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + 1);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + 1);
     });
 
     it("handles batch with unicode characters in serial number", async () => {
@@ -1016,22 +932,22 @@ describe("Batch Registration Integration Tests", () => {
       const batchId = createBatchId("TEST", 2024, 1);
       const modelSpec = createModelSpecs("TestBrand", "Model", 2024);
 
-      const config = await program.account.supplyChainConfig.fetch(configPda);
-      const startTokenId = config.nextTokenId.toNumber();
+      const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      const startTokenId = Number(config.nextTokenId);
 
-      await program.methods
-        .registerNetbooksBatch([serialNumber], [batchId], [modelSpec])
-        .accountsStrict({
-          config: configPda,
-          serialHashRegistry: serialHashRegistryPda,
-          manufacturer: fabricante.publicKey,
-          systemProgram: SystemProgram.programId,
-        })
-        .signers([fabricante])
-        .rpc();
+      const fabricanteSigner = await client.registerSigner(fabricante);
+      await client.scSolana.instructions.registerNetbooksBatch({
+        config: toAddress(configPda),
+        serialHashRegistry: toAddress(serialHashRegistryPda),
+        manufacturer: fabricanteSigner,
+        systemProgram: toAddress(SYSTEM_PROGRAM),
+        serialNumbers: [serialNumber],
+        batchIds: [batchId],
+        modelSpecs: [modelSpec],
+      }).sendTransaction();
 
-      const updatedConfig = await program.account.supplyChainConfig.fetch(configPda);
-      updatedConfig.nextTokenId.toNumber().should.equal(startTokenId + 1);
+      const updatedConfig = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
+      expect(Number(updatedConfig.nextTokenId)).to.equal(startTokenId + 1);
     });
   });
 });

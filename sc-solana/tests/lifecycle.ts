@@ -14,7 +14,7 @@
 import {
   Keypair,
 } from "@solana/web3.js";
-import { createSignerFromKeyPair } from "@solana/kit";
+import { createSignerFromKeyPair } from "./test-helpers";
 import { expect } from "chai";
 
 // Import test helpers
@@ -84,7 +84,7 @@ async function grantRole(
     admin: toAddress(adminPda),
     accountToGrant: accountSigner,
     role,
-  }).sendAndConfirm();
+  }).sendTransaction();
 }
 
 /**
@@ -112,7 +112,7 @@ async function registerNetbook(
     serialNumber,
     batchId,
     initialModelSpecs: modelSpecs,
-  }).sendAndConfirm();
+  }).sendTransaction();
 
   return { tokenId, netbookPda };
 }
@@ -137,7 +137,7 @@ async function hardwareAudit(
     serial,
     passed,
     reportHash: toUint8Array(reportHash),
-  }).sendAndConfirm();
+  }).sendTransaction();
 }
 
 /**
@@ -160,7 +160,7 @@ async function softwareValidation(
     serial,
     osVersion,
     passed,
-  }).sendAndConfirm();
+  }).sendTransaction();
 }
 
 /**
@@ -183,7 +183,7 @@ async function assignToStudent(
     serial,
     schoolHash: toUint8Array(schoolIdHash),
     studentIdHash: toUint8Array(studentIdHash),
-  }).sendAndConfirm();
+  }).sendTransaction();
 }
 
 // ============================================================================

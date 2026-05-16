@@ -7,11 +7,9 @@
 //! Run with: cargo test --test mollusk-tests
 
 use anchor_lang::prelude::Pubkey;
+use sc_solana::ID as PROGRAM_ID;
 
 // ================ Constants ================
-
-/// Program ID from the Anchor program
-const PROGRAM_ADDRESS: &str = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb";
 
 /// System program ID
 const SYSTEM_PROGRAM_ID: Pubkey = anchor_lang::system_program::ID;
@@ -27,18 +25,23 @@ fn find_program_address(seeds: &[&[u8]], program_id: &Pubkey) -> (Pubkey, u8) {
 
 #[test]
 fn test_program_id_valid() {
-    let result = Pubkey::try_from(PROGRAM_ADDRESS);
-    assert!(result.is_ok(), "Program ID should be valid");
-    let program_id = result.unwrap();
-    assert_ne!(program_id, Pubkey::default());
-    assert_ne!(program_id, SYSTEM_PROGRAM_ID);
+    let program_id = PROGRAM_ID;
+    assert_ne!(
+        program_id,
+        Pubkey::default(),
+        "Program ID should not be default"
+    );
+    assert_ne!(
+        program_id, SYSTEM_PROGRAM_ID,
+        "Program ID should not be system program"
+    );
 }
 
 // ==================== Test: PDA Derivation ====================
 
 #[test]
 fn test_config_pda_derivation() {
-    let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
+    let program_id = PROGRAM_ID;
     let config_seed: &[u8] = b"config";
     let (pda, _bump) = find_program_address(&[config_seed], &program_id);
 
@@ -47,7 +50,7 @@ fn test_config_pda_derivation() {
 
 #[test]
 fn test_admin_pda_derivation() {
-    let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
+    let program_id = PROGRAM_ID;
     let admin_seed: &[u8] = b"admin";
     let config_key = Pubkey::new_unique();
     let (pda, _bump) = find_program_address(&[admin_seed, config_key.as_ref()], &program_id);
@@ -58,7 +61,7 @@ fn test_admin_pda_derivation() {
 
 #[test]
 fn test_deployer_pda_derivation() {
-    let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
+    let program_id = PROGRAM_ID;
     let deployer_seed: &[u8] = b"deployer";
     let (pda, _bump) = find_program_address(&[deployer_seed], &program_id);
 
@@ -67,7 +70,7 @@ fn test_deployer_pda_derivation() {
 
 #[test]
 fn test_netbook_pda_derivation() {
-    let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
+    let program_id = PROGRAM_ID;
     let netbook_seed: &[u8] = b"netbook";
     let (pda, _bump) = find_program_address(&[netbook_seed, &0u64.to_le_bytes()], &program_id);
 
@@ -76,7 +79,7 @@ fn test_netbook_pda_derivation() {
 
 #[test]
 fn test_serial_hashes_pda_derivation() {
-    let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
+    let program_id = PROGRAM_ID;
     let serial_hashes_seed: &[u8] = b"serial_hashes";
     let config_key = Pubkey::new_unique();
     let (pda, _bump) =
@@ -88,7 +91,7 @@ fn test_serial_hashes_pda_derivation() {
 
 #[test]
 fn test_role_holder_pda_derivation() {
-    let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
+    let program_id = PROGRAM_ID;
     let role_holder_seed: &[u8] = b"role_holder";
     let account_key = Pubkey::new_unique();
     let (pda, _bump) = find_program_address(&[role_holder_seed, account_key.as_ref()], &program_id);
@@ -99,7 +102,7 @@ fn test_role_holder_pda_derivation() {
 
 #[test]
 fn test_role_request_pda_derivation() {
-    let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
+    let program_id = PROGRAM_ID;
     let role_request_seed: &[u8] = b"role_request";
     let requester = Pubkey::new_unique();
     let (pda, _bump) = find_program_address(&[role_request_seed, requester.as_ref()], &program_id);
@@ -272,7 +275,7 @@ fn test_role_constants() {
 fn test_bump_seed_range() {
     // Bump seeds are u8, so they are always in range 0-255
     // This test verifies that PDAs can be derived with valid bump seeds
-    let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
+    let program_id = PROGRAM_ID;
 
     let (_, _bump) = Pubkey::find_program_address(&[b"config"], &program_id);
     let (_, _bump) = Pubkey::find_program_address(&[b"deployer"], &program_id);
@@ -283,7 +286,7 @@ fn test_bump_seed_range() {
 #[test]
 fn test_multiple_bump_seeds() {
     // Test that different seeds produce different PDAs
-    let program_id = Pubkey::try_from(PROGRAM_ADDRESS).unwrap();
+    let program_id = PROGRAM_ID;
 
     let (pda1, _) = Pubkey::find_program_address(&[b"config"], &program_id);
     let (pda2, _) = Pubkey::find_program_address(&[b"deployer"], &program_id);

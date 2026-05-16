@@ -11,12 +11,35 @@
 import {
   createClient,
   createSolanaRpc,
-  createSignerFromKeyPair,
+  createSolanaRpcSubscriptions,
   extendClient,
+  sendAndConfirmTransactionFactory,
+  setTransactionMessageLifetimeUsingBlockhash,
+  getBase64EncodedWireTransaction,
+  createTransactionMessage,
+  setTransactionMessageFeePayer,
   type Address,
   type TransactionSigner,
   type ProgramDerivedAddress,
 } from "@solana/kit";
+import {
+  generateKeyPairSigner,
+  createKeyPairSignerFromPrivateKeyBytes,
+  signTransactionWithSigners,
+} from "@solana/signers";
+import { compileTransaction } from "@solana/transactions";
+import {
+  createTransactionPlanner,
+  createTransactionPlanExecutor,
+  flattenTransactionPlan,
+  sequentialInstructionPlan,
+  type InstructionPlanInput,
+  type SingleTransactionPlan,
+  type TransactionPlan,
+  type TransactionPlanInput,
+  type TransactionPlanResult,
+  type SuccessfulSingleTransactionPlanResult,
+} from "@solana/instruction-plans";
 import {
   Keypair,
   PublicKey,
@@ -48,7 +71,15 @@ import {
   type RoleHolder,
   type RoleRequest,
   type SerialHashRegistry,
-} from "../../web/src/generated/src/generated";
+} from "../src/generated/src/generated";
+
+/**
+ * Compatibility wrapper: web3.js Keypair -> @solana/signers TransactionSigner
+ * Replaces createSignerFromKeyPair from @solana/kit (not available in v6)
+ */
+export async function createSignerFromKeyPair(kp: Keypair) {
+  return await createKeyPairSignerFromPrivateKeyBytes(kp.secretKey.slice(0, 32));
+}
 
 // ============================================================================
 // Type Definitions
@@ -90,6 +121,15 @@ export const ROLE_TYPES = {
 } as const;
 
 export type RoleType = (typeof ROLE_TYPES)[keyof typeof ROLE_TYPES];
+
+/**
+ * Create a signer from a web3.js Keypair (converts to @solana/signers format)
+ * web3.js Keypair.secretKey is 64 bytes (private 32 + public 32); @solana/keys expects 32
+ */
+export async function createSignerFromWeb3Keypair(keypair: Keypair) {
+  const privateKeyBytes = keypair.secretKey.slice(0, 32);
+  return await createKeyPairSignerFromPrivateKeyBytes(privateKeyBytes);
+}
 
 /**
  * Test account roles configuration
@@ -169,10 +209,136 @@ export async function createTestClient(
   payer: Keypair
 ): Promise<TestClient> {
   const rpc = createSolanaRpc(rpcUrl);
-  const payerSigner = await createSignerFromKeyPair(payer);
-  const baseClient = createClient({ rpc });
-  const clientWithPayer = extendClient(baseClient, { payer: payerSigner });
-  const client = clientWithPayer.use(scSolanaProgram());
+  const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
+  // web3.js Keypair.secretKey is 64 bytes (private + public); @solana/keys expects 32
+  const privateKeyBytes = payer.secretKey.slice(0, 32);
+  const payerSigner = await createKeyPairSignerFromPrivateKeyBytes(privateKeyBytes);
+  
+  const baseClient = createClient({
+    rpc,
+    rpcSubscriptions,
+  });
+  
+  // Airdrop SOL to payer if balance is 0
+  const payerAddress = payerSigner.address;
+  const { value: balance } = await rpc.getBalance(payerAddress).send();
+  if (Number(balance) === 0) {
+    console.log(`Airdropping 30 SOL to payer ${payerAddress}...`);
+    const airdropSig = await rpc.requestAirdrop(payerAddress, BigInt(30) * BigInt(1000000000) as any).send();
+    // Poll for confirmation
+    for (let i = 0; i < 30; i++) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const status = await rpc.getSignatureStatuses([airdropSig]).send();
+      const sigStatus = status.value?.[0];
+      if (sigStatus?.err) {
+        throw new Error(`Airdrop failed: ${JSON.stringify(sigStatus.err)}`);
+      }
+      if (sigStatus?.confirmationStatus === 'confirmed' || sigStatus?.confirmationStatus === 'finalized') {
+        console.log(`Airdrop confirmed: ${airdropSig}`);
+        break;
+      }
+    }
+  }
+  
+  // Use sendAndConfirmTransactionFactory from @solana/kit - handles the complete pipeline
+  const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({
+    rpc,
+    rpcSubscriptions,
+  });
+
+  // Registry of available signers by address (beyond the payer)
+  // Maps address -> signer. Populated by registerSigner().
+  const signerRegistry = new Map<string, any>();
+  signerRegistry.set(payerSigner.address, payerSigner);
+
+  // Create transaction planner
+  const transactionPlanner = createTransactionPlanner({
+    createTransactionMessage: async () => {
+      const message = createTransactionMessage({ version: 0 });
+      return setTransactionMessageFeePayer(payerSigner.address, message);
+    },
+  });
+
+  // Create transaction plan executor with support for additional signers
+  const transactionPlanExecutor = createTransactionPlanExecutor({
+    executeTransactionMessage: async (context, message) => {
+      try {
+        const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+        const messageWithBlockhash = setTransactionMessageLifetimeUsingBlockhash(
+          latestBlockhash,
+          message,
+        );
+
+        // Compile the transaction message into a Transaction object
+        const compiledTransaction = compileTransaction(messageWithBlockhash as any);
+
+        // Collect all signers (payer + registered)
+        const allSigners: any[] = [payerSigner];
+        for (const [addr, signer] of signerRegistry) {
+          if (addr !== payerSigner.address) {
+            allSigners.push(signer);
+          }
+        }
+
+        // Sign the compiled transaction with all signers explicitly
+        const transaction = await signTransactionWithSigners(
+          allSigners,
+          compiledTransaction,
+        );
+        context.transaction = transaction;
+        await sendAndConfirmTransaction(transaction as any, { commitment: 'confirmed' });
+        return transaction;
+      } catch (e: any) {
+        console.error('EXECUTOR ERROR:', e?.message ?? e);
+        console.error('EXECUTOR ERROR CAUSE:', e?.cause);
+        if (e?.context?.transactionPlanResult) {
+          console.error('TX PLAN RESULT:', JSON.stringify(e.context.transactionPlanResult, null, 2));
+        }
+        throw e;
+      }
+    },
+  });
+
+  // addSelfPlanAndSendFunctions expects ClientWithTransactionPlanning & ClientWithTransactionSending
+  const clientWithPayer = extendClient(baseClient, {
+    payer: payerSigner,
+    planTransaction: async (input: any) => {
+      const plan = await transactionPlanner(input);
+      const flattened = flattenTransactionPlan(plan);
+      return flattened[0].message;
+    },
+    planTransactions: async (input: any) => {
+      return transactionPlanner(input);
+    },
+    sendTransaction: async (input: any, sendTransactionOptions?: any) => {
+      // addSelfPlanAndSendFunctions passes the raw instruction to sendTransaction
+      // We need to create an instruction plan, plan it, and execute it
+      const instructionPlan = sequentialInstructionPlan([input]);
+      const plan = await transactionPlanner(instructionPlan);
+      const result = await transactionPlanExecutor(plan);
+      return result as SuccessfulSingleTransactionPlanResult;
+    },
+    sendTransactions: async (input: any) => {
+      const result = await transactionPlanExecutor(input);
+      return result;
+    },
+    // Register a signer by Keypair for use in transactions
+    // Accepts web3.js Keypair and converts to @solana/signer
+    registerSigner: async (keypair: Keypair) => {
+      // web3.js Keypair.secretKey is 64 bytes (private 32 + public 32); @solana/keys expects 32
+      const privateKeyBytes = keypair.secretKey.slice(0, 32);
+      const signer = await createKeyPairSignerFromPrivateKeyBytes(privateKeyBytes);
+      signerRegistry.set(signer.address, signer);
+      return signer;
+    },
+    // Remove a signer from the registry
+    unregisterSigner: (address: string) => {
+      signerRegistry.delete(address);
+    },
+  });
+  // Call plugin directly with clientWithPayer (not .use() which is bound to baseClient)
+  const plugin = scSolanaProgram();
+  const client = plugin(clientWithPayer as any) as any;
   return client;
 }
 
@@ -427,7 +593,7 @@ export async function fundKeypair(
   amountSol: number = 2
 ): Promise<string> {
   const airdropSignature = await client.rpc.requestAirdrop({
-    destination: keypair.publicKey.toBase58() as Address,
+   destination: keypair.publicKey.toBase58() as Address,
     lamports: BigInt(amountSol * LAMPORTS_PER_SOL),
   });
 
@@ -678,6 +844,61 @@ export async function approveRoleRequestWithAdminPda(
 }
 
 // ============================================================================
+// Anchor Integration (PDA Seed Support)
+// ============================================================================
+
+/**
+ * Grant a role using Anchor (with PDA seeds) instead of Codama.
+ *
+ * This function is needed because Codama generates AccountMeta WITHOUT PDA seeds,
+ * but the Anchor program verifies PDA seeds at runtime using #[account(seeds = [...], bump = ...)] constraint.
+ *
+ * @param rpcUrl - RPC endpoint URL (e.g., "http://localhost:8899")
+ * @param payer - Payer keypair for transaction fees
+ * @param adminPda - Admin PDA address
+ * @param accountToGrant - Account to grant the role to (must sign)
+ * @param role - Role name (FABRICANTE, AUDITOR_HW, TECNICO_SW, ESCUELA)
+ * @param extraSigners - Extra signers (optional)
+ * @returns Transaction signature
+ */
+export async function grantRoleViaAnchor(
+  rpcUrl: string,
+  payer: Keypair,
+  adminPda: PublicKey,
+  accountToGrant: PublicKey,
+  role: string,
+  extraSigners?: Keypair[]
+): Promise<string> {
+  const { grantRoleViaAnchor: grantFn } = await import("./anchor-client-wrapper");
+  return await grantFn({ rpcUrl, payer }, adminPda, accountToGrant, role, extraSigners);
+}
+
+/**
+ * Initialize the config using Anchor (with PDA seeds).
+ */
+export async function initializeViaAnchor(
+  rpcUrl: string,
+  payer: Keypair,
+  extraSigners?: Keypair[]
+): Promise<string> {
+  const { initializeViaAnchor: initFn } = await import("./anchor-client-wrapper");
+  return await initFn({ rpcUrl, payer }, extraSigners);
+}
+
+/**
+ * Fund the deployer PDA using Anchor (with PDA seeds).
+ */
+export async function fundDeployerViaAnchor(
+  rpcUrl: string,
+  payer: Keypair,
+  amount: number,
+  extraSigners?: Keypair[]
+): Promise<string> {
+  const { fundDeployerViaAnchor: fundFn } = await import("./anchor-client-wrapper");
+  return await fundFn({ rpcUrl, payer }, BigInt(amount), extraSigners);
+}
+
+// ============================================================================
 // Shared Initialization Lock (for parallel test execution - Issue #178)
 // ============================================================================
 
@@ -688,7 +909,7 @@ let _initialized = false;
  * Initialization options interface
  */
 export interface FundAndInitializeOptions {
-  /** Amount of lamports to fund the deployer PDA (default: 20 SOL for parallel tests) */
+  /** Amount of lamports to fund the deployer PDA (default: 1 SOL for single tests, 20 SOL for parallel) */
   amount?: number;
   /** Force re-initialization even if config already exists (for test isolation) */
   force?: boolean;
@@ -718,16 +939,17 @@ export async function fundAndInitialize(
   if (typeof options === "number") {
     amount = options;
   } else if (options) {
-    amount = options.amount ?? 20 * LAMPORTS_PER_SOL;
+    amount = options.amount ?? 10 * LAMPORTS_PER_SOL; // MIN_DEPLOYER_BALANCE = 10 SOL
     force = options.force ?? false;
   } else {
-    amount = 20 * LAMPORTS_PER_SOL;
+    amount = 10 * LAMPORTS_PER_SOL; // MIN_DEPLOYER_BALANCE = 10 SOL
   }
 
   // Return the transaction signature as string
   // Always ensure funder has enough SOL (outside lock, so every caller gets funded)
   const funderBalance = await client.rpc.getBalance(funder.publicKey.toBase58() as Address);
-  const targetBalance = BigInt(amount + 10 * LAMPORTS_PER_SOL);
+  // amount + 20 SOL buffer (rent + fees + safety margin)
+  const targetBalance = BigInt(amount + 20 * LAMPORTS_PER_SOL);
   if (funderBalance < targetBalance) {
     const airdropAmount = targetBalance - funderBalance;
     const airdropTx = await client.rpc.requestAirdrop({
@@ -807,53 +1029,55 @@ async function _performInitialization(
     }
 
     // Check if config already exists (idempotent initialization)
-    try {
-      const existingConfig = await client.scSolana.accounts.supplyChainConfig.fetchNullable(configPda);
-      if (existingConfig && !force) {
-        console.log("Config already exists, skipping initialization");
-        _initialized = true;
-        return "";
-      }
-      // If force is true and config exists, we still try to initialize
-      // The program will handle the error if initialization fails
-    } catch (e: any) {
-      // Account doesn't exist yet, continue with initialization
-      if (!e.message.includes("does not exist")) {
-        throw e;
-      }
+    // getAccountInfo returns { value: accountInfo | null } - must check .value
+    const configInfo = await client.rpc.getAccountInfo(configPda);
+    const configExists = !!configInfo?.value;
+    if (configExists && !force) {
+      console.log("Config already exists, skipping initialization");
+      _initialized = true;
+      return "";
     }
 
-    // Step 1: Fund the deployer PDA
-    const funderSigner = await createSignerFromKeyPair(funder);
-    const fundTx = await client.scSolana.instructions.fundDeployer({
-      deployer: deployerPda,
-      funder: funderSigner,
-      systemProgram: SystemProgram.programId.toBase58() as Address,
-      amount: BigInt(amount),
-    }).send();
+    // Check if deployer PDA already exists (from parallel tests)
+    const deployerInfo = await client.rpc.getAccountInfo(deployerPda);
+    const deployerExists = !!deployerInfo?.value;
 
+    // Step 1: Fund the deployer PDA (only if it doesn't exist)
+    // Use Anchor because fundDeployer requires PDA seeds
+    if (!deployerExists) {
+      try {
+        const fundSig = await fundDeployerViaAnchor(
+          "http://localhost:8899",
+          funder,
+          amount
+        );
+        await client.rpc.confirmTransaction({
+          signature: fundSig,
+          commitment: "confirmed",
+        });
+      } catch (e: any) {
+        // If fund_deployer fails because deployer was just created by another test,
+        // check again if it exists now
+        const deployerInfoRetry = await client.rpc.getAccountInfo(deployerPda);
+        if (deployerInfoRetry?.value) {
+          console.log("Deployer PDA already exists (created by parallel test), skipping fund_deployer");
+        } else {
+          throw e;
+        }
+      }
+    } else {
+      console.log("Deployer PDA already exists, skipping fund_deployer");
+    }
+
+    // Step 2: Initialize config using Anchor (requires PDA seeds for admin and deployer)
+    const initSig = await initializeViaAnchor("http://localhost:8899", funder);
     await client.rpc.confirmTransaction({
-      signature: fundTx,
-      commitment: "confirmed",
-    });
-
-    // Step 2: Initialize config using funder as payer
-    const initTx = await client.scSolana.instructions.initialize({
-      config: configPda,
-      serialHashRegistry: serialHashRegistryPda,
-      admin: adminPda,
-      deployer: deployerPda,
-      funder: funderSigner,
-      systemProgram: SystemProgram.programId.toBase58() as Address,
-    }).send();
-
-    await client.rpc.confirmTransaction({
-      signature: initTx,
+      signature: initSig,
       commitment: "confirmed",
     });
 
     _initialized = true;
-    return initTx;
+    return initSig;
   } catch (error) {
     // Reset on failure so other tests can retry
     _initPromise = null;

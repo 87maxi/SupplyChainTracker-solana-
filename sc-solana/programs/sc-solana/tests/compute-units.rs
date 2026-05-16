@@ -19,11 +19,9 @@
 //! Run with: cargo test --test compute-units
 
 use anchor_lang::prelude::Pubkey;
+use sc_solana::ID as PROGRAM_ID;
 
 // ================ Constants ================
-
-/// Program ID from the Anchor program
-const PROGRAM_ADDRESS: &str = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb";
 
 /// System program ID
 #[allow(dead_code)]
@@ -360,8 +358,12 @@ fn estimate_query_role() -> CuEstimate {
 
 #[test]
 fn test_program_id_valid() {
-    let result = Pubkey::try_from(PROGRAM_ADDRESS);
-    assert!(result.is_ok(), "Program ID should be valid");
+    let program_id = PROGRAM_ID;
+    assert_ne!(
+        program_id,
+        Pubkey::default(),
+        "Program ID should not be default"
+    );
 }
 
 #[test]

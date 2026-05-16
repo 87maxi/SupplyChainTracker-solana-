@@ -12,7 +12,7 @@
 import {
   Keypair,
 } from "@solana/web3.js";
-import { createSignerFromKeyPair } from "@solana/kit";
+import { createSignerFromKeyPair } from "./test-helpers";
 import { expect } from "chai";
 
 // Import test helpers
@@ -88,7 +88,7 @@ describe("Overflow/Underflow Protection Tests", () => {
       admin: toAddress(adminPda),
       accountToGrant: accountSigner,
       role,
-    }).sendAndConfirm();
+    }).sendTransaction();
   }
 
   async function registerNetbook(
@@ -109,7 +109,7 @@ describe("Overflow/Underflow Protection Tests", () => {
       serialNumber,
       batchId,
       initialModelSpecs: modelSpecs,
-    }).sendAndConfirm();
+    }).sendTransaction();
 
     return netbookPda;
   }
@@ -213,7 +213,7 @@ describe("Overflow/Underflow Protection Tests", () => {
           serialNumbers: ["SN-001", "SN-002", "SN-003"],
           batchIds: ["BATCH-001", "BATCH-002"],
           modelSpecs: ["Model 1", "Model 2", "Model 3"],
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected batch registration to fail for mismatched arrays");
       } catch (error: any) {
         expect(error.message).to.contain("ArrayLengthMismatch");
@@ -230,7 +230,7 @@ describe("Overflow/Underflow Protection Tests", () => {
           serialNumbers: ["SN-001"],
           batchIds: ["BATCH-001", "BATCH-002"],
           modelSpecs: ["Model 1", "Model 2", "Model 3"],
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected batch registration to fail for mismatched arrays");
       } catch (error: any) {
         expect(error.message).to.contain("ArrayLengthMismatch");
@@ -247,7 +247,7 @@ describe("Overflow/Underflow Protection Tests", () => {
           serialNumbers: [],
           batchIds: [],
           modelSpecs: [],
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected batch registration to fail for empty arrays");
       } catch (error: any) {
         expect(error).to.not.be.null;

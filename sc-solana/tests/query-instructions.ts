@@ -13,7 +13,7 @@
  */
 
 import { Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { createSignerFromKeyPair } from "@solana/kit";
+import { createSignerFromKeyPair } from "./test-helpers";
 import { expect } from "chai";
 
 import {
@@ -93,7 +93,7 @@ describe("Query Instruction Integration Tests", () => {
           accountToGrant: accountSigner,
           role,
         })
-        .sendAndConfirm();
+        .sendTransaction();
     }
   });
 
@@ -102,7 +102,7 @@ describe("Query Instruction Integration Tests", () => {
       const tx = await client.scSolana.instructions.queryConfig({
         config: toAddress(configPda),
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("returns correct next_token_id after registrations", async () => {
@@ -125,7 +125,7 @@ describe("Query Instruction Integration Tests", () => {
           batchId: "batch-001",
           initialModelSpecs: "Model-X-100",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       registeredNetbooks.push({ serial: serialNumber, tokenId, pda: netbookPda });
 
@@ -133,7 +133,7 @@ describe("Query Instruction Integration Tests", () => {
       const tx = await client.scSolana.instructions.queryConfig({
         config: toAddress(configPda),
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("returns role holder counts correctly", async () => {
@@ -141,7 +141,7 @@ describe("Query Instruction Integration Tests", () => {
       const tx = await client.scSolana.instructions.queryConfig({
         config: toAddress(configPda),
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("rejects query with invalid config PDA", async () => {
@@ -152,7 +152,7 @@ describe("Query Instruction Integration Tests", () => {
           .queryConfig({
             config: toAddress(invalidConfig),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected queryConfig to fail with invalid config PDA");
       } catch (error: any) {
         const errorMessage = error.message || "";
@@ -184,7 +184,7 @@ describe("Query Instruction Integration Tests", () => {
           batchId: "batch-query-001",
           initialModelSpecs: "Model-Query-100",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       registeredNetbooks.push({ serial: serialNumber, tokenId, pda: netbookPda });
 
@@ -193,7 +193,7 @@ describe("Query Instruction Integration Tests", () => {
         netbook: toAddress(netbookPda),
         serialNumber,
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("returns correct state for Fabricada netbook", async () => {
@@ -205,7 +205,7 @@ describe("Query Instruction Integration Tests", () => {
         netbook: toAddress(netbookPda),
         serialNumber,
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("queries netbook after hardware audit", async () => {
@@ -226,14 +226,14 @@ describe("Query Instruction Integration Tests", () => {
           passed: true,
           reportHash: toUint8Array(reportHash),
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Query netbook state - should now be HwAprobado
       const tx = await client.scSolana.instructions.queryNetbookState({
         netbook: toAddress(netbookPda),
         serialNumber,
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("rejects query for non-existent netbook PDA", async () => {
@@ -246,7 +246,7 @@ describe("Query Instruction Integration Tests", () => {
             netbook: toAddress(nonExistentPda),
             serialNumber: nonExistentSerial,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected queryNetbookState to fail for non-existent netbook");
       } catch (error: any) {
         const errorMessage = error.message || "";
@@ -270,7 +270,7 @@ describe("Query Instruction Integration Tests", () => {
         netbook: toAddress(netbookPda),
         serialNumber: "WRONG-SERIAL-NUMBER",
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("queries multiple netbooks concurrently", async () => {
@@ -293,7 +293,7 @@ describe("Query Instruction Integration Tests", () => {
             batchId: `batch-query-00${i + 2}`,
             initialModelSpecs: `Model-Query-${100 + i}`,
           })
-          .sendAndConfirm();
+          .sendTransaction();
 
         additionalNetbooks.push({ serial: serialNumber, pda: netbookPda });
         registeredNetbooks.push({ serial: serialNumber, tokenId, pda: netbookPda });
@@ -305,7 +305,7 @@ describe("Query Instruction Integration Tests", () => {
           netbook: toAddress(nb.pda),
           serialNumber: nb.serial,
         });
-        await tx.sendAndConfirm();
+        await tx.sendTransaction();
       });
 
       await Promise.all(queryPromises);
@@ -319,7 +319,7 @@ describe("Query Instruction Integration Tests", () => {
         accountToCheck: toAddress(fabricante.publicKey.toString()),
         role: "FABRICANTE",
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("returns false for account without role", async () => {
@@ -328,7 +328,7 @@ describe("Query Instruction Integration Tests", () => {
         accountToCheck: toAddress(randomUser.publicKey.toString()),
         role: "AUDITOR_HW",
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("checks multiple roles for same account", async () => {
@@ -338,7 +338,7 @@ describe("Query Instruction Integration Tests", () => {
         accountToCheck: toAddress(auditor.publicKey.toString()),
         role: "AUDITOR_HW",
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("checks non-existent role returns false", async () => {
@@ -347,7 +347,7 @@ describe("Query Instruction Integration Tests", () => {
         accountToCheck: toAddress(admin.publicKey.toString()),
         role: "non_existent_role",
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("rejects query with invalid config PDA", async () => {
@@ -360,7 +360,7 @@ describe("Query Instruction Integration Tests", () => {
             accountToCheck: toAddress(fabricante.publicKey.toString()),
             role: "FABRICANTE",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         throw new Error("Expected queryRole to fail with invalid config PDA");
       } catch (error: any) {
         const errorMessage = error.message || "";
@@ -378,7 +378,7 @@ describe("Query Instruction Integration Tests", () => {
         accountToCheck: toAddress(randomUser.publicKey.toString()),
         role: "",
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("checks all granted roles for different accounts", async () => {
@@ -392,7 +392,7 @@ describe("Query Instruction Integration Tests", () => {
           accountToCheck: toAddress(account.publicKey.toString()),
           role,
         });
-        await tx.sendAndConfirm();
+        await tx.sendTransaction();
       }
     });
   });
@@ -416,14 +416,14 @@ describe("Query Instruction Integration Tests", () => {
           batchId: "batch-edge-001",
           initialModelSpecs: "Model-Edge-100",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Immediately query - no delay
       const tx = await client.scSolana.instructions.queryNetbookState({
         netbook: toAddress(netbookPda),
         serialNumber,
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("handles query during concurrent config and netbook queries", async () => {
@@ -444,16 +444,16 @@ describe("Query Instruction Integration Tests", () => {
           batchId: "batch-concurrent",
           initialModelSpecs: "Model-Concurrent-100",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Execute queries concurrently
       await Promise.all([
         client.scSolana.instructions
           .queryConfig({ config: toAddress(configPda) })
-          .sendAndConfirm(),
+          .sendTransaction(),
         client.scSolana.instructions
           .queryNetbookState({ netbook: toAddress(netbookPda), serialNumber })
-          .sendAndConfirm(),
+          .sendTransaction(),
       ]);
     });
 
@@ -468,7 +468,7 @@ describe("Query Instruction Integration Tests", () => {
           netbook: toAddress(netbookPda),
           serialNumber,
         });
-        await tx.sendAndConfirm();
+        await tx.sendTransaction();
       }
     });
 
@@ -483,7 +483,7 @@ describe("Query Instruction Integration Tests", () => {
           netbook: toAddress(netbookPda),
           serialNumber,
         });
-        await tx.sendAndConfirm();
+        await tx.sendTransaction();
       }
 
       // If we got here without errors, the queries didn't modify state
@@ -496,7 +496,7 @@ describe("Query Instruction Integration Tests", () => {
       const tx = await client.scSolana.instructions.queryConfig({
         config: toAddress(configPda),
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("allows anyone to query netbook state (no role required)", async () => {
@@ -508,7 +508,7 @@ describe("Query Instruction Integration Tests", () => {
         netbook: toAddress(netbookPda),
         serialNumber,
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
 
     it("allows anyone to query role (no role required)", async () => {
@@ -517,7 +517,7 @@ describe("Query Instruction Integration Tests", () => {
         accountToCheck: toAddress(fabricante.publicKey.toString()),
         role: "FABRICANTE",
       });
-      await tx.sendAndConfirm();
+      await tx.sendTransaction();
     });
   });
 });

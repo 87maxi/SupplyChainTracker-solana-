@@ -19,7 +19,7 @@
 import {
   Keypair,
 } from "@solana/web3.js";
-import { createSignerFromKeyPair } from "@solana/kit";
+import { createSignerFromKeyPair } from "./test-helpers";
 import { expect } from "chai";
 
 // Import test helpers
@@ -94,7 +94,7 @@ describe("State Machine Transition Validation Tests", () => {
       admin: toAddress(adminPda),
       accountToGrant: accountSigner,
       role,
-    }).sendAndConfirm();
+    }).sendTransaction();
   }
 
   async function registerNetbook(
@@ -117,7 +117,7 @@ describe("State Machine Transition Validation Tests", () => {
       serialNumber,
       batchId,
       initialModelSpecs: modelSpecs,
-    }).sendAndConfirm();
+    }).sendTransaction();
 
     return netbookPda;
   }
@@ -152,7 +152,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FULL-LIFECYCLE-001",
         passed: true,
         reportHash: toUint8Array(createHash(100)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
@@ -166,7 +166,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FULL-LIFECYCLE-001",
         osVersion: "Ubuntu 22.04 LTS",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.SwValidado);
@@ -180,7 +180,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FULL-LIFECYCLE-001",
         schoolHash: toUint8Array(createHash(200)),
         studentIdHash: toUint8Array(createHash(300)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.Distribuida);
@@ -202,7 +202,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PARTIAL-001",
         passed: true,
         reportHash: toUint8Array(createHash(101)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
@@ -216,7 +216,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PARTIAL-001",
         osVersion: "Ubuntu 22.04 LTS",
         passed: false,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // State should still be HwAprobado when audit fails
       state = await getNetbookState(netbookPda);
@@ -239,7 +239,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PARTIAL-HW-001",
         passed: false,
         reportHash: toUint8Array(createHash(102)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // State should still be Fabricada when audit fails
       let state = await getNetbookState(netbookPda);
@@ -253,7 +253,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PARTIAL-HW-001",
         passed: true,
         reportHash: toUint8Array(createHash(103)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
@@ -286,7 +286,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "SKIP-STATE-001",
           osVersion: "Ubuntu 22.04",
           passed: true,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected software validation to fail from Fabricada state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -315,7 +315,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "SKIP-STATE-002",
         passed: true,
         reportHash: toUint8Array(createHash(104)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Verify state is HwAprobado
       let state = await getNetbookState(netbookPda);
@@ -331,7 +331,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "SKIP-STATE-002",
           schoolHash: toUint8Array(createHash(201)),
           studentIdHash: toUint8Array(createHash(301)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected student assignment to fail from HwAprobado state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -365,7 +365,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "SKIP-STATE-003",
           schoolHash: toUint8Array(createHash(202)),
           studentIdHash: toUint8Array(createHash(302)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected student assignment to fail from Fabricada state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -400,7 +400,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "REVERSE-001",
         passed: true,
         reportHash: toUint8Array(createHash(105)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
@@ -414,7 +414,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "REVERSE-001",
           passed: false,
           reportHash: toUint8Array(createHash(106)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected hardware audit to fail from HwAprobado state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -442,7 +442,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "REVERSE-002",
         passed: true,
         reportHash: toUint8Array(createHash(107)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const technicianSigner = await createSignerFromKeyPair(technician);
       await client.scSolana.instructions.validateSoftware({
@@ -452,7 +452,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "REVERSE-002",
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.SwValidado);
@@ -466,7 +466,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "REVERSE-002",
           osVersion: "Ubuntu 22.04",
           passed: false,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected software validation to fail from SwValidado state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -494,7 +494,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "REVERSE-003",
         passed: true,
         reportHash: toUint8Array(createHash(108)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const technicianSigner = await createSignerFromKeyPair(technician);
       await client.scSolana.instructions.validateSoftware({
@@ -504,7 +504,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "REVERSE-003",
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const schoolSigner = await createSignerFromKeyPair(school);
       await client.scSolana.instructions.assignToStudent({
@@ -514,7 +514,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "REVERSE-003",
         schoolHash: toUint8Array(createHash(203)),
         studentIdHash: toUint8Array(createHash(303)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.Distribuida);
@@ -528,7 +528,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "REVERSE-003",
           passed: true,
           reportHash: toUint8Array(createHash(109)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected hardware audit to fail from Distribuida state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -544,7 +544,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "REVERSE-003",
           osVersion: "Ubuntu 22.04",
           passed: true,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected software validation to fail from Distribuida state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -560,7 +560,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "REVERSE-003",
           schoolHash: toUint8Array(createHash(204)),
           studentIdHash: toUint8Array(createHash(304)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected student assignment to fail from Distribuida state");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -594,7 +594,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PRESERVE-001",
         passed: false,
         reportHash: toUint8Array(createHash(110)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.Fabricada);
@@ -617,7 +617,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PRESERVE-002",
         passed: true,
         reportHash: toUint8Array(createHash(111)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Failed software validation
       const technicianSigner = await createSignerFromKeyPair(technician);
@@ -628,7 +628,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PRESERVE-002",
         osVersion: "Ubuntu 22.04",
         passed: false,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.HwAprobado);
@@ -651,7 +651,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PRESERVE-003",
         passed: true,
         reportHash: toUint8Array(createHash(112)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Get netbook state before failed validation
       const netbookBefore = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
@@ -667,7 +667,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "WRONG-SERIAL",
           osVersion: "Ubuntu 22.04",
           passed: true,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected validation to fail due to wrong serial");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -701,7 +701,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "CONCURRENT-001",
         passed: true,
         reportHash: toUint8Array(createHash(113)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Query state during transition
       const queryPromise = getNetbookState(netbookPda);
@@ -729,7 +729,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "DUPLICATE-001",
         passed: true,
         reportHash: toUint8Array(createHash(114)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       let state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.HwAprobado);
@@ -743,7 +743,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "DUPLICATE-001",
           passed: true,
           reportHash: toUint8Array(createHash(115)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected second hardware audit to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -797,7 +797,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "MULTI-001",
         passed: true,
         reportHash: toUint8Array(createHash(116)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       state1 = await getNetbookState(netbook1Pda);
       expect(state1).to.equal(NetbookState.HwAprobado);
@@ -812,7 +812,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "MULTI-002",
         passed: true,
         reportHash: toUint8Array(createHash(117)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       state2 = await getNetbookState(netbook2Pda);
       expect(state1).to.equal(NetbookState.HwAprobado);
@@ -829,7 +829,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "MULTI-003",
           osVersion: "Ubuntu 22.04",
           passed: true,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected software validation to fail without hardware audit");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -857,7 +857,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FULL-001",
         passed: true,
         reportHash: toUint8Array(createHash(118)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const technicianSigner = await createSignerFromKeyPair(technician);
       await client.scSolana.instructions.validateSoftware({
@@ -867,7 +867,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FULL-001",
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const schoolSigner = await createSignerFromKeyPair(school);
       await client.scSolana.instructions.assignToStudent({
@@ -877,7 +877,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FULL-001",
         schoolHash: toUint8Array(createHash(205)),
         studentIdHash: toUint8Array(createHash(305)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       expect(await getNetbookState(fullLifecyclePda)).to.equal(
         NetbookState.Distribuida
@@ -897,7 +897,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PARTIAL-002",
         passed: true,
         reportHash: toUint8Array(createHash(119)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       await client.scSolana.instructions.validateSoftware({
         netbook: toAddress(partialLifecyclePda),
@@ -906,7 +906,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "PARTIAL-002",
         osVersion: "Ubuntu 22.04",
         passed: false,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       expect(await getNetbookState(partialLifecyclePda)).to.equal(
         NetbookState.HwAprobado
@@ -926,7 +926,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FAILED-HW-001",
         passed: false,
         reportHash: toUint8Array(createHash(120)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       expect(await getNetbookState(failedHwPda)).to.equal(
         NetbookState.Fabricada
@@ -955,7 +955,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "RAPID-001",
         passed: true,
         reportHash: toUint8Array(createHash(121)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const technicianSigner = await createSignerFromKeyPair(technician);
       await client.scSolana.instructions.validateSoftware({
@@ -965,7 +965,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "RAPID-001",
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const schoolSigner = await createSignerFromKeyPair(school);
       await client.scSolana.instructions.assignToStudent({
@@ -975,7 +975,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "RAPID-001",
         schoolHash: toUint8Array(createHash(206)),
         studentIdHash: toUint8Array(createHash(306)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const state = await getNetbookState(netbookPda);
       expect(state).to.equal(NetbookState.Distribuida);
@@ -1004,7 +1004,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "TYPE-CHECK-001",
         passed: true,
         reportHash: toUint8Array(createHash(122)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const netbook2 = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook2.state).to.equal(NetbookState.HwAprobado);
@@ -1054,7 +1054,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "ERROR-CODE-001",
         passed: true,
         reportHash: toUint8Array(createHash(123)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Try audit again - should get InvalidStateTransition
       try {
@@ -1065,7 +1065,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "ERROR-CODE-001",
           passed: true,
           reportHash: toUint8Array(createHash(125)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected second audit to fail");
       } catch (error: any) {
         expect(error.message).to.contain("InvalidStateTransition");
@@ -1089,7 +1089,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "ERROR-CODE-002",
           osVersion: "Ubuntu 22.04",
           passed: true,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected validation to fail from Fabricada");
       } catch (error: any) {
         expect(error.message).to.contain("InvalidStateTransition");
@@ -1113,7 +1113,7 @@ describe("State Machine Transition Validation Tests", () => {
           serial: "ERROR-CODE-003",
           schoolHash: toUint8Array(createHash(207)),
           studentIdHash: toUint8Array(createHash(307)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected assignment to fail from Fabricada");
       } catch (error: any) {
         expect(error.message).to.contain("InvalidStateTransition");
@@ -1142,7 +1142,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: serialNumber,
         passed: true,
         reportHash: toUint8Array(createHash(126)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const technicianSigner = await createSignerFromKeyPair(technician);
       await client.scSolana.instructions.validateSoftware({
@@ -1152,7 +1152,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: serialNumber,
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const schoolSigner = await createSignerFromKeyPair(school);
       await client.scSolana.instructions.assignToStudent({
@@ -1162,7 +1162,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: serialNumber,
         schoolHash: toUint8Array(createHash(208)),
         studentIdHash: toUint8Array(createHash(308)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.serialNumber).to.equal(serialNumber);
@@ -1184,7 +1184,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "INTEGRITY-002",
         passed: true,
         reportHash: toUint8Array(createHash(127)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const technicianSigner = await createSignerFromKeyPair(technician);
       await client.scSolana.instructions.validateSoftware({
@@ -1194,7 +1194,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "INTEGRITY-002",
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const schoolSigner = await createSignerFromKeyPair(school);
       await client.scSolana.instructions.assignToStudent({
@@ -1204,7 +1204,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "INTEGRITY-002",
         schoolHash: toUint8Array(createHash(209)),
         studentIdHash: toUint8Array(createHash(309)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.batchId).to.equal(batchId);
@@ -1228,7 +1228,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "DATA-INT-001",
         passed: true,
         reportHash: toUint8Array(createHash(128)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const netbookAfter = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbookAfter.hwAuditor).to.equal(toAddress(auditor.publicKey.toBase58()));
@@ -1249,7 +1249,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "DATA-INT-002",
         passed: true,
         reportHash: toUint8Array(createHash(129)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const netbookBefore = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbookBefore.swTechnician).to.be.null;
@@ -1262,7 +1262,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "DATA-INT-002",
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const netbookAfter = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbookAfter.swTechnician).to.equal(
@@ -1301,7 +1301,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FINAL-002",
         passed: true,
         reportHash: toUint8Array(createHash(130)),
-      }).sendAndConfirm();
+      }).sendTransaction();
       netbooks.push({ serial: "FINAL-002", pda: nb2Pda, targetState: NetbookState.HwAprobado });
 
       // Netbook 3: SwValidado
@@ -1313,7 +1313,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FINAL-003",
         passed: true,
         reportHash: toUint8Array(createHash(131)),
-      }).sendAndConfirm();
+      }).sendTransaction();
       const technicianSigner = await createSignerFromKeyPair(technician);
       await client.scSolana.instructions.validateSoftware({
         netbook: toAddress(nb3Pda),
@@ -1322,7 +1322,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FINAL-003",
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
       netbooks.push({ serial: "FINAL-003", pda: nb3Pda, targetState: NetbookState.SwValidado });
 
       // Netbook 4: Distribuida (full lifecycle)
@@ -1334,7 +1334,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FINAL-004",
         passed: true,
         reportHash: toUint8Array(createHash(132)),
-      }).sendAndConfirm();
+      }).sendTransaction();
       await client.scSolana.instructions.validateSoftware({
         netbook: toAddress(nb4Pda),
         config: toAddress(configPda),
@@ -1342,7 +1342,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FINAL-004",
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
       const schoolSigner = await createSignerFromKeyPair(school);
       await client.scSolana.instructions.assignToStudent({
         netbook: toAddress(nb4Pda),
@@ -1351,7 +1351,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FINAL-004",
         schoolHash: toUint8Array(createHash(210)),
         studentIdHash: toUint8Array(createHash(310)),
-      }).sendAndConfirm();
+      }).sendTransaction();
       netbooks.push({ serial: "FINAL-004", pda: nb4Pda, targetState: NetbookState.Distribuida });
 
       // Netbook 5: Failed hardware audit (stays Fabricada)
@@ -1363,7 +1363,7 @@ describe("State Machine Transition Validation Tests", () => {
         serial: "FINAL-005",
         passed: false,
         reportHash: toUint8Array(createHash(133)),
-      }).sendAndConfirm();
+      }).sendTransaction();
       netbooks.push({ serial: "FINAL-005", pda: nb5Pda, targetState: NetbookState.Fabricada });
 
       // Verify all states

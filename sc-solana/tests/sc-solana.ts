@@ -13,7 +13,7 @@
 
 import { expect } from "chai";
 import { Keypair } from "@solana/web3.js";
-import { createSignerFromKeyPair } from "@solana/kit";
+import { createSignerFromKeyPair } from "./test-helpers";
 import {
   createTestClient,
   getConfigPdaAddress,
@@ -166,7 +166,7 @@ describe("SupplyChainTracker Solana", () => {
         config: toAddress(configPda),
         roleRequest: toAddress(roleRequestPda),
         role: TECNICO_SW_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       console.log("Request role TX:", tx);
 
@@ -186,7 +186,7 @@ describe("SupplyChainTracker Solana", () => {
         payer: adminSigner,
         roleRequest: toAddress(roleRequestPda),
         roleHolder: toAddress(await getRoleHolderByUserPdaAddress(toAddress(technician.publicKey.toBase58()))),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       console.log("Approve role TX:", tx);
 
@@ -206,13 +206,13 @@ describe("SupplyChainTracker Solana", () => {
         config: toAddress(configPda),
         roleRequest: toAddress(roleRequestPda),
         role: ESCUELA_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const tx = await client.scSolana.instructions.rejectRoleRequest({
         config: toAddress(configPda),
         admin: toAddress(adminPda),
         roleRequest: toAddress(roleRequestPda),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       console.log("Reject role TX:", tx);
 
@@ -229,7 +229,7 @@ describe("SupplyChainTracker Solana", () => {
           admin: toAddress(randomUser.publicKey.toBase58()), // Not admin PDA
           accountToGrant: randomUserSigner,
           role: AUDITOR_HW_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         console.log("Expected error (non-admin):", err.message);
@@ -274,7 +274,7 @@ describe("SupplyChainTracker Solana", () => {
         serialNumber: uniqueSerial,
         batchId: "BATCH-2024-Q1",
         initialModelSpecs: "Intel i3, 8GB RAM, 256GB SSD",
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       console.log("Register netbook TX:", tx);
 
@@ -304,7 +304,7 @@ describe("SupplyChainTracker Solana", () => {
           serialNumber: `SN-2024-${String(i + 2).padStart(3, "0")}`,
           batchId: "BATCH-2024-Q1",
           initialModelSpecs: "Intel i5, 16GB RAM, 512GB SSD",
-        }).sendAndConfirm();
+        }).sendTransaction();
 
         const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
         expect(netbook.tokenId.toNumber()).to.equal(tokenId);
@@ -325,7 +325,7 @@ describe("SupplyChainTracker Solana", () => {
           serialNumber: "",
           batchId: "BATCH",
           initialModelSpecs: "Specs",
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         console.log("Expected error:", err.message);
@@ -352,7 +352,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         passed: true,
         reportHash,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       console.log("Audit hardware TX:", tx);
 
@@ -376,7 +376,7 @@ describe("SupplyChainTracker Solana", () => {
           serial,
           passed: true,
           reportHash,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         console.log("Expected state error:", err.message);
@@ -399,7 +399,7 @@ describe("SupplyChainTracker Solana", () => {
         serialNumber: serial,
         batchId: "BATCH-TEST",
         initialModelSpecs: "Test Specs",
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const reportHash = toUint8Array(createHash(0));
 
@@ -411,7 +411,7 @@ describe("SupplyChainTracker Solana", () => {
           serial,
           passed: true,
           reportHash,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         console.log("Expected role error:", err.message);
@@ -434,7 +434,7 @@ describe("SupplyChainTracker Solana", () => {
         serialNumber: serial,
         batchId: "BATCH-TEST",
         initialModelSpecs: "Test Specs",
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const reportHash = toUint8Array(createHash(0));
 
@@ -445,7 +445,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         passed: false,
         reportHash,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       const netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.Fabricada);
@@ -472,7 +472,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         osVersion,
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       console.log("Validate software TX:", tx);
 
@@ -497,7 +497,7 @@ describe("SupplyChainTracker Solana", () => {
         serialNumber: serial,
         batchId: "BATCH-TEST",
         initialModelSpecs: "Test Specs",
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       try {
         await client.scSolana.instructions.validateSoftware({
@@ -507,7 +507,7 @@ describe("SupplyChainTracker Solana", () => {
           serial,
           osVersion: "Ubuntu 24.04",
           passed: true,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         expect(err.message).to.include("InvalidStateTransition");
@@ -529,7 +529,7 @@ describe("SupplyChainTracker Solana", () => {
         serialNumber: serial,
         batchId: "BATCH-TEST",
         initialModelSpecs: "Test Specs",
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       await client.scSolana.instructions.auditHardware({
         netbook: toAddress(netbookPda),
@@ -538,7 +538,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         passed: true,
         reportHash: toUint8Array(createHash(0)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       try {
         await client.scSolana.instructions.validateSoftware({
@@ -548,7 +548,7 @@ describe("SupplyChainTracker Solana", () => {
           serial,
           osVersion: "Ubuntu 22.04",
           passed: true,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         expect(err.message).to.include("Unauthorized");
@@ -577,7 +577,7 @@ describe("SupplyChainTracker Solana", () => {
         serialNumber: serial,
         batchId: "BATCH-TEST",
         initialModelSpecs: "Test Specs",
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Audit
       await client.scSolana.instructions.auditHardware({
@@ -587,7 +587,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         passed: true,
         reportHash: toUint8Array(createHash(0)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Validate software
       await client.scSolana.instructions.validateSoftware({
@@ -597,7 +597,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Assign to student
       const tx = await client.scSolana.instructions.assignToStudent({
@@ -607,7 +607,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         schoolHash,
         studentHash,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       console.log("Assign to student TX:", tx);
 
@@ -634,7 +634,7 @@ describe("SupplyChainTracker Solana", () => {
         serialNumber: serial,
         batchId: "BATCH-TEST",
         initialModelSpecs: "Test Specs",
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       try {
         await client.scSolana.instructions.assignToStudent({
@@ -644,7 +644,7 @@ describe("SupplyChainTracker Solana", () => {
           serial,
           schoolHash,
           studentHash,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         console.log("Error message:", err.message);
@@ -670,7 +670,7 @@ describe("SupplyChainTracker Solana", () => {
         serialNumber: serial,
         batchId: "BATCH-TEST",
         initialModelSpecs: "Test Specs",
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       await client.scSolana.instructions.auditHardware({
         netbook: toAddress(netbookPda),
@@ -679,7 +679,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         passed: true,
         reportHash: toUint8Array(createHash(0)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       await client.scSolana.instructions.validateSoftware({
         netbook: toAddress(netbookPda),
@@ -688,7 +688,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       try {
         await client.scSolana.instructions.assignToStudent({
@@ -698,7 +698,7 @@ describe("SupplyChainTracker Solana", () => {
           serial,
           schoolHash,
           studentHash,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         expect(err.message).to.include("Unauthorized");
@@ -728,7 +728,7 @@ describe("SupplyChainTracker Solana", () => {
         serialNumber: serial,
         batchId: "BATCH-TEST",
         initialModelSpecs: "Test Specs",
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       let netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.Fabricada);
@@ -741,7 +741,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         passed: true,
         reportHash,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.HwAprobado);
@@ -754,7 +754,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         osVersion: "Ubuntu 22.04",
         passed: true,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.SwValidado);
@@ -767,7 +767,7 @@ describe("SupplyChainTracker Solana", () => {
         serial,
         schoolHash,
         studentHash,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       netbook = await client.scSolana.accounts.netbook.fetch(toAddress(netbookPda));
       expect(netbook.state).to.equal(NetbookState.Distribuida);
@@ -805,7 +805,7 @@ describe("SupplyChainTracker Solana", () => {
           serialNumbers: ["SN-1", "SN-2"],
           batchIds: ["BATCH-1"],
           modelSpecs: ["Specs-1", "Specs-2"],
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         console.log("Expected array mismatch error:", err.message);
@@ -823,7 +823,7 @@ describe("SupplyChainTracker Solana", () => {
           serialNumbers: [],
           batchIds: [],
           modelSpecs: [],
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         console.log("Expected invalid input error:", err.message);
@@ -845,7 +845,7 @@ describe("SupplyChainTracker Solana", () => {
           serialNumber: "",
           batchId: "BATCH",
           initialModelSpecs: "Specs",
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         console.log("Expected error:", err.message);
@@ -867,7 +867,7 @@ describe("SupplyChainTracker Solana", () => {
           serialNumber: longSerial,
           batchId: "BATCH",
           initialModelSpecs: "Specs",
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Should have thrown error");
       } catch (err: any) {
         console.log("Expected error:", err.message);

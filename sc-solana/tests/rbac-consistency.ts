@@ -20,7 +20,7 @@ import {
   Keypair,
   PublicKey,
 } from "@solana/web3.js";
-import { createSignerFromKeyPair } from "@solana/kit";
+import { createSignerFromKeyPair } from "./test-helpers";
 import { expect } from "chai";
 import {
   createTestClient,
@@ -93,7 +93,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         admin: toAddress(adminPda),
         accountToGrant: user1Signer,
         role: FABRICANTE_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Verify role was granted
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -110,7 +110,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: toAddress(unauthorizedUser.publicKey.toBase58()),
           accountToGrant: user2Signer,
           role: AUDITOR_HW_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected grant role to fail for non-admin");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -124,7 +124,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: toAddress(adminPda),
           accountToGrant: await createSignerFromKeyPair(user2),
           role: AUDITOR_HW_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected grant role to fail without recipient signature");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -145,7 +145,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         roleRequest: toAddress(roleRequestPda),
         user: user2Signer,
         role: TECNICO_SW_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Verify request was created
       const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -167,7 +167,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         payer: adminSigner,
         roleRequest: toAddress(roleRequestPda),
         roleHolder: toAddress(roleHolderPda),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Verify request was approved
       const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(roleRequestPda));
@@ -184,7 +184,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         roleRequest: toAddress(newRoleRequestPda),
         user: unauthorizedSigner,
         role: ESCUELA_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Try to approve as non-admin
       try {
@@ -195,7 +195,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           payer: adminSigner,
           roleRequest: toAddress(newRoleRequestPda),
           roleHolder: toAddress(await getRoleHolderPdaAddress(toAddress(unauthorizedUser.publicKey.toBase58()), 0)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected approve to fail for non-admin");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -209,7 +209,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         config: toAddress(configPda),
         admin: toAddress(adminPda),
         roleRequest: toAddress(newRoleRequestPda),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Verify request was rejected
       const roleRequest = await client.scSolana.accounts.roleRequest.fetch(toAddress(newRoleRequestPda));
@@ -227,7 +227,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           payer: adminSigner,
           roleRequest: toAddress(roleRequestPda),
           roleHolder: toAddress(await getRoleHolderPdaAddress(toAddress(user2.publicKey.toBase58()), 0)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected double approval to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -245,7 +245,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           payer: adminSigner,
           roleRequest: toAddress(newRoleRequestPda),
           roleHolder: toAddress(await getRoleHolderPdaAddress(toAddress(unauthorizedUser.publicKey.toBase58()), 0)),
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected approval of rejected request to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -264,7 +264,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           roleRequest: toAddress(invalidRoleRequestPda),
           user: testUserSigner,
           role: "INVALID_ROLE",
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected request with invalid role to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -280,7 +280,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           roleRequest: toAddress(await getRoleRequestPdaAddress(toAddress(user1.publicKey.toBase58()))),
           user: user1Signer,
           role: FABRICANTE_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected request for existing role to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -300,7 +300,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         admin: toAddress(adminPda),
         accountToRevoke: user1Signer,
         role: FABRICANTE_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Verify role was revoked
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -315,7 +315,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         admin: toAddress(adminPda),
         accountToGrant: user1Signer,
         role: FABRICANTE_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Try to revoke as non-admin
       const unauthorizedSigner = await createSignerFromKeyPair(unauthorizedUser);
@@ -325,7 +325,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: toAddress(unauthorizedUser.publicKey.toBase58()),
           accountToRevoke: user1Signer,
           role: FABRICANTE_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected revoke to fail for non-admin");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -340,7 +340,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: toAddress(adminPda),
           accountToRevoke: user1Signer,
           role: AUDITOR_HW_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected revoke of unheld role to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -354,7 +354,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: toAddress(adminPda),
           accountToRevoke: await createSignerFromKeyPair(user1),
           role: FABRICANTE_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected revoke to fail without recipient signature");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -379,7 +379,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         roleHolder: toAddress(await getRoleHolderPdaAddress(toAddress(holderUser.publicKey.toBase58()), 0)),
         accountToAdd: toAddress(holderUser.publicKey.toBase58()),
         role: AUDITOR_HW_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Verify count was incremented
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -401,7 +401,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           roleHolder: toAddress(await getRoleHolderPdaAddress(toAddress(holderUser.publicKey.toBase58()), 0)),
           accountToAdd: toAddress(holderUser.publicKey.toBase58()),
           role: TECNICO_SW_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected add role holder to fail for non-admin");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -422,7 +422,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         roleHolder: toAddress(await getRoleHolderPdaAddress(toAddress(holderUser.publicKey.toBase58()), 0)),
         accountToAdd: toAddress(holderUser.publicKey.toBase58()),
         role: ESCUELA_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Now remove the holder
       await client.scSolana.instructions.removeRoleHolder({
@@ -430,7 +430,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         admin: toAddress(adminPda),
         roleHolder: toAddress(await getRoleHolderPdaAddress(toAddress(holderUser.publicKey.toBase58()), 0)),
         role: ESCUELA_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
     });
 
     it("non-admin cannot remove a role holder", async () => {
@@ -448,7 +448,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
         roleHolder: toAddress(await getRoleHolderPdaAddress(toAddress(holderUser.publicKey.toBase58()), 0)),
         accountToAdd: toAddress(holderUser.publicKey.toBase58()),
         role: ESCUELA_ROLE,
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Try to remove as non-admin
       try {
@@ -457,7 +457,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: toAddress(unauthorizedUser.publicKey.toBase58()),
           roleHolder: toAddress(await getRoleHolderPdaAddress(toAddress(holderUser.publicKey.toBase58()), 0)),
           role: ESCUELA_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected remove role holder to fail for non-admin");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -477,7 +477,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: toAddress(adminPda),
           accountToGrant: unauthorizedSigner,
           role: AUDITOR_HW_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected grant without recipient signature to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -492,7 +492,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: toAddress(adminPda),
           accountToGrant: unauthorizedSigner,
           role: "SUPER_ADMIN",
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected invalid role grant to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -507,7 +507,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
           admin: toAddress(adminPda),
           accountToGrant: user1Signer,
           role: FABRICANTE_ROLE,
-        }).sendAndConfirm();
+        }).sendTransaction();
         expect.fail("Expected duplicate grant to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -548,7 +548,7 @@ describe("RBAC Consistency Tests (Issue #145)", () => {
     it("verifies query operations work with role system", async () => {
       await client.scSolana.instructions.queryConfig({
         config: toAddress(configPda),
-      }).sendAndConfirm();
+      }).sendTransaction();
     });
   });
 });

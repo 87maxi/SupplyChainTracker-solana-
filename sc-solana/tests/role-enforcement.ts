@@ -13,7 +13,7 @@ import {
   Keypair,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
-import { createSignerFromKeyPair } from "@solana/kit";
+import { createSignerFromKeyPair } from "./test-helpers";
 import { expect } from "chai";
 
 // Import test helpers
@@ -95,7 +95,7 @@ describe("Role Enforcement Boundary Tests", () => {
         accountToGrant: fabricanteSigner,
         role: "FABRICANTE",
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -107,7 +107,7 @@ describe("Role Enforcement Boundary Tests", () => {
         accountToGrant: auditorSigner,
         role: "AUDITOR_HW",
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -119,7 +119,7 @@ describe("Role Enforcement Boundary Tests", () => {
         accountToGrant: technicianSigner,
         role: "TECNICO_SW",
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -131,7 +131,7 @@ describe("Role Enforcement Boundary Tests", () => {
         accountToGrant: schoolSigner,
         role: "ESCUELA",
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -146,7 +146,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: anotherRandomSigner,
             role: "FABRICANTE",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected grant role to fail from non-admin");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -163,7 +163,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: randomUserSigner,
             role: "INVALID_ROLE",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected grant role to fail for invalid role");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -180,7 +180,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: fabricanteSigner,
             role: "FABRICANTE",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected duplicate grant to fail");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -203,7 +203,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: fabricanteSigner,
           role: "FABRICANTE",
         })
-        .sendAndConfirm();
+        .sendTransaction();
     });
 
     it("allows admin to revoke FABRICANTE role", async () => {
@@ -214,7 +214,7 @@ describe("Role Enforcement Boundary Tests", () => {
         accountToRevoke: fabricanteSigner,
         role: "FABRICANTE",
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -229,7 +229,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToRevoke: anotherRandomSigner,
             role: "FABRICANTE",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected revoke role to fail from non-admin");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -246,7 +246,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToRevoke: fabricanteSigner,
             role: "INVALID_ROLE",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected revoke role to fail for invalid role");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -271,7 +271,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: fabricanteSigner,
           role: "FABRICANTE",
         })
-        .sendAndConfirm();
+        .sendTransaction();
     });
 
     it("allows manufacturer with FABRICANTE role to register netbook", async () => {
@@ -290,7 +290,7 @@ describe("Role Enforcement Boundary Tests", () => {
         batchId: "ROLE-BATCH-001",
         initialModelSpecs: "Test Model",
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -311,7 +311,7 @@ describe("Role Enforcement Boundary Tests", () => {
             batchId: "ROLE-BATCH-002",
             initialModelSpecs: "Test Model",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected registration to fail from non-manufacturer");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -335,7 +335,7 @@ describe("Role Enforcement Boundary Tests", () => {
             batchId: "ROLE-BATCH-003",
             initialModelSpecs: "Test Model",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected registration to fail from auditor without FABRICANTE");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -360,7 +360,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: auditorSigner,
           role: "AUDITOR_HW",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Register a netbook first
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -379,7 +379,7 @@ describe("Role Enforcement Boundary Tests", () => {
           batchId: "AUDIT-BATCH-001",
           initialModelSpecs: "Audit Test Model",
         })
-        .sendAndConfirm();
+        .sendTransaction();
     });
 
     it("allows auditor with AUDITOR_HW role to audit hardware", async () => {
@@ -396,7 +396,7 @@ describe("Role Enforcement Boundary Tests", () => {
         passed: true,
         reportHash: toUint8Array(createHash(42)),
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -416,7 +416,7 @@ describe("Role Enforcement Boundary Tests", () => {
             passed: true,
             reportHash: toUint8Array(createHash(43)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected audit to fail from non-auditor");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -439,7 +439,7 @@ describe("Role Enforcement Boundary Tests", () => {
             passed: true,
             reportHash: toUint8Array(createHash(44)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected audit to fail from technician without AUDITOR_HW");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -465,7 +465,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: technicianSigner,
           role: "TECNICO_SW",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Register and audit a netbook first
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -484,7 +484,7 @@ describe("Role Enforcement Boundary Tests", () => {
           batchId: "VALIDATE-BATCH-001",
           initialModelSpecs: "Validate Test Model",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Audit hardware first
       const auditorSigner = await createSignerFromKeyPair(auditor);
@@ -497,7 +497,7 @@ describe("Role Enforcement Boundary Tests", () => {
           passed: true,
           reportHash: toUint8Array(createHash(50)),
         })
-        .sendAndConfirm();
+        .sendTransaction();
     });
 
     it("allows technician with TECNICO_SW role to validate software", async () => {
@@ -510,7 +510,7 @@ describe("Role Enforcement Boundary Tests", () => {
         osVersion: "Ubuntu 22.04",
         passed: true,
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -526,7 +526,7 @@ describe("Role Enforcement Boundary Tests", () => {
             osVersion: "Ubuntu 22.04",
             passed: true,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected validation to fail from non-technician");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -545,7 +545,7 @@ describe("Role Enforcement Boundary Tests", () => {
             osVersion: "Ubuntu 22.04",
             passed: true,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected validation to fail from auditor without TECNICO_SW");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -571,7 +571,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: schoolSigner,
           role: "ESCUELA",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Register, audit, and validate a netbook first
       const config = await client.scSolana.accounts.supplyChainConfig.fetch(toAddress(configPda));
@@ -590,7 +590,7 @@ describe("Role Enforcement Boundary Tests", () => {
           batchId: "ASSIGN-BATCH-001",
           initialModelSpecs: "Assign Test Model",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Audit hardware
       const auditorSigner = await createSignerFromKeyPair(auditor);
@@ -603,7 +603,7 @@ describe("Role Enforcement Boundary Tests", () => {
           passed: true,
           reportHash: toUint8Array(createHash(60)),
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Validate software
       const technicianSigner = await createSignerFromKeyPair(technician);
@@ -616,7 +616,7 @@ describe("Role Enforcement Boundary Tests", () => {
           osVersion: "Ubuntu 22.04",
           passed: true,
         })
-        .sendAndConfirm();
+        .sendTransaction();
     });
 
     it("allows school with ESCUELA role to assign netbook to student", async () => {
@@ -629,7 +629,7 @@ describe("Role Enforcement Boundary Tests", () => {
         studentIdHash: toUint8Array(createHash(100)),
         schoolIdHash: toUint8Array(createHash(200)),
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -645,7 +645,7 @@ describe("Role Enforcement Boundary Tests", () => {
             studentIdHash: toUint8Array(createHash(101)),
             schoolIdHash: toUint8Array(createHash(201)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected assignment to fail from non-school");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -664,7 +664,7 @@ describe("Role Enforcement Boundary Tests", () => {
             studentIdHash: toUint8Array(createHash(102)),
             schoolIdHash: toUint8Array(createHash(202)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected assignment to fail from manufacturer without ESCUELA");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -687,7 +687,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: fabricanteSigner,
           role: "FABRICANTE",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       const auditorSigner = await createSignerFromKeyPair(auditor);
       await client.scSolana.instructions
@@ -697,7 +697,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: auditorSigner,
           role: "AUDITOR_HW",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       const technicianSigner = await createSignerFromKeyPair(technician);
       await client.scSolana.instructions
@@ -707,7 +707,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: technicianSigner,
           role: "TECNICO_SW",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       const schoolSigner = await createSignerFromKeyPair(school);
       await client.scSolana.instructions
@@ -717,7 +717,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: schoolSigner,
           role: "ESCUELA",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       // Register a netbook for cross-role tests (needs to be in Fabricada state for audit tests)
       const serialNumber = "CROSS-ROLE-001";
@@ -736,7 +736,7 @@ describe("Role Enforcement Boundary Tests", () => {
           batchId,
           initialModelSpecs: modelSpecs,
         })
-        .sendAndConfirm();
+        .sendTransaction();
     });
 
     it("fabricante cannot perform hardware audit", async () => {
@@ -751,7 +751,7 @@ describe("Role Enforcement Boundary Tests", () => {
             passed: true,
             reportHash: toUint8Array(createHash(70)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected audit to fail from fabricante");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -770,7 +770,7 @@ describe("Role Enforcement Boundary Tests", () => {
             osVersion: "Ubuntu 22.04",
             passed: true,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected validation to fail from fabricante");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -789,7 +789,7 @@ describe("Role Enforcement Boundary Tests", () => {
             studentIdHash: toUint8Array(createHash(80)),
             schoolIdHash: toUint8Array(createHash(90)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected assignment to fail from fabricante");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -808,7 +808,7 @@ describe("Role Enforcement Boundary Tests", () => {
             osVersion: "Ubuntu 22.04",
             passed: true,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected validation to fail from auditor");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -827,7 +827,7 @@ describe("Role Enforcement Boundary Tests", () => {
             studentIdHash: toUint8Array(createHash(81)),
             schoolIdHash: toUint8Array(createHash(91)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected assignment to fail from auditor");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -846,7 +846,7 @@ describe("Role Enforcement Boundary Tests", () => {
             passed: true,
             reportHash: toUint8Array(createHash(71)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected audit to fail from technician");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -865,7 +865,7 @@ describe("Role Enforcement Boundary Tests", () => {
             studentIdHash: toUint8Array(createHash(82)),
             schoolIdHash: toUint8Array(createHash(92)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected assignment to fail from technician");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -884,7 +884,7 @@ describe("Role Enforcement Boundary Tests", () => {
             passed: true,
             reportHash: toUint8Array(createHash(72)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected audit to fail from school");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -903,7 +903,7 @@ describe("Role Enforcement Boundary Tests", () => {
             osVersion: "Ubuntu 22.04",
             passed: true,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected validation to fail from school");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -935,7 +935,7 @@ describe("Role Enforcement Boundary Tests", () => {
           serialHashRegistry: toAddress(newSerialHashPda),
           admin: newAdminSigner,
         })
-        .sendAndConfirm();
+        .sendTransaction();
     });
 
     it("rejects hardware audit when no auditor_hw is set (default pubkey)", async () => {
@@ -950,7 +950,7 @@ describe("Role Enforcement Boundary Tests", () => {
             passed: true,
             reportHash: toUint8Array(createHash(73)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected audit to fail when no auditor_hw is set");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -969,7 +969,7 @@ describe("Role Enforcement Boundary Tests", () => {
             osVersion: "Ubuntu 22.04",
             passed: true,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected validation to fail when no tecnico_sw is set");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -988,7 +988,7 @@ describe("Role Enforcement Boundary Tests", () => {
             studentIdHash: toUint8Array(createHash(83)),
             schoolIdHash: toUint8Array(createHash(93)),
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected assignment to fail when no escuela is set");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -1009,7 +1009,7 @@ describe("Role Enforcement Boundary Tests", () => {
       const tx = await client.scSolana.instructions.queryConfig({
         config: toAddress(configPda),
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
 
@@ -1035,7 +1035,7 @@ describe("Role Enforcement Boundary Tests", () => {
         accountToCheck: toAddress(randomUser.publicKey.toString()),
         role: "FABRICANTE",
       });
-      const sig = await tx.sendAndConfirm();
+      const sig = await tx.sendTransaction();
       expect(sig).to.not.be.null;
     });
   });
@@ -1057,7 +1057,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: fabricanteSigner,
           role: "FABRICANTE",
         })
-        .sendAndConfirm();
+        .sendTransaction();
 
       const auditorSigner = await createSignerFromKeyPair(auditor);
       await client.scSolana.instructions
@@ -1067,7 +1067,7 @@ describe("Role Enforcement Boundary Tests", () => {
           accountToGrant: auditorSigner,
           role: "AUDITOR_HW",
         })
-        .sendAndConfirm();
+        .sendTransaction();
     });
 
     it("rejects operation with empty role string", async () => {
@@ -1080,7 +1080,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: randomUserSigner,
             role: "",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected grant role to fail with empty role");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -1097,7 +1097,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: randomUserSigner,
             role: "FABRICANTE; DROP TABLE config;--",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected grant role to fail with special characters");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -1115,7 +1115,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: randomUserSigner,
             role: longRole,
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected grant role to fail with very long role");
       } catch (error: any) {
         expect(error).to.not.be.null;
@@ -1138,7 +1138,7 @@ describe("Role Enforcement Boundary Tests", () => {
             accountToGrant: randomUserSigner,
             role: "FABRICANTE",
           })
-          .sendAndConfirm();
+          .sendTransaction();
         expect.fail("Expected grant role to fail with wrong admin");
       } catch (error: any) {
         expect(error).to.not.be.null;

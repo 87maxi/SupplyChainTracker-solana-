@@ -14,7 +14,7 @@
 import {
   Keypair,
 } from "@solana/web3.js";
-import { createSignerFromKeyPair } from "@solana/kit";
+import { createSignerFromKeyPair } from "./test-helpers";
 import { expect } from "chai";
 
 // Import test helpers
@@ -73,7 +73,7 @@ async function grantRole(
     admin: toAddress(adminPda),
     accountToGrant: accountSigner,
     role,
-  }).sendAndConfirm();
+  }).sendTransaction();
 }
 
 /**
@@ -101,7 +101,7 @@ async function registerNetbook(
     serialNumber,
     batchId,
     initialModelSpecs: modelSpecs,
-  }).sendAndConfirm();
+  }).sendTransaction();
 
   return netbookPda;
 }
@@ -346,7 +346,7 @@ describe("Edge Cases - Role Management", function () {
           roleRequest: toAddress(roleRequestPda),
           user: userSigner,
           role: "",
-        }).sendAndConfirm(),
+        }).sendTransaction(),
         "RoleNotFound"
       );
     });
@@ -361,7 +361,7 @@ describe("Edge Cases - Role Management", function () {
           roleRequest: toAddress(roleRequestPda),
           user: userSigner,
           role: "INVALID_ROLE_NAME",
-        }).sendAndConfirm(),
+        }).sendTransaction(),
         "RoleNotFound"
       );
     });
@@ -450,7 +450,7 @@ describe("Edge Cases - State Machine", function () {
           serial,
           osVersion: "Ubuntu 22.04",
           passed: true,
-        }).sendAndConfirm(),
+        }).sendTransaction(),
         "InvalidStateTransition"
       );
     });
@@ -476,7 +476,7 @@ describe("Edge Cases - State Machine", function () {
         serial,
         passed: true,
         reportHash: toUint8Array(createHash(1)),
-      }).sendAndConfirm();
+      }).sendTransaction();
 
       // Try to audit again (should fail)
       await expectError(
@@ -487,7 +487,7 @@ describe("Edge Cases - State Machine", function () {
           serial,
           passed: true,
           reportHash: toUint8Array(createHash(2)),
-        }).sendAndConfirm(),
+        }).sendTransaction(),
         "InvalidStateTransition"
       );
     });
@@ -549,7 +549,7 @@ describe("Error Code Verification", function () {
           serialNumbers: ["NB-BATCH-001", "NB-BATCH-002", "NB-BATCH-003"],
           batchIds: ["BATCH-TEST-001", "BATCH-TEST-002"],
           modelSpecs: ["Spec 1", "Spec 2", "Spec 3"],
-        }).sendAndConfirm(),
+        }).sendTransaction(),
         "ArrayLengthMismatch"
       );
     });
@@ -571,7 +571,7 @@ describe("Error Code Verification", function () {
           serialNumber: "",
           batchId: "BATCH-TEST",
           initialModelSpecs: "Test specs",
-        }).sendAndConfirm(),
+        }).sendTransaction(),
         "EmptySerial"
       );
     });
@@ -647,7 +647,7 @@ describe("Edge Cases - Permission Enforcement", function () {
           serial,
           passed: true,
           reportHash: toUint8Array(createHash(1)),
-        }).sendAndConfirm(),
+        }).sendTransaction(),
         "Unauthorized"
       );
     });

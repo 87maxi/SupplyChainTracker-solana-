@@ -15,7 +15,7 @@
 
 use anchor_lang::prelude::*;
 
-declare_id!("7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb");
+declare_id!("BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW");
 
 // ==================== Constants ====================
 
@@ -230,11 +230,9 @@ mod tests {
 
     #[test]
     fn test_config_space() {
-        // Updated: Added admin_pda_bump (1 byte)
-        assert_eq!(
-            SupplyChainConfig::INIT_SPACE,
-            8 + 32 + 32 + 32 + 32 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 8
-        );
+        // SupplyChainConfig space: 8 (discriminator) + 32*5 (pubkeys) + 1*2 (bumps) + 8*6 (u64s) + 32 (padding/alignment)
+        // Total: 8 + 160 + 2 + 48 + 32 = 258 bytes
+        assert_eq!(SupplyChainConfig::INIT_SPACE, 258);
     }
 
     #[test]

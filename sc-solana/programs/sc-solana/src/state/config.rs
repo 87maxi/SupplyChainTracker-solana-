@@ -46,7 +46,7 @@ impl SupplyChainConfig {
         + 8   // auditor_hw_count
         + 8   // tecnico_sw_count
         + 8; // escuela_count
-              // Total: 8 + 313 = 321 bytes
+             // Total: 8 + 313 = 321 bytes
 }
 
 impl SupplyChainConfig {

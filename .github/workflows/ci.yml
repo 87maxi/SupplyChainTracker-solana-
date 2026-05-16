@@ -14,11 +14,11 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CARGO_TERM_COLOR: always
-  SOLANA_VERSION: 2.1.18
+  SOLANA_VERSION: 3.1.13
   ANCHOR_VERSION: 0.32.1
   NODE_VERSION: 20
   # Real program ID - matches declare_id!() in lib.rs and Anchor.toml
-  NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+  NEXT_PUBLIC_PROGRAM_ID: "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
   NEXT_PUBLIC_RPC_URL: "https://api.devnet.solana.com"
   NEXT_TELEMETRY_DISABLED: "1"
 
@@ -423,7 +423,7 @@ jobs:
     needs: [type-check, frontend-lint, test-unit]
     timeout-minutes: 15
     env:
-      NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+      NEXT_PUBLIC_PROGRAM_ID: "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
       NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
       NEXT_PUBLIC_CLUSTER: "localnet"
       NEXT_PUBLIC_NETWORK: "localnet"
@@ -487,7 +487,7 @@ jobs:
   #   needs: [build-program, test-mollusk]
   #   timeout-minutes: 30
   #   env:
-  #     NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+  #     NEXT_PUBLIC_PROGRAM_ID: "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
   #     NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
   #     NEXT_PUBLIC_CLUSTER: "localnet"
   #     E2E_TEST_MODE: "true"
@@ -540,7 +540,7 @@ jobs:
   #       run: |
   #         cd sc-solana
   #         solana-test-validator \
-  #           --bpf-program 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb target/deploy/sc_solana.so \
+  #           --bpf-program BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW target/deploy/sc_solana.so \
   #           > /tmp/validator.log 2>&1 &
   #         echo "Waiting for validator to start..."
   #         for i in {1..30}; do

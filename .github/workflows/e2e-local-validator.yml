@@ -14,7 +14,7 @@ env:
   NODE_VERSION: 20
   SOLANA_VERSION: 3.1.13
   ANCHOR_VERSION: 0.32.1
-  NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+  NEXT_PUBLIC_PROGRAM_ID: "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
   LOCAL_VALIDATOR_RPC: "http://localhost:8899"
   LOCAL_VALIDATOR_WS: "ws://localhost:8900"
 
@@ -73,7 +73,7 @@ jobs:
     needs: [build-program]
     timeout-minutes: 20
     env:
-      NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+      NEXT_PUBLIC_PROGRAM_ID: "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
       NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
       NEXT_PUBLIC_CLUSTER: "localnet"
       NEXT_PUBLIC_NETWORK: "localnet"
@@ -114,7 +114,7 @@ jobs:
           mkdir -p .github/e2e-ledger
           bash scripts/start-local-validator.sh .github/e2e-ledger 8899 8900 \
             sc-solana/target/deploy/sc_solana.so \
-            "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+            "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
 
       - name: Verify Local Validator
         run: bash scripts/verify-local-validator.sh
@@ -133,7 +133,7 @@ jobs:
           NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
           NEXT_PUBLIC_CLUSTER: "localnet"
           NEXT_PUBLIC_NETWORK: "localnet"
-          NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+          NEXT_PUBLIC_PROGRAM_ID: "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
           NEXT_PUBLIC_TEST_MODE: "true"
           NEXT_PUBLIC_APP_URL: "http://localhost:3001"
         run: npx playwright test --reporter=html --project=chromium
@@ -175,7 +175,7 @@ jobs:
     needs: [build-program]
     timeout-minutes: 20
     env:
-      NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+      NEXT_PUBLIC_PROGRAM_ID: "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
       NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
       NEXT_PUBLIC_CLUSTER: "localnet"
       NEXT_PUBLIC_NETWORK: "localnet"
@@ -217,7 +217,7 @@ jobs:
           mkdir -p .github/e2e-ledger
           bash scripts/start-local-validator.sh .github/e2e-ledger 8899 8900 \
             sc-solana/target/deploy/sc_solana.so \
-            "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+            "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
 
       - name: Build Next.js for E2E
         working-directory: ./web
@@ -233,7 +233,7 @@ jobs:
           NEXT_PUBLIC_RPC_URL: "http://localhost:8899"
           NEXT_PUBLIC_CLUSTER: "localnet"
           NEXT_PUBLIC_NETWORK: "localnet"
-          NEXT_PUBLIC_PROGRAM_ID: "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
+          NEXT_PUBLIC_PROGRAM_ID: "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
           NEXT_PUBLIC_TEST_MODE: "true"
           NEXT_PUBLIC_APP_URL: "http://localhost:3001"
         run: npx playwright test full-flow.spec.ts --reporter=html --project=full-flow

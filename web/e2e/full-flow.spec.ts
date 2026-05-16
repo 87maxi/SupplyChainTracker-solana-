@@ -79,7 +79,7 @@ test.describe('Full User Flow - Continuous Session', () => {
       // Verificar que el título principal de la página aparece
       // Usar locator específico para evitar strict mode violation (hay 2 h1 en la página)
       // El h1 principal es el de mayor tamaño (text-5xl)
-      await expect(page.locator('h1.text-5xl')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('h1:has-text("Trazabilidad")')).toBeVisible({ timeout: 10000 });
       await takeScreenshot(page, '02-app-loaded');
     });
 

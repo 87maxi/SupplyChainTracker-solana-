@@ -153,6 +153,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: cargo-registry-${{ hashFiles('sc-solana/Cargo.lock') }}
+
+      - name: Cache Cargo build
+        uses: actions/cache@v4
+        with:
+          path: sc-solana/target
+          key: cargo-target-${{ hashFiles('sc-solana/Cargo.lock') }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -163,6 +178,18 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: ./web
         run: npm install --prefer-offline --no-audit --no-fund
+
+      - name: Install Codama Dependencies
+        working-directory: ./sc-solana
+        run: npm install --prefer-offline --no-audit --no-fund
+
+      - name: Build Program (generate IDL)
+        working-directory: ./sc-solana
+        run: anchor build --ignore-keys
+
+      - name: Generate Codama Types
+        working-directory: ./sc-solana
+        run: npx codama run --all
 
       - name: TypeScript Type Check (web)
         working-directory: ./web

@@ -16,8 +16,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Check, AlertCircle, Code2 } from 'lucide-react';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
+import { cn } from '@/lib/utils';
 
 // Define el esquema de validación para el formulario
 const validationFormSchema = z.object({
@@ -70,7 +71,6 @@ export function SoftwareValidationForm({
     setSubmitStatus('idle');
 
     try {
-      // Fix: validateSoftware expects (serial, osVersion, passed, _metadata?) not object
       await validateSoftware({
         serialNumber: data.serialNumber,
         osVersion: data.osVersion,
@@ -120,12 +120,19 @@ export function SoftwareValidationForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px] glass-card">
         <DialogHeader>
-          <DialogTitle>Validar Software</DialogTitle>
-          <DialogDescription>
-            Registra el resultado de la validación de software para una netbook.
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
+              <Code2 className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle>Validar Software</DialogTitle>
+              <DialogDescription>
+                Registra el resultado de la validación de software para una netbook.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid gap-4 py-4">
@@ -138,10 +145,13 @@ export function SoftwareValidationForm({
                 placeholder="INT001"
                 {...form.register('serialNumber')}
                 disabled={isSubmitting || !!initialSerial}
-                className={errors.serialNumber ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                className={cn(
+                  "transition-all duration-200 focus:ring-2",
+                  errors.serialNumber ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                )}
               />
               {errors.serialNumber && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                   <AlertCircle className="h-3 w-3" />
                   {errors.serialNumber.message}
                 </p>
@@ -157,17 +167,25 @@ export function SoftwareValidationForm({
                 placeholder="Ubuntu 22.04 LTS"
                 {...form.register('osVersion')}
                 disabled={isSubmitting}
-                className={errors.osVersion ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                className={cn(
+                  "transition-all duration-200 focus:ring-2",
+                  errors.osVersion ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                )}
               />
               {errors.osVersion && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                   <AlertCircle className="h-3 w-3" />
                   {errors.osVersion.message}
                 </p>
               )}
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className={cn(
+              "flex items-center gap-3 p-4 rounded-xl border transition-all duration-300",
+              form.watch('passed')
+                ? "border-success/30 bg-success/5"
+                : "border-destructive/30 bg-destructive/5"
+            )}>
               <input
                 type="checkbox"
                 id="passed"
@@ -175,9 +193,14 @@ export function SoftwareValidationForm({
                 disabled={isSubmitting}
                 className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
               />
-              <label htmlFor="passed" className="text-sm font-medium leading-none">
-                Aprobado
-              </label>
+              <div className="flex flex-col">
+                <label htmlFor="passed" className="text-sm font-semibold cursor-pointer">
+                  {form.watch('passed') ? "Validación Aprobada" : "Validación Rechazada"}
+                </label>
+                <span className="text-xs text-muted-foreground">
+                  {form.watch('passed') ? "El software cumple con los requisitos" : "El software presenta problemas"}
+                </span>
+              </div>
             </div>
 
             <div className="grid gap-2">
@@ -189,10 +212,13 @@ export function SoftwareValidationForm({
                 placeholder="Notas adicionales sobre la validación..."
                 {...form.register('notes')}
                 disabled={isSubmitting}
-                className={errors.notes ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                className={cn(
+                  "transition-all duration-200 focus:ring-2",
+                  errors.notes ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                )}
               />
               {errors.notes && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                   <AlertCircle className="h-3 w-3" />
                   {errors.notes.message}
                 </p>
@@ -200,34 +226,51 @@ export function SoftwareValidationForm({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
+            {submitStatus !== 'idle' && (
+              <div className={cn(
+                "mb-2 p-3 rounded-lg text-sm flex items-center gap-2 w-full animate-fade-in",
+                submitStatus === 'success'
+                  ? 'bg-success/10 text-success border border-success/20'
+                  : 'bg-destructive/10 text-destructive border border-destructive/20'
+              )}>
+                {submitStatus === 'success' ? (
+                  <Check className="h-4 w-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                )}
+                {submitStatus === 'success' ? 'Validación registrada' : 'Error al procesar'}
+              </div>
+            )}
             <Button
               type="button"
               variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
+              className="transition-all duration-200"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={!isValid || isSubmitting}
-              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
+              className={cn(
+                "transition-all duration-300 shadow-md hover:shadow-lg",
+                "bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600"
+              )}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {submitStatus === 'success' ? 'Éxito' : 'Procesando...'}
+                  Procesando...
+                </>
+              ) : submitStatus === 'success' ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Completado
                 </>
               ) : (
-                <>
-                  {submitStatus === 'success' ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Completado
-                    </>
-                  ) : 'Validar Software'}
-                </>
+                'Validar Software'
               )}
             </Button>
           </DialogFooter>

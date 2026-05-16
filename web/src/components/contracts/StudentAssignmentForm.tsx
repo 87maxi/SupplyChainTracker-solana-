@@ -16,8 +16,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Check, AlertCircle, GraduationCap } from 'lucide-react';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
+import { cn } from '@/lib/utils';
 
 // Define el esquema de validación para el formulario
 const assignmentFormSchema = z.object({
@@ -70,7 +71,6 @@ export function StudentAssignmentForm({
     setSubmitStatus('idle');
 
     try {
-      // Fix: assignToStudent expects (serial, schoolHash, studentHash, _metadata?) not object
       await assignToStudent({
         serialNumber: data.serialNumber,
         schoolHash: Array.from(Buffer.from(data.schoolHash.replace('0x', ''), 'hex')),
@@ -120,12 +120,19 @@ export function StudentAssignmentForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px] glass-card">
         <DialogHeader>
-          <DialogTitle>Asignar a Estudiante</DialogTitle>
-          <DialogDescription>
-            Asigna una netbook a un estudiante de una escuela.
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+              <GraduationCap className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle>Asignar a Estudiante</DialogTitle>
+              <DialogDescription>
+                Asigna una netbook a un estudiante de una escuela.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid gap-4 py-4">
@@ -138,10 +145,13 @@ export function StudentAssignmentForm({
                 placeholder="INT001"
                 {...form.register('serialNumber')}
                 disabled={isSubmitting || !!initialSerial}
-                className={errors.serialNumber ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                className={cn(
+                  "transition-all duration-200 focus:ring-2",
+                  errors.serialNumber ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                )}
               />
               {errors.serialNumber && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                   <AlertCircle className="h-3 w-3" />
                   {errors.serialNumber.message}
                 </p>
@@ -157,10 +167,13 @@ export function StudentAssignmentForm({
                 placeholder="0x... (SHA256 de datos de la escuela)"
                 {...form.register('schoolHash')}
                 disabled={isSubmitting}
-                className={errors.schoolHash ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                className={cn(
+                  "transition-all duration-200 focus:ring-2 font-mono text-xs",
+                  errors.schoolHash ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                )}
               />
               {errors.schoolHash && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                   <AlertCircle className="h-3 w-3" />
                   {errors.schoolHash.message}
                 </p>
@@ -176,10 +189,13 @@ export function StudentAssignmentForm({
                 placeholder="0x... (SHA256 del ID del estudiante)"
                 {...form.register('studentHash')}
                 disabled={isSubmitting}
-                className={errors.studentHash ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                className={cn(
+                  "transition-all duration-200 focus:ring-2 font-mono text-xs",
+                  errors.studentHash ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                )}
               />
               {errors.studentHash && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                   <AlertCircle className="h-3 w-3" />
                   {errors.studentHash.message}
                 </p>
@@ -195,10 +211,13 @@ export function StudentAssignmentForm({
                 placeholder="Notas adicionales sobre la asignación..."
                 {...form.register('notes')}
                 disabled={isSubmitting}
-                className={errors.notes ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                className={cn(
+                  "transition-all duration-200 focus:ring-2",
+                  errors.notes ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                )}
               />
               {errors.notes && (
-                <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                   <AlertCircle className="h-3 w-3" />
                   {errors.notes.message}
                 </p>
@@ -206,34 +225,51 @@ export function StudentAssignmentForm({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
+            {submitStatus !== 'idle' && (
+              <div className={cn(
+                "mb-2 p-3 rounded-lg text-sm flex items-center gap-2 w-full animate-fade-in",
+                submitStatus === 'success'
+                  ? 'bg-success/10 text-success border border-success/20'
+                  : 'bg-destructive/10 text-destructive border border-destructive/20'
+              )}>
+                {submitStatus === 'success' ? (
+                  <Check className="h-4 w-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                )}
+                {submitStatus === 'success' ? 'Asignación registrada' : 'Error al procesar'}
+              </div>
+            )}
             <Button
               type="button"
               variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
+              className="transition-all duration-200"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={!isValid || isSubmitting}
-              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600"
+              className={cn(
+                "transition-all duration-300 shadow-md hover:shadow-lg",
+                "bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600"
+              )}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {submitStatus === 'success' ? 'Éxito' : 'Procesando...'}
+                  Procesando...
+                </>
+              ) : submitStatus === 'success' ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Completado
                 </>
               ) : (
-                <>
-                  {submitStatus === 'success' ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Completado
-                    </>
-                  ) : 'Asignar Estudiante'}
-                </>
+                'Asignar Estudiante'
               )}
             </Button>
           </DialogFooter>

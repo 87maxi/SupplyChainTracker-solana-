@@ -14,10 +14,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Check, AlertCircle, Plus, Trash2, Package } from 'lucide-react';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
+import { cn } from '@/lib/utils';
 
 // Define el esquema de validación para una sola netbook
 const netbookSchema = z.object({
@@ -128,28 +128,44 @@ export function NetbookForm({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto glass-card">
         <DialogHeader>
-          <DialogTitle>Registrar Netbooks</DialogTitle>
-          <DialogDescription>
-            Registra una o más netbooks en el sistema de trazabilidad.
-          </DialogDescription>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+              <Package className="h-5 w-5" />
+            </div>
+            <div>
+              <DialogTitle>Registrar Netbooks</DialogTitle>
+              <DialogDescription>
+                Registra una o más netbooks en el sistema de trazabilidad.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid gap-4 py-4">
             {/* Lista de netbooks */}
             <div className="space-y-4">
               {fields.map((field, index) => (
-                <div key={field.id} className="p-4 border rounded-lg space-y-4 bg-secondary/20">
+                <div key={field.id} className={cn(
+                  "p-4 border rounded-xl space-y-4 transition-all duration-300 animate-spring-in",
+                  "bg-gradient-to-br from-secondary/30 to-card border-border/50",
+                  "hover:border-primary/20 hover:shadow-md"
+                )}>
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium">Netbook {index + 1}</h4>
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-md bg-primary/10 text-primary text-xs font-bold">
+                        {index + 1}
+                      </div>
+                      <h4 className="text-sm font-semibold">Netbook {index + 1}</h4>
+                    </div>
                     {fields.length > 1 && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => remove(index)}
-                        className="h-8 w-8 text-red-500 hover:text-red-700"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                         disabled={isSubmitting}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -167,10 +183,13 @@ export function NetbookForm({
                         {...form.register(`netbooks.${index}.serialNumber` as const)}
                         placeholder="INT001"
                         disabled={isSubmitting}
-                        className={errors.netbooks?.[index]?.serialNumber ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                        className={cn(
+                          "transition-all duration-200 focus:ring-2",
+                          errors.netbooks?.[index]?.serialNumber ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                        )}
                       />
                       {errors.netbooks?.[index]?.serialNumber && (
-                        <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                        <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                           <AlertCircle className="h-3 w-3" />
                           {errors.netbooks[index].serialNumber.message}
                         </p>
@@ -186,10 +205,13 @@ export function NetbookForm({
                         {...form.register(`netbooks.${index}.batchId` as const)}
                         placeholder="BATCH-001"
                         disabled={isSubmitting}
-                        className={errors.netbooks?.[index]?.batchId ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                        className={cn(
+                          "transition-all duration-200 focus:ring-2",
+                          errors.netbooks?.[index]?.batchId ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                        )}
                       />
                       {errors.netbooks?.[index]?.batchId && (
-                        <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                        <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                           <AlertCircle className="h-3 w-3" />
                           {errors.netbooks[index].batchId.message}
                         </p>
@@ -205,10 +227,13 @@ export function NetbookForm({
                         {...form.register(`netbooks.${index}.initialModelSpecs` as const)}
                         placeholder="Intel i5, 8GB RAM"
                         disabled={isSubmitting}
-                        className={errors.netbooks?.[index]?.initialModelSpecs ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                        className={cn(
+                          "transition-all duration-200 focus:ring-2",
+                          errors.netbooks?.[index]?.initialModelSpecs ? 'border-destructive focus-visible:ring-destructive/30' : 'focus:ring-primary/30'
+                        )}
                       />
                       {errors.netbooks?.[index]?.initialModelSpecs && (
-                        <p className="text-sm text-red-500 flex items-center gap-1 mt-1">
+                        <p className="text-xs text-destructive flex items-center gap-1 mt-1 animate-shake">
                           <AlertCircle className="h-3 w-3" />
                           {errors.netbooks[index].initialModelSpecs.message}
                         </p>
@@ -226,16 +251,26 @@ export function NetbookForm({
               size="sm"
               onClick={() => append({ serialNumber: '', batchId: '', initialModelSpecs: '' })}
               disabled={isSubmitting}
-              className="w-full"
+              className="w-full border-dashed hover:bg-primary/5 hover:border-primary/30 transition-all duration-200"
             >
               <Plus className="mr-2 h-4 w-4" />
               Agregar otra netbook
             </Button>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             {submitMessage && (
-              <div className={`mb-2 p-2 rounded ${submitMessage.startsWith('Error:') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+              <div className={cn(
+                "mb-2 p-3 rounded-lg text-sm flex items-center gap-2 w-full animate-fade-in",
+                submitMessage.startsWith('Error:')
+                  ? 'bg-destructive/10 text-destructive border border-destructive/20'
+                  : 'bg-success/10 text-success border border-success/20'
+              )}>
+                {submitMessage.startsWith('Error:') ? (
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                ) : (
+                  <Check className="h-4 w-4 shrink-0" />
+                )}
                 {submitMessage}
               </div>
             )}
@@ -244,13 +279,17 @@ export function NetbookForm({
               variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
+              className="transition-all duration-200"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
+              className={cn(
+                "transition-all duration-300 shadow-md hover:shadow-lg",
+                "bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+              )}
             >
               {isSubmitting ? (
                 <>

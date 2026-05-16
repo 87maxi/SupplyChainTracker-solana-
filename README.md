@@ -2,7 +2,7 @@
 
 > **Trazabilidad Inmutable para la Educación** — Plataforma blockchain para rastrear la distribución de netbooks educativas en Solana.
 
-[![Solana](https://img.shields.io/badge/blocks-solana-blue)](https://solana.com)
+[![Solana](https://img.shields.io/blocks-solana-blue)](https://solana.com)
 [![Anchor](https://img.shields.io/badge/framework-anchor-orange)](https://www.anchor-lang.com)
 [![Next.js](https://img.shields.io/badge/frontend-next.js-black)](https://nextjs.org)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -12,24 +12,31 @@
 ## Tabla de Contenidos
 
 1. [Overview](#overview)
-2. [Solana Anchor Program](#solana-anchor-program)
+2. [Quick Start](#quick-start)
+3. [Development Setup](#development-setup)
+   - [Prerequisites](#prerequisites)
+   - [Step-by-Step Installation](#step-by-step-installation)
+   - [Local Development with Surfpool](#local-development-with-surfpool)
+   - [Environment Configuration](#environment-configuration)
+   - [Account Management for RBAC](#account-management-for-rbac)
+   - [Development Workflow](#development-workflow)
+4. [Solana Anchor Program](#solana-anchor-program)
    - [Program ID](#program-id)
    - [State Accounts](#state-accounts)
    - [Netbook State Machine](#netbook-state-machine)
    - [Instructions](#instructions)
    - [Events](#events)
    - [Errors](#errors)
-3. [Frontend Web Application](#frontend-web-application)
+5. [Frontend Web Application](#frontend-web-application)
    - [Technology Stack](#technology-stack)
    - [Directory Structure](#directory-structure)
    - [Pages & Routes](#pages--routes)
    - [Hooks Architecture](#hooks-architecture)
    - [Services Layer](#services-layer)
    - [Components Library](#components-library)
-4. [Development Setup](#development-setup)
-5. [Testing](#testing)
-6. [Deployment](#deployment)
-7. [Troubleshooting](#troubleshooting)
+6. [Testing](#testing)
+7. [Deployment](#deployment)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -113,6 +120,358 @@ sequenceDiagram
         P-->>A: RoleRevoked event
     end
 ```
+
+---
+
+## Quick Start
+
+Get the full system running locally in 5 minutes:
+
+```bash
+# 1. Clone and install
+git clone https://github.com/87maxi/SupplyChainTracker-solana-.git
+cd SupplyChainTracker-solana-
+
+# 2. Build Solana program
+cd sc-solana && anchor build --ignore-keys && cd ..
+
+# 3. Start Surfpool (local Solana validator)
+surfpool start
+
+# 4. Deploy and initialize program
+txtx run sc-solana/runbooks/01-deployment/full-init.tx
+
+# 5. Start frontend
+cd web && cp .env.example .env.local && npm install && npm run dev
+
+# 6. Open http://localhost:3000
+```
+
+---
+
+## Development Setup
+
+### Prerequisites
+
+| Tool | Version | Purpose | Installation |
+|------|---------|---------|--------------|
+| Rust | 1.75+ (stable) | Solana program compilation | [`rustup`](https://rustup.rs/) |
+| Anchor CLI | 0.32.1 | Solana program framework | `cargo install --locked anchor-cli --version 0.32.1` |
+| Node.js | 20 LTS | Frontend development | [`nvm`](https://github.com/nvm-sh/nvm) or [nodejs.org](https://nodejs.org) |
+| npm | 10+ | Package manager | Bundled with Node.js |
+| Solana CLI | 2.1.18 | Solana validator & tools | [`sh -c "$(curl -sSfL https://release.solana.com/stable/install)"`](https://docs.solana.com/cli/install-solana-cli-tools) |
+| Surfpool | Latest | Local deployment system | `npm install -g @surfpool/cli` |
+| txtx | Latest | Runbook execution engine | `cargo install txtx-cli --locked` |
+
+### Step-by-Step Installation
+
+#### 1. Clone the Repository
+
+```bash
+git clone https://github.com/87maxi/SupplyChainTracker-solana-.git
+cd SupplyChainTracker-solana-
+```
+
+#### 2. Install Solana Tools
+
+```bash
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+rustup update stable
+
+# Install Anchor CLI (version 0.32.1 required)
+cargo install --locked anchor-cli --version 0.32.1
+
+# Install Solana CLI (version 2.1.18)
+sh -c "$(curl -sSfL https://release.solana.com/v2.1.18/install)"
+source ~/.local/share/solana/install/active_solana/env
+
+# Install Surfpool CLI
+npm install -g @surfpool/cli
+
+# Install txtx runbook runner
+cargo install txtx-cli --locked
+
+# Verify installations
+anchor --version        # Should show 0.32.1
+solana --version        # Should show 2.1.18
+surfpool --version
+txtx --version
+cargo --version
+```
+
+#### 3. Build the Solana Program
+
+```bash
+cd sc-solana
+
+# Build the program (compiles Rust + generates IDL)
+# --ignore-keys skips keypair validation (uses existing program ID)
+anchor build --ignore-keys
+
+# This produces:
+# - target/deploy/sc_solana.so        (program binary)
+# - target/idl/sc_solana.json         (IDL for Surfpool/txtx)
+
+# Verify build
+ls -la target/deploy/
+ls -la target/idl/
+
+# Run Mollusk unit tests (no validator needed)
+cd programs/sc-solana
+cargo test --test mollusk-tests        # PDA derivation, discriminators
+cargo test --test mollusk-lifecycle    # Full state machine
+cargo test --test compute-units        # CU measurement
+```
+
+#### 4. Configure Environment Variables
+
+```bash
+# Navigate to web directory
+cd ../web
+
+# Create local environment file
+cp .env.example .env.local
+
+# Edit .env.local with your configuration
+nano .env.local
+```
+
+**Required Environment Variables (`.env.local`):**
+
+```bash
+# Solana Local Validator (Surfpool)
+NEXT_PUBLIC_RPC_URL=http://localhost:8899
+NEXT_PUBLIC_WS_URL=ws://localhost:8900
+NEXT_PUBLIC_CLUSTER=localnet
+NEXT_PUBLIC_NETWORK=localnet
+
+# Program ID - MUST match declare_id!() in lib.rs
+NEXT_PUBLIC_PROGRAM_ID=7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
+
+# WalletConnect (optional - for Phantom mobile)
+# NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+
+# Debug (optional)
+# NEXT_PUBLIC_DEBUG_MODE=true
+```
+
+**Environment Profiles:**
+
+| Profile | RPC URL | Cluster | Use Case |
+|---------|---------|---------|----------|
+| Localnet | `http://localhost:8899` | `localnet` | Development with Surfpool |
+| Devnet | `https://api.devnet.solana.com` | `devnet` | Testing on Solana devnet |
+| Mainnet | `https://api.mainnet-beta.solana.com` | `mainnet` | Production |
+
+#### 5. Install Frontend Dependencies
+
+```bash
+# Install all dependencies
+npm install
+
+# Verify installation
+npm list --depth=0
+```
+
+#### 6. Generate Codama Types (if needed)
+
+```bash
+# Codama types are committed to the repo, but regenerate if program changes:
+cd ../sc-solana
+npx codama run --all
+# This generates TypeScript types in ../web/src/generated/
+```
+
+### Local Development with Surfpool
+
+Surfpool provides a managed local Solana simulator (Simnet) that eliminates the need for manual validator management.
+
+#### Start Surfpool Simnet
+
+```bash
+# Start Surfpool (local Solana validator)
+surfpool start
+
+# Simnet runs on:
+# - RPC: http://localhost:8899
+# - WebSocket: ws://localhost:8900
+
+# Verify Simnet is running
+solana balance --url http://localhost:8899
+```
+
+#### Deploy and Initialize Program
+
+```bash
+# Method 1: Full initialization (deploy + fund + initialize + grant roles)
+txtx run sc-solana/runbooks/01-deployment/full-init.tx
+
+# Method 2: Step-by-step
+# Step 1: Deploy program
+txtx run sc-solana/runbooks/01-deployment/deploy-program.tx
+
+# Step 2: Fund deployer PDA
+txtx run sc-solana/runbooks/01-deployment/fund-deployer.tx
+
+# Step 3: Initialize config
+txtx run sc-solana/runbooks/01-deployment/initialize-config.tx
+
+# Step 4: Grant roles to pre-generated keypairs
+txtx run sc-solana/runbooks/01-deployment/grant-all-to-deployer.tx
+```
+
+#### Verify Deployment
+
+```bash
+# Check program is deployed
+solana program show --program-id 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb \
+  --url http://localhost:8899
+
+# Query config using txtx
+txtx run sc-solana/runbooks/02-operations/query/query-config.tx
+
+# List available runbooks
+txtx ls sc-solana/runbooks/
+```
+
+#### Start Frontend Development Server
+
+```bash
+cd web
+npm run dev
+
+# The frontend runs on:
+# - HTTP: http://localhost:3000
+# - The server will hot-reload on file changes
+```
+
+#### Stop Surfpool When Done
+
+```bash
+surfpool stop
+```
+
+**Surfpool vs solana-test-validator:**
+
+| Feature | Surfpool | solana-test-validator |
+|---------|----------|----------------------|
+| Setup | Single command (`surfpool start`) | Manual config + keypair funding |
+| Program Deployment | Automatic via runbooks | Manual (`anchor deploy`) |
+| Explorer | Built-in (if available) | None |
+| State Persistence | Managed via `.surfpool/` | Ledger directory |
+| MCP Server | `surfpool mcp` | N/A |
+| Recommended | ✅ Yes | Manual setups only |
+
+**Troubleshooting Surfpool:**
+
+```bash
+# If you get "Address already in use" error:
+lsof -ti:8899 | xargs kill -9
+surfpool start
+
+# Check Surfpool logs
+cat .surfpool/logs/simnet_*.log
+
+# Verify Simnet is running
+solana balance --url http://localhost:8899
+```
+
+### Account Management for RBAC
+
+The RBAC (Role-Based Access Control) system requires Solana accounts (keypairs) to be created and funded before roles can be assigned.
+
+#### Pre-generated Keypairs
+
+The project includes pre-generated keypairs for each role in `config/keypairs/`:
+
+| Role | Keypair File | Address |
+|------|-------------|---------|
+| Admin | `config/keypairs/admin_new.json` | `GdbFCcdZ2hBzx9PXLkXchBHx9EcZYLVeHbrXxtACmNTg` |
+| Fabricante | `config/keypairs/fabricante.json` | `HrhY7bqE3EwabHHZKU3yqShrtkqWfbYoLt3HfVofggeK` |
+| Auditor HW | `config/keypairs/auditor_hw.json` | `AfB2jE6T3mSq3ijWQ7EX51RpphWuoY9PpEnu2BK2j86D` |
+| Tecnico SW | `config/keypairs/tecnico_sw.json` | `3pmKDqD4oTzHR8djXpfXPpwp71d5kFfHFQmxG41tApKf` |
+| Escuela | `config/keypairs/escuela.json` | `7RXymetjyToHhMZfRdeQz6u5KHQPrpvVoyquAExcdhay` |
+
+#### Funding Accounts (Localnet)
+
+```bash
+# Airdrop SOL to all pre-generated keypairs
+for keypair in config/keypairs/*.json; do
+  addr=$(solana address --keypair "$keypair")
+  echo "Airdropping 10 SOL to $addr ($keypair)"
+  solana airdrop 10 "$addr" --url http://localhost:8899
+done
+```
+
+#### Loading Keypairs into Phantom Wallet
+
+1. **Export the private key**:
+   ```bash
+   cat config/keypairs/admin_new.json
+   ```
+
+2. **Import into Phantom**:
+   - Open Phantom Wallet extension
+   - Settings → Security & Privacy → Import Existing Wallet
+   - Choose "Secret Recovery Phrase" or "Raw Key"
+   - Paste the private key from the JSON file
+
+3. **Connect to the dApp**:
+   - Navigate to `http://localhost:3000`
+   - Click "Connect Wallet"
+   - Select the imported account from Phantom
+
+#### Assigning Roles via Admin Dashboard
+
+1. Navigate to **Admin Dashboard**: `http://localhost:3000/admin`
+2. Go to **Pending Role Requests**: `http://localhost:3000/admin/roles/pending-requests`
+3. Review pending role requests from users
+4. Click **Approve** or **Reject** on each request
+5. Confirm the transaction in Phantom wallet
+
+#### Programmatic Role Assignment (txtx)
+
+```bash
+cd sc-solana
+
+# Grant a role to an account
+txtx run runbooks/03-role-management/add-role-holder.tx \
+  --role FABRICANTE \
+  --holder HrhY7bqE3EwabHHZKU3yqShrtkqWfbYoLt3HfVofggeK
+
+# Request a role (as the user)
+txtx run runbooks/03-role-management/request-role.tx \
+  --role AUDITOR_HW
+```
+
+### Development Workflow
+
+```mermaid
+graph LR
+    Surfpool["Terminal 1<br/>surfpool start"] -->|RPC:8899| Frontend["Frontend<br/>localhost:3000"]
+    NpmDev["Terminal 2<br/>npm run dev"] -->|RPC:8899| Frontend
+    Frontend -->|Transactions| Program["sc_solana Program<br/>deployed on localnet"]
+
+    Dev["Developer"] -->|anchor build| Program
+    Dev -->|npm run dev| Frontend
+    Dev -->|txtx run| Program
+
+    classDef terminal fill:#f97316,stroke:#c2410c,color:#fff
+    classDef service fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    class Surfpool,NpmDev terminal
+    class Frontend,Program service
+```
+
+### Recommended Terminal Layout
+
+| Terminal | Command | Purpose |
+|----------|---------|---------|
+| 1 | `surfpool start` | Local Solana validator (Surfpool) |
+| 2 | `cd web && npm run dev` | Frontend dev server |
+| 3 | `cd sc-solana && anchor build --watch` | Program build watcher |
+| 4 | `cd sc-solana && cargo test` | Run tests on demand |
 
 ---
 
@@ -398,102 +757,50 @@ graph TD
 
 El programa emite 18 eventos organizados en 3 categorías:
 
-```mermaid
-graph LR
-    subgraph NetbookEvents["Netbook Events"]
-        NB1[NetbookRegistered]
-        NB2[HardwareAudited]
-        NB3[SoftwareValidated]
-        NB4[NetbookAssigned]
-        NB5[NetbooksRegistered]
-    end
+#### Netbook Events
+| Event | Fields | Description |
+|-------|--------|-------------|
+| `NetbookRegistered` | serial_number, batch_id, token_id | Netbook registered |
+| `HardwareAudited` | serial_number, auditor, passed, report_hash | Hardware audit completed |
+| `SoftwareValidated` | serial_number, technician, os_version, passed | Software validation completed |
+| `NetbookAssigned` | serial_number, school_hash, student_hash, timestamp | Netbook assigned to student |
 
-    subgraph RoleEvents["Role Events"]
-        RE1[RoleRequested]
-        RE2[RoleRequestUpdated]
-        RE3[RoleGranted]
-        RE4[RoleRevoked]
-        RE5[RoleHolderAdded]
-        RE6[RoleHolderRemoved]
-        RE7[AdminTransferred]
-    end
+#### Role Events
+| Event | Fields | Description |
+|-------|--------|-------------|
+| `RoleGranted` | role, account, granted_by | Role granted to account |
+| `RoleRevoked` | role, account, revoked_by | Role revoked from account |
+| `RoleRequested` | role, user, request_id | Role request created |
+| `RoleRequestApproved` | role, user, request_id | Role request approved |
+| `RoleRequestRejected` | role, user, request_id | Role request rejected |
 
-    subgraph QueryEvents["Query Events"]
-        QE1[NetbookStateQuery]
-        QE2[ConfigQuery]
-        QE3[RoleQuery]
-    end
-
-    NetbookEvents -.->|Emitted by| Program["sc_solana Program"]
-    RoleEvents -.->|Emitted by| Program
-    QueryEvents -.->|Emitted by| Program
-
-    classDef nb fill:#22c55e,stroke:#16a34a,color:#fff
-    classDef role fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    classDef query fill:#a855f7,stroke:#9333ea,color:#fff
-    class NB1,NB2,NB3,NB4,NB5 nb
-    class RE1,RE2,RE3,RE4,RE5,RE6,RE7 role
-    class QE1,QE2,QE3 query
-```
-
-#### Event Details
-
-**Netbook Events** (`netbook_events.rs`):
-| Event | Fields |
-|-------|--------|
-| `NetbookRegistered` | serial_number, batch_id, token_id |
-| `HardwareAudited` | serial_number, passed |
-| `SoftwareValidated` | serial_number, os_version, passed |
-| `NetbookAssigned` | serial_number |
-| `NetbooksRegistered` | count, start_token_id, timestamp |
-
-**Role Events** (`role_events.rs`):
-| Event | Fields |
-|-------|--------|
-| `RoleRequested` | id, user, role |
-| `RoleRequestUpdated` | id, status |
-| `RoleGranted` | role, account, admin, timestamp |
-| `RoleRevoked` | role, account |
-| `RoleHolderAdded` | role, account, admin, timestamp |
-| `RoleHolderRemoved` | role, account, admin, timestamp |
-| `AdminTransferred` | previous_admin, new_admin, timestamp |
-
-**Query Events** (`query_events.rs`):
-| Event | Fields |
-|-------|--------|
-| `NetbookStateQuery` | serial_number, state, token_id, exists |
-| `ConfigQuery` | admin, fabricante, auditor_hw, tecnico_sw, escuela, next_token_id, total_netbooks, role_requests_count, *_count |
-| `RoleQuery` | account, role, has_role |
+#### System Events
+| Event | Fields | Description |
+|-------|--------|-------------|
+| `ConfigInitialized` | admin, bump | Config account initialized |
+| `AdminTransferred` | old_admin, new_admin | Admin role transferred |
+| `DeployerFunded` | amount | Deployer PDA funded |
+| `DeployerClosed` | amount_returned | Deployer PDA closed |
 
 ### Errors
 
-El programa define 15 error codes (range 6000-6014):
-
-```mermaid
-graph LR
-    Error["SupplyChainError<br/>(error_code)"] --> E1["6000 Unauthorized"]
-    Error --> E2["6001 InvalidStateTransition"]
-    Error --> E3["6002 NetbookNotFound"]
-    Error --> E4["6003 InvalidInput"]
-    Error --> E5["6004 DuplicateSerial"]
-    Error --> E6["6005 ArrayLengthMismatch"]
-    Error --> E7["6006 RoleAlreadyGranted"]
-    Error --> E8["6007 RoleNotFound"]
-    Error --> E9["6008 InvalidSignature"]
-    Error --> E10["6009 EmptySerial"]
-    Error --> E11["6010 StringTooLong"]
-    Error --> E12["6011 MaxRoleHoldersReached"]
-    Error --> E13["6012 RoleHolderNotFound"]
-    Error --> E14["6013 InvalidRequestState"]
-    Error --> E15["6014 RateLimited"]
-
-    classDef auth fill:#ef4444,stroke:#b91c1c,color:#fff
-    classDef data fill:#f97316,stroke:#c2410c,color:#fff
-    classDef role fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    class E1,E8,E9 auth
-    class E2,E3,E4,E5,E6,E10,E11 data
-    class E7,E12,E13,E14,E14 role
-```
+| Code | Name | Description |
+|------|------|-------------|
+| 6000 | `InvalidStateTransition` | Invalid state transition for netbook |
+| 6001 | `UnauthorizedRole` | Caller does not have required role |
+| 6002 | `SerialAlreadyRegistered` | Serial number already exists |
+| 6003 | `NetbookNotFound` | Netbook account not found |
+| 6004 | `RoleAlreadyGranted` | Role already granted to account |
+| 6005 | `RoleRequestCooldown` | Role request cooldown active (60s) |
+| 6006 | `MaxRoleHoldersReached` | Maximum role holders (100) reached |
+| 6007 | `InvalidRole` | Invalid role type |
+| 6008 | `ConfigNotInitialized` | Config account not initialized |
+| 6009 | `DeployerNotFunded` | Deployer PDA not funded |
+| 6010 | `BatchTooLarge` | Batch size exceeds maximum |
+| 6011 | `StringTooLong` | String exceeds maximum length |
+| 6012 | `InvalidHash` | Invalid hash format |
+| 6013 | `RoleRequestNotFound` | Role request not found |
+| 6014 | `RoleRequestAlreadyProcessed` | Role request already processed |
 
 ---
 
@@ -501,603 +808,114 @@ graph LR
 
 ### Technology Stack
 
-| Layer | Technology | Version |
-|-------|------------|---------|
-| Framework | Next.js | 16.0.10 |
-| Language | TypeScript (strict mode) | Latest |
-| UI Library | React | 19.2.3 |
-| Styling | Tailwind CSS | Latest |
-| Component Library | shadcn/ui + Radix UI | Latest |
-| Solana SDK | @solana/web3.js | ^1.98.0 |
-| Anchor SDK | @coral-xyz/anchor | ^0.32.0 |
-| Wallet Adapter | @solana/wallet-adapter-react/ui | Latest |
-| State Management | TanStack React Query + Table | Latest |
-| Testing (Unit) | Jest + Testing Library | Latest |
-| Testing (E2E) | Playwright | Latest |
-| Linting | ESLint | Latest |
+| Category | Technology | Version | Purpose |
+|----------|-----------|---------|---------|
+| Framework | Next.js | 14+ (App Router) | Full-stack React framework |
+| Language | TypeScript | 5.7+ | Type-safe development |
+| Styling | Tailwind CSS | 3+ | Utility-first CSS framework |
+| UI Components | shadcn/ui | Latest | Accessible component library |
+| Solana Client | @solana/kit | 6.9+ | Modern Solana client |
+| React Hooks | @solana/react-hooks | Latest | Solana wallet hooks |
+| Wallet | Wallet Standard | Latest | Wallet connection (Phantom, etc.) |
+| State | React Hooks + Zustand | - | Client state management |
+| Forms | react-hook-form + zod | Latest | Form validation |
+| Testing | Jest + Playwright | Latest | Unit + E2E testing |
+| Code Generation | Codama | Latest | TypeScript types from Anchor IDL |
 
 ### Directory Structure
 
 ```
 web/
-├── .env                    # Environment variables (needs Solana config)
-├── .env.local              # Local environment overrides
-├── EXAMPLE.env             # Example with Solana configuration
-├── next.config.mjs         # Next.js configuration
-├── tailwind.config.js      # Tailwind CSS configuration
-├── postcss.config.mjs      # PostCSS configuration
-├── tsconfig.json           # TypeScript configuration
-├── playwright.config.ts    # Playwright E2E configuration
-├── jest.config.js          # Jest unit test configuration
-├── jest.setup.js           # Jest setup file
-├── components.json         # shadcn/ui configuration
-├── eslint.config.mjs       # ESLint configuration
-├── role-requests.json      # Role requests data
-│
-├── public/                 # Static assets
-│   ├── file.svg
-│   ├── globe.svg
-│   ├── next.svg
-│   ├── vercel.svg
-│   ├── window.svg
-│   └── health-check.txt
-│
-├── e2e/                    # Playwright E2E tests
-│   ├── dashboard.spec.ts
-│   ├── full-user-flow.spec.ts
-│   ├── homepage.spec.ts
-│   ├── netbook-registration.spec.ts
-│   ├── role-management.spec.ts
-│   ├── wallet-connection.spec.ts
-│   ├── helpers/
-│   │   └── test-utils.ts
-│   └── README.md
-│
-├── playwright-report/      # Test reports
-│   └── index.html
-│
-├── scripts/                # Test scripts
-│   ├── run-all-tests.sh
-│   ├── run-e2e-tests.sh
-│   └── run-unit-tests.sh
-│
-└── src/
-    ├── app/                # Next.js App Router (pages)
-    ├── components/         # React components
-    ├── hooks/              # Custom React hooks
-    ├── lib/                # Utilities and configuration
-    └── services/           # Business logic services
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── layout.tsx          # Root layout with providers
+│   │   ├── page.tsx            # Landing page
+│   │   ├── dashboard/          # Dashboard pages
+│   │   │   ├── page.tsx        # Main dashboard
+│   │   │   └── components/     # Dashboard components
+│   │   │       ├── RoleActions.tsx
+│   │   │       ├── StatusBadge.tsx
+│   │   │       └── TrackingCard.tsx
+│   │   └── admin/              # Admin pages
+│   │       └── components/     # Admin components
+│   ├── components/             # Shared components
+│   │   ├── contracts/          # Blockchain interaction forms
+│   │   │   ├── NetbookForm.tsx
+│   │   │   ├── HardwareAuditForm.tsx
+│   │   │   ├── SoftwareValidationForm.tsx
+│   │   │   └── StudentAssignmentForm.tsx
+│   │   ├── real-time/          # Real-time components
+│   │   │   └── ConnectionIndicator.tsx
+│   │   └── ui/                 # shadcn/ui components
+│   ├── generated/              # Codama-generated types (committed)
+│   │   └── src/generated/      # TypeScript types from Anchor IDL
+│   │       ├── accounts/       # Account type definitions
+│   │       ├── instructions/   # Instruction builders
+│   │       ├── pdas/           # PDA derivation helpers
+│   │       ├── programs/       # Program definitions
+│   │       └── errors/         # Error definitions
+│   ├── hooks/                  # Custom React hooks
+│   │   ├── useSupplyChainService.ts
+│   │   └── useSolanaWeb3.ts
+│   ├── lib/                    # Utilities
+│   │   ├── activity-logger.ts  # In-memory activity logger
+│   │   ├── cache/              # Cache service
+│   │   │   └── cache-service.ts
+│   │   └── contracts/          # Contract integration
+│   │       ├── SupplyChainContract.ts
+│   │       └── solana-program.ts
+│   ├── services/               # Service layer
+│   │   └── UnifiedSupplyChainService.ts
+│   └── types/                  # TypeScript type definitions
+├── e2e/                        # Playwright E2E tests
+│   ├── full-flow.spec.ts
+│   └── playwright.config.ts
+├── public/                     # Static assets
+├── .env.local                  # Local environment variables
+├── .env.ci                     # CI environment variables
+├── next.config.js              # Next.js configuration
+├── tailwind.config.ts          # Tailwind CSS configuration
+└── tsconfig.json               # TypeScript configuration
 ```
 
 ### Pages & Routes
 
-```mermaid
-graph TD
-    Root["Root Layout<br/>(layout.tsx)"] --> Home["<code>/</code><br/>Home/Landing"]
-    Root --> Dashboard["<code>/dashboard</code><br/>Main Dashboard"]
-    Root --> Admin["<code>/admin</code><br/>Admin Panel"]
-    Root --> Tokens["<code>/tokens</code><br/>Token Listing"]
-    Root --> Transfers["<code>/transfers</code><br/>Transfer Management"]
-
-    Admin --> Analytics["<code>/admin/analytics</code><br/>Analytics"]
-    Admin --> Audit["<code>/admin/audit</code><br/>Audit"]
-    Admin --> Roles["<code>/admin/roles</code><br/>Role Management"]
-    Admin --> Settings["<code>/admin/settings</code><br/>Settings"]
-
-    Roles --> Pending["<code>/admin/roles/pending-requests</code><br/>Pending Requests"]
-
-    Tokens --> TokenDetail["<code>/tokens/[id]</code><br/>Token Detail"]
-    Tokens --> TokenCreate["<code>/tokens/create</code><br/>Create Token"]
-
-    classDef layout fill:#f97316,stroke:#c2410c,color:#fff
-    classDef page fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    class Root layout
-    class Home,Dashboard,Admin,Tokens,Transfers,Analytics,Audit,Roles,Settings,Pending,TokenDetail,TokenCreate page
-```
-
-#### Page Components
-
-| Route | Main Component | Key Sub-components |
-|-------|---------------|-------------------|
-| `/` | `page.tsx` | Hero, FeatureCard, WalletMultiButton |
-| `/dashboard` | `dashboard/page.tsx` | NetbookDataTable, UserDataTable, NetbookStats, RoleActions, PendingRoleApprovals |
-| `/admin` | `admin/page.tsx` | AdminClient, ActivityLogs, DashboardMetrics, DataManagementPanel, UsersList |
-| `/admin/analytics` | `admin/analytics/page.tsx` | AnalyticsChart, DateRangeSelector, ReportGenerator, PeriodSummary |
-| `/admin/audit` | `admin/audit/page.tsx` | AuditTimeline |
-| `/admin/roles/pending-requests` | `pending-requests/page.tsx` | EnhancedPendingRoleRequests |
-| `/admin/settings` | `admin/settings/page.tsx` | Settings panel |
-| `/tokens` | `tokens/page.tsx` | Token listing |
-| `/tokens/[id]` | `tokens/[id]/page.tsx` | Token detail view |
-| `/tokens/create` | `tokens/create/page.tsx` | Create token form |
-| `/transfers` | `transfers/page.tsx` | Transfer management |
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/` | Landing Page | Welcome page with features overview |
+| `/dashboard` | ManagerDashboard | Main dashboard with netbook tracking |
+| `/admin` | AdminDashboard | Admin panel for role management |
+| `/admin/roles/pending-requests` | PendingRequests | Role request approval/rejection |
 
 ### Hooks Architecture
 
-```mermaid
-graph TD
-    Solana["useSolanaWeb3<br/>Wallet connection"] --> Service["useSupplyChainService<br/>Program interface"]
-
-    Service --> DataFetch["Data Fetching"]
-    DataFetch --> FetchNB["useFetchNetbooks"]
-    DataFetch --> FetchU["useFetchUsers"]
-    DataFetch --> StatsNB["useNetbookStats"]
-    DataFetch --> StatsU["useUserStats"]
-    DataFetch --> Processed["useProcessedUserAndNetbookData"]
-
-    Service --> RoleMgmt["Role Management"]
-    RoleMgmt --> RoleData["useRoleData"]
-    RoleMgmt --> RoleReq["useRoleRequests"]
-    RoleMgmt --> UserRoles["useUserRoles"]
-    RoleMgmt --> RoleCalls["useRoleCallsManager"]
-
-    Service --> Tx["useTransaction<br/>Transaction tracking"]
-
-    Solana --> Safe["useSafeWallet<br/>Safe Wallet support"]
-    Solana --> Web3["useWeb3<br/>Legacy hook"]
-
-    Service --> Cached["useCachedData<br/>Cache utility"]
-
-    UI["UI/UX Hooks"] --> Toast["useToast"]
-    UI --> Notif["useNotifications"]
-    UI --> Analytics["useAnalyticsData"]
-
-    classDef core fill:#f97316,stroke:#c2410c,color:#fff
-    classDef data fill:#22c55e,stroke:#16a34a,color:#fff
-    classDef role fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    classDef ui fill:#a855f7,stroke:#9333ea,color:#fff
-    class Solana,Service core
-    class FetchNB,FetchU,StatsNB,StatsU,Processed,Cached data
-    class RoleData,RoleReq,UserRoles,RoleCalls role
-    class Toast,Notif,Analytics ui
-```
-
-#### Hooks Reference
-
-| Hook | Category | Purpose |
-|------|----------|---------|
-| `useSolanaWeb3()` | Solana Core | Wallet connection & state |
-| `useSupplyChainService()` | Solana Core | Program interaction wrapper |
-| `useWeb3()` | Solana Core | Legacy Web3 hook |
-| `useSafeWallet()` | Solana Core | Safe Wallet support |
-| `useTransaction()` | Solana Core | Transaction tracking |
-| `useFetchNetbooks()` | Data Fetching | Fetch netbooks from chain |
-| `useFetchUsers()` | Data Fetching | Fetch users data |
-| `useNetbookStats()` | Data Fetching | Netbook statistics |
-| `useUserStats()` | Data Fetching | User statistics |
-| `useProcessedUserAndNetbookData()` | Data Fetching | Processed combined data |
-| `useCachedData()` | Data Fetching | Cached data utility |
-| `useRoleData()` | Role Management | Role data fetching |
-| `useRoleRequests()` | Role Management | Role request management |
-| `useUserRoles()` | Role Management | User roles query |
-| `useRoleCallsManager()` | Role Management | Role call orchestration |
-| `useToast()` | UI/UX | Toast notifications |
-| `useNotifications()` | UI/UX | Notification management |
-| `useAnalyticsData()` | UI/UX | Analytics data |
+| Hook | Purpose |
+|------|---------|
+| `useSupplyChainService` | Main hook for all blockchain operations |
+| `useSolanaWeb3` | Solana connection and wallet management |
+| `useWallet` | Wallet connection state (@solana/react-hooks) |
 
 ### Services Layer
 
-```mermaid
-graph TD
-    Components["Components/Hooks"] --> Unified["UnifiedSupplyChainService<br/>(Singleton - Active)"]
-
-    Unified --> NetbookOps["Netbook Operations"]
-    NetbookOps --> Reg["registerNetbook()"]
-    NetbookOps --> RegBatch["registerNetbooksBatch()"]
-    NetbookOps --> Audit["auditHardware()"]
-    NetbookOps --> Validate["validateSoftware()"]
-    NetbookOps --> Assign["assignToStudent()"]
-
-    Unified --> RoleOps["Role Operations"]
-    RoleOps --> Grant["grantRole()"]
-    RoleOps --> Revoke["revokeRole()"]
-    RoleOps --> Request["requestRole()"]
-    RoleOps --> Approve["approveRoleRequest()"]
-    RoleOps --> Reject["rejectRoleRequest()"]
-
-    Unified --> QueryOps["Query Operations"]
-    QueryOps --> QNB["queryNetbookState()"]
-    QueryOps --> QCfg["queryConfig()"]
-    QueryOps --> QRole["queryRole()"]
-
-    Unified --> Events["Event Emission"]
-    Events --> E1["NetbookRegistered"]
-    Events --> E2["HardwareAudited"]
-    Events --> E3["SoftwareValidated"]
-    Events --> E4["NetbookAssigned"]
-
-    Legacy1["SolanaSupplyChainService<br/>(Deprecated)"] -.->|Delegates to| Unified
-    Legacy2["SupplyChainService<br/>(Deprecated)"] -.->|Delegates to| Unified
-
-    Other["RoleRequestService<br/>ContractRegistryService<br/>actions.ts"]
-
-    classDef active fill:#22c55e,stroke:#16a34a,color:#fff
-    classDef deprecated fill:#ef4444,stroke:#b91c1c,color:#fff
-    class Unified,Other active
-    class Legacy1,Legacy2 deprecated
-```
-
-#### Services Reference
-
-| Service | Status | Purpose |
-|---------|--------|---------|
-| `UnifiedSupplyChainService` | Active | Main Solana program interface (singleton) |
-| `SolanaSupplyChainService` | Deprecated | Legacy wrapper (delegates to Unified) |
-| `SupplyChainService` | Deprecated | Legacy service |
-| `RoleRequestService` | Active | Role request management |
-| `ContractRegistryService` | Active | Contract address registry |
-| `actions.ts` | Active | Server actions |
+| Service | Purpose |
+|---------|---------|
+| `UnifiedSupplyChainService` | Unified service for all program interactions |
+| `CacheService` | TTL-based caching with tags |
+| `ActivityLogger` | In-memory activity tracking |
+| `SolanaEventListener` | WebSocket-based real-time updates |
 
 ### Components Library
 
-```mermaid
-graph TD
-    Components["Components"] --> UI["UI (shadcn/ui)<br/>Button, Card, Badge, Input,<br/>Textarea, Table, Dialog, Form,<br/>Checkbox, Switch, Tabs,<br/>Select, Popover, Skeleton,<br/>Toast/Toaster, Alert, Label,<br/>Calendar, NavigationMenu,<br/>NotificationContainer"]
-    Components --> Wallet["Wallet<br/>SolanaWalletClientProvider,<br/>WalletConnectButton,<br/>WalletReadyGate"]
-    Components --> Layout["Layout<br/>Header, Navigation"]
-    Components --> Auth["Auth<br/>RequireWallet"]
-    Components --> Dashboard["Dashboard<br/>NetbookDataTable, UserDataTable,<br/>NetbookStats, UserStats,<br/>RoleActions, StatusBadge,<br/>TrackingCard, NetbookDetailsModal,<br/>ProgressStepper, DataTable"]
-    Components --> Admin["Admin<br/>AdminClient, DashboardOverview,<br/>DashboardSkeleton, ActivityLogs,<br/>ActivityLogsTable, DashboardMetrics,<br/>DataManagementPanel, UsersList,<br/>EmptyState, NetbookStateMetrics,<br/>PendingRoleRequests,<br/>EnhancedPendingRoleRequests,<br/>RoleManagementSection,<br/>RoleRequestsDashboard,<br/>EnhancedRoleApprovalDialog,<br/>ApprovedAccountsList"]
-    Components --> Forms["Forms<br/>HardwareAuditForm,<br/>NetbookForm,<br/>SoftwareValidationForm,<br/>StudentAssignmentForm,<br/>TransactionConfirmation"]
-    Components --> Charts["Charts<br/>AnalyticsChart,<br/>NetbookStatusChart,<br/>UserRolesChart"]
-    Components --> Audit["Audit<br/>AuditTimeline"]
-    Components --> Diag["Diagnostics<br/>DiagnosticRunner,<br/>DebugComponent"]
-
-    classDef ui fill:#eab308,stroke:#ca8a04,color:#fff
-    classDef other fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    class UI ui
-    class Wallet,Layout,Auth,Dashboard,Admin,Forms,Charts,Audit,Diag other
-```
-
----
-
-## Development Setup
-
-### Prerequisites
-
-| Tool | Version | Purpose | Installation |
-|------|---------|---------|--------------|
-| Rust | Latest stable | Solana program compilation | [`rustup`](https://rustup.rs/) |
-| Anchor | 0.32.0 | Solana program framework | `cargo install anchor-cli --locked` |
-| Node.js | Latest LTS | Frontend development | [`nvm`](https://github.com/nvm-sh/nvm) or [nodejs.org](https://nodejs.org) |
-| Yarn | Latest | Package manager | `npm install -g yarn` |
-| Solana CLI | Latest | Solana validator & tools | [`sh -c "$(curl -sSfL https://release.solana.com/stable/install)"`](https://docs.solana.com/cli/install-solana-cli-tools) |
-| Surfpool/txtx | Latest | Local deployment system | `npm install -g @surfpool/txtx` |
-
-### Step-by-Step Installation
-
-#### 1. Clone the Repository
-
-```bash
-git clone https://github.com/your-org/SupplyChainTracker-solana.git
-cd SupplyChainTracker-solana
-```
-
-#### 2. Install Solana Tools
-
-```bash
-# Install Rust
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source ~/.cargo/env
-rustup update stable
-
-# Install Anchor CLI
-cargo install anchor-cli --locked
-
-# Install Solana CLI
-sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-source ~/.local/share/solana/install/active_solana/env
-
-# Verify installations
-anchor --version
-solana --version
-cargo --version
-```
-
-#### 3. Build the Solana Program
-
-```bash
-cd sc-solana
-
-# Build the program (compiles Rust + generates IDL + keypair)
-anchor build
-
-# This produces:
-# - target/deploy/sc_solana.so        (program binary)
-# - target/deploy/sc_solana-keypair.json (program keypair)
-# - target/idl/sc_solana.json         (IDL)
-# - target/types/sc_solana.ts         (TypeScript types)
-
-# Verify build
-ls -la target/deploy/
-ls -la target/idl/
-```
-
-#### 4. Configure Environment Variables
-
-```bash
-# Navigate to web directory
-cd ../web
-
-# Copy example environment
-cp EXAMPLE.env .env.local
-
-# Edit .env.local with your configuration
-nano .env.local
-```
-
-**Required Environment Variables:**
-
-| Variable | Description | Example Value |
-|----------|-------------|---------------|
-| `NEXT_PUBLIC_RPC_URL` | Solana RPC endpoint | `http://localhost:8899` (local) or `https://api.devnet.solana.com` |
-| `NEXT_PUBLIC_WS_URL` | WebSocket RPC endpoint | `ws://localhost:8900` (local) or `wss://api.devnet.solana.com` |
-| `NEXT_PUBLIC_PROGRAM_ID` | Program ID pubkey | `7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb` |
-| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect project ID | Your WC project ID from [cloud.walletconnect.com](https://cloud.walletconnect.com) |
-
-**Optional Environment Variables:**
-
-| Variable | Description | Example Value |
-|----------|-------------|---------------|
-| `NEXT_PUBLIC_MONGODB_URI` | MongoDB connection | `mongodb://localhost:27017/supplychain` |
-| `NEXT_PUBLIC_DEBUG_MODE` | Enable debug mode | `true` |
-
-#### 5. Install Frontend Dependencies
-
-```bash
-# Install all dependencies
-yarn install
-
-# Verify installation
-yarn list --depth=0
-```
-
-#### 6. Start Local Solana Validator
-
-```bash
-# In a separate terminal
-solana-test-validator
-
-# Or with specific configuration (from Anchor.toml)
-anchor test --localnet
-
-# The validator runs on:
-# - RPC: http://localhost:8899
-# - WebSocket: ws://localhost:8900
-```
-
-#### 7. Deploy Program to Localnet
-
-```bash
-# Method 1: Using anchor deploy
-cd sc-solana
-anchor deploy
-
-# Method 2: Using txtx runbook (Surfpool)
-txtx run runbooks/01-deployment/deploy-program.tx
-
-# Verify deployment
-solana program show --program-id 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
-```
-
-#### 8. Start Frontend Development Server
-
-```bash
-cd web
-yarn dev
-
-# The frontend runs on:
-# - HTTP: http://localhost:3000
-# - The server will hot-reload on file changes
-```
-
-#### 9. Local Development with Surfpool (Recommended)
-
-Surfpool provides a managed local Solana simulator (Simnet) that eliminates the need for manual validator management.
-
-```bash
-# Install Surfpool CLI
-npm install -g @surfpool/cli
-
-# Start Simnet (local Solana validator with program pre-loaded)
-surfpool start
-
-# Simnet runs on:
-# - RPC: http://localhost:8899
-# - WebSocket: ws://localhost:8900
-# - Explorer: http://localhost:3001 (if available)
-
-# List available runbooks
-surfpool ls
-
-# Execute a runbook (e.g., deploy and initialize)
-surfpool run runbooks/01-deployment/deploy-program.tx
-
-# Stop Simnet when done
-surfpool stop
-```
-
-**Surfpool vs solana-test-validator:**
-
-| Feature | Surfpool | solana-test-validator |
-|---------|----------|----------------------|
-| Setup | Single command (`surfpool start`) | Manual config + keypair funding |
-| Program Deployment | Automatic via runbooks | Manual (`anchor deploy`) |
-| Explorer | Built-in (if available) | None |
-| State Persistence | Managed via `.surfpool/` | Ledger directory |
-| MCP Server | `surfpool mcp` | N/A |
-
-**Troubleshooting Surfpool:**
-
-```bash
-# If you get "Address already in use" error:
-# Kill any existing validator on port 8899
-lsof -ti:8899 | xargs kill -9
-surfpool start
-
-# Check Surfpool logs
-cat .surfpool/logs/simnet_*.log
-
-# Verify Simnet is running
-solana balance --url http://localhost:8899
-```
-
-### Account Management for RBAC
-
-The RBAC (Role-Based Access Control) system requires Solana accounts (keypairs) to be created and funded before roles can be assigned. This section explains how to manage accounts for role assignment.
-
-#### Pre-generated Keypairs
-
-The project includes pre-generated keypairs for each role in `config/keypairs/`:
-
-| Role | Keypair File | Address |
-|------|-------------|---------|
-| Admin | `config/keypairs/admin_new.json` | `GdbFCcdZ2hBzx9PXLkXchBHx9EcZYLVeHbrXxtACmNTg` |
-| Fabricante | `config/keypairs/fabricante.json` | `HrhY7bqE3EwabHHZKU3yqShrtkqWfbYoLt3HfVofggeK` |
-| Auditor HW | `config/keypairs/auditor_hw.json` | `AfB2jE6T3mSq3ijWQ7EX51RpphWuoY9PpEnu2BK2j86D` |
-| Tecnico SW | `config/keypairs/tecnico_sw.json` | `3pmKDqD4oTzHR8djXpfXPpwp71d5kFfHFQmxG41tApKf` |
-| Escuela | `config/keypairs/escuela.json` | `7RXymetjyToHhMZfRdeQz6u5KHQPrpvVoyquAExcdhay` |
-
-#### Admin Private Key
-
-The **Admin private key** is stored at:
-
-```
-config/keypairs/admin_new.json
-```
-
-This file contains a 64-byte array representing the private key. To use it:
-
-1. **Load into Phantom Wallet**:
-   - Open Phantom Wallet → Settings → Security & Privacy → Import Existing Wallet
-   - Select "Secret Phrase" or "Raw Key" import
-   - Copy the contents of `admin_new.json` (the JSON array) and paste it
-
-2. **Use with Solana CLI**:
-   ```bash
-   # Set admin as the current keypair
-   solana config set --keypair /path/to/config/keypairs/admin_new.json
-
-   # Or specify it per-command
-   solana balance --keypair /path/to/config/keypairs/admin_new.json --url http://localhost:8899
-   ```
-
-3. **Use with Anchor/txtx scripts**:
-   ```bash
-   # Export as environment variable
-   export ANCHOR_WALLET=/path/to/config/keypairs/admin_new.json
-   ```
-
-#### Creating New Accounts
-
-To create a new Solana account for role assignment:
-
-```bash
-# Generate a new keypair
-solana-keygen new -o /path/to/new-keypair.json
-
-# Output:
-# - A new keypair file at the specified path
-# - The public key (address) will be displayed in the terminal
-# - A secret recovery phrase (store this securely!)
-
-# Get the address of the new keypair
-solana address --keypair /path/to/new-keypair.json
-```
-
-#### Funding Accounts
-
-New accounts need SOL to pay for transaction fees and account rent. On local development:
-
-```bash
-# Airdrop SOL to a new account (local validator only)
-solana airdrop 10 <ADDRESS> --url http://localhost:8899
-
-# Example: Fund the admin account
-solana airdrop 10 GdbFCcdZ2hBzx9PXLkXchBHx9EcZYLVeHbrXxtACmNTg --url http://localhost:8899
-
-# Fund all pre-generated keypairs
-for keypair in config/keypairs/*.json; do
-  addr=$(solana address --keypair "$keypair")
-  echo "Airdropping 10 SOL to $addr ($keypair)"
-  solana airdrop 10 "$addr" --url http://localhost:8899
-done
-```
-
-#### Loading Keypairs into Phantom Wallet
-
-To use a keypair in the frontend dApp:
-
-1. **Export the private key**:
-   ```bash
-   # Display the keypair contents (64-byte array)
-   cat config/keypairs/admin_new.json
-   ```
-
-2. **Import into Phantom**:
-   - Open Phantom Wallet extension
-   - Click Settings (gear icon) → Security & Privacy
-   - Click "Import Existing Wallet"
-   - Choose "Secret Recovery Phrase" or "Raw Key"
-   - Paste the private key from the JSON file
-   - Confirm and the account will appear in your wallet
-
-3. **Connect to the dApp**:
-   - Navigate to `http://localhost:3000`
-   - Click "Connect Wallet"
-   - Select the imported account from Phantom
-
-#### Assigning Roles via Admin Dashboard
-
-Once the admin account is loaded in Phantom and connected:
-
-1. Navigate to **Admin Dashboard**: `http://localhost:3000/admin`
-2. Go to **Pending Role Requests**: `http://localhost:3000/admin/roles/pending-requests`
-3. Review pending role requests from users
-4. Click **Approve** or **Reject** on each request
-5. Confirm the transaction in Phantom wallet
-
-#### Programmatic Role Assignment
-
-Roles can also be assigned using the Solana CLI with txtx runbooks:
-
-```bash
-# Grant a role to an account
-cd sc-solana
-txtx run runbooks/03-role-management/add-role-holder.tx \
-  --role FABRICANTE \
-  --holder HrhY7bqE3EwabHHZKU3yqShrtkqWfbYoLt3HfVofggeK
-
-# Request a role (as the user)
-txtx run runbooks/03-role-management/request-role.tx \
-  --role AUDITOR_HW
-```
-
-### Development Workflow
-
-```mermaid
-graph LR
-    Terminal1["Terminal 1<br/>solana-test-validator"] -->|RPC:8899| Frontend["Frontend<br/>localhost:3000"]
-    Terminal2["Terminal 2<br/>yarn dev"] -->|RPC:8899| Frontend
-    Frontend -->|Transactions| Program["sc_solana Program<br/>deployed on localnet"]
-
-    Dev["Developer"] -->|cargo build| Program
-    Dev -->|yarn dev| Frontend
-    Dev -->|txtx run| Program
-
-    classDef terminal fill:#f97316,stroke:#c2410c,color:#fff
-    classDef service fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    class Terminal1,Terminal2 terminal
-    class Frontend,Program service
-```
-
-### Recommended Terminal Layout
-
-| Terminal | Command | Purpose |
-|----------|---------|---------|
-| 1 | `solana-test-validator` | Local Solana validator |
-| 2 | `cd web && yarn dev` | Frontend dev server |
-| 3 | `cd sc-solana && anchor build --watch` | Program build watcher |
-| 4 | `cd sc-solana && cargo test` | Run tests on demand |
+| Component | Purpose |
+|-----------|---------|
+| `NetbookForm` | Register new netbook |
+| `HardwareAuditForm` | Perform hardware audit |
+| `SoftwareValidationForm` | Validate software installation |
+| `StudentAssignmentForm` | Assign netbook to student |
+| `ConnectionIndicator` | Wallet connection status |
+| `StatusBadge` | Netbook lifecycle status display |
+| `RoleActions` | Role management actions |
+| `TrackingCard` | Netbook tracking card |
 
 ---
 
@@ -1108,20 +926,16 @@ graph LR
 ```bash
 cd sc-solana
 
-# Run all Cargo unit tests
-cargo test
+# Mollusk unit tests (in-process SVM, no validator needed)
+cd programs/sc-solana
+cargo test --test mollusk-tests        # PDA derivation, discriminators, error codes
+cargo test --test mollusk-lifecycle    # Full lifecycle state machine
+cargo test --test compute-units        # Compute unit measurement
 
-# Run all Anchor integration tests
-anchor test
-
-# Run Anchor tests with verbose output
-anchor test -- --nocapture
-
-# Run specific test file
-anchor test -- --test tests/lifecycle.ts
-
-# Run specific test function
-anchor test -- --test tests/lifecycle.ts --grep "test_netbook_space"
+# Rust formatting and linting
+cd ../..
+cargo fmt --check
+cargo clippy -- -D warnings
 ```
 
 #### Test Files
@@ -1131,180 +945,85 @@ anchor test -- --test tests/lifecycle.ts --grep "test_netbook_space"
 | `programs/sc-solana/tests/mollusk-tests.rs` | PDA derivation, discriminators, error codes | Mollusk (in-process SVM) |
 | `programs/sc-solana/tests/mollusk-lifecycle.rs` | Full lifecycle state machine, roles, encoding | Mollusk (in-process SVM) |
 | `programs/sc-solana/tests/compute-units.rs` | Compute unit measurement per instruction | Mollusk (CU profiling) |
-| `tests/lifecycle.ts` | Full netbook lifecycle test | Integration |
-| `tests/batch-registration.ts` | Batch registration tests | Integration |
-| `tests/pda-derivation.ts` | PDA derivation verification | Integration |
-| `tests/deployer-pda.ts` | Deployer PDA tests | Integration |
-| `tests/query-instructions.ts` | Query instruction tests | Integration |
-| `tests/rbac-consistency.ts` | RBAC consistency tests | Integration |
-| `tests/edge-cases.ts` | Edge case tests | Integration |
-| `tests/overflow-protection.ts` | Overflow protection tests | Integration |
-| `tests/integration-full-lifecycle.ts` | Full lifecycle integration | Integration |
-| `tests/unit-tests.ts` | Unit test equivalents | Unit |
 
-> **Note**: Mollusk tests (`cargo test --test mollusk-*`) run in-process with the Solana runtime simulation and do not require a validator. These are the primary tests used in CI for fast, reliable program validation. Integration tests (`anchor test`) require a running validator and are disabled in CI due to toolchain compatibility.
-
-#### Compute Unit Reporting
-
-Compute unit analysis is available in [`docs/compute-units-report.md`](docs/compute-units-report.md) with:
-
-- Per-instruction CU estimates (all instructions < 2% of 1.47M limit)
-- Full lifecycle CU consumption (~64,700 CU across 4 transactions)
-- Batch size recommendations (max 15 netbooks per transaction)
-- Account size and rent exemption estimates
-
-Frontend CU tracking service: [`web/src/services/ComputeUnitReporter.ts`](web/src/services/ComputeUnitReporter.ts)
+> **Note**: Mollusk tests run in-process with the Solana runtime simulation and do not require a validator. These are the primary tests used in CI for fast, reliable program validation.
 
 ### Frontend Tests
 
 ```bash
 cd web
 
-# Run all Jest unit tests
-yarn test
+# Jest unit tests
+npm test
 
-# Run Jest tests in watch mode
-yarn test --watch
+# E2E tests with Playwright
+npm run test:e2e
 
-# Run Jest tests with coverage
-yarn test --coverage
+# E2E tests with UI
+npm run test:e2e:ui
 
-# Run Playwright E2E tests
-yarn exec playwright test
+# TypeScript type checking
+npx tsc --noEmit
 
-# Run Playwright E2E tests with UI mode
-yarn exec playwright test --ui
-
-# Run Playwright E2E tests with headed browser
-yarn exec playwright test --headed
-
-# Run specific E2E test
-yarn exec playwright test e2e/dashboard.spec.ts
-
-# Generate Playwright report
-yarn exec playwright show-report
-
-# Run all tests (unit + E2E)
-./scripts/run-all-tests.sh
+# ESLint
+npx eslint src/
 ```
 
-#### E2E Test Files
+### CI/CD Pipeline
 
-| File | Description |
-|------|-------------|
-| `e2e/homepage.spec.ts` | Homepage rendering and wallet connection |
-| `e2e/dashboard.spec.ts` | Dashboard functionality |
-| `e2e/wallet-connection.spec.ts` | Wallet adapter connection flow |
-| `e2e/netbook-registration.spec.ts` | Netbook registration flow |
-| `e2e/role-management.spec.ts` | Role management operations |
-| `e2e/full-user-flow.spec.ts` | Complete user journey |
+The GitHub Actions CI pipeline runs 14 jobs:
+
+| Job | Description |
+|-----|-------------|
+| `rust-lint` | cargo fmt + clippy |
+| `build-program` | cargo check --all-targets |
+| `test-mollusk` | Mollusk unit tests |
+| `test-mollusk-lifecycle` | Full state machine tests |
+| `type-check` | TypeScript type checking |
+| `frontend-lint` | ESLint |
+| `test-unit` | Jest unit tests |
+| `build-frontend` | Next.js production build |
+| `test-e2e` | Playwright E2E tests (Chromium) |
+| `test-e2e-full-flow` | Full user flow E2E tests |
+| `security-scan` | Vulnerability scanning |
+| `test-runbooks` | Runbook syntax validation |
+| `compute-report` | Compute unit reporting |
+| `summary` | Pipeline status aggregation |
 
 ---
 
 ## Deployment
 
-### Local Deployment with Surfpool/txtx
+### Deploy to Devnet
 
 ```bash
 cd sc-solana
 
-# Deploy program
-txtx run runbooks/01-deployment/deploy-program.tx
-
-# Run operations
-txtx run runbooks/02-operations/query/query-config.tx
-txtx run runbooks/02-operations/query/query-role.tx
-txtx run runbooks/03-role-management/request-role.tx
-txtx run runbooks/03-role-management/approve-role-request.tx
-
-# Run full lifecycle
-txtx run runbooks/04-testing/full-lifecycle.tx
-
-# Run role workflow
-txtx run runbooks/04-testing/role-workflow.tx
-```
-
-### Production Deployment
-
-```bash
 # Build program
-cd sc-solana
-anchor build
+anchor build --ignore-keys
 
 # Deploy to devnet
-solana config set --url devnet
-anchor deploy
+anchor deploy --provider.cluster devnet
 
-# Deploy to mainnet-beta (requires program upgrade authority)
-solana config set --url mainnet-beta
-anchor deploy --program-keypair target/deploy/sc_solana-keypair.json
+# Update frontend environment
+# In web/.env.local:
+# NEXT_PUBLIC_RPC_URL=https://api.devnet.solana.com
+# NEXT_PUBLIC_CLUSTER=devnet
 ```
 
-### CI/CD
+### Deploy to Mainnet
 
 ```bash
-# GitHub Actions workflow: .github/workflows/ci.yml
-# Runs on push to main/develop and pull requests to main
-# Concurrency: cancels stale runs on same branch/PR
+cd sc-solana
+
+# Deploy to mainnet (requires sufficient SOL for rent)
+anchor deploy --provider.cluster mainnet
+
+# Update frontend environment
+# In web/.env.local:
+# NEXT_PUBLIC_RPC_URL=https://api.mainnet-beta.solana.com
+# NEXT_PUBLIC_CLUSTER=mainnet
 ```
-
-#### CI Job Pipeline
-
-```
-rust-lint ─────────────────────────────────┐
-                                           │
-build-program ─────────────────────────────┤
-                                           │
-test-mollusk ──> compute-report ───────────┤
-                                           │
-type-check ────────────────────────────────┤
-                                           │
-frontend-lint ─────────────────────────────┤
-                                           │
-test-unit ──> build-frontend ──────────────┤
-                                            ├──> summary (validates all jobs)
-test-unit ──> test-e2e (UI-only) ──────────┘
-```
-
-#### Job Descriptions
-
-| Job | Description | Dependencies |
-|-----|-------------|-------------|
-| `rust-lint` | Rust format + clippy checks | None |
-| `build-program` | `cargo check --all-targets` | None |
-| `test-mollusk` | Rust in-process SVM tests (no validator) | None |
-| `compute-report` | Compute unit measurement tests | test-mollusk |
-| `type-check` | TypeScript type checking | None |
-| `frontend-lint` | ESLint strict mode | None |
-| `test-unit` | Jest unit tests | None |
-| `build-frontend` | Next.js production build | type-check, frontend-lint, test-unit |
-| `test-e2e` | Playwright UI tests (mocked wallet, no blockchain) | type-check, frontend-lint, test-unit |
-| `summary` | Validates all jobs passed | All jobs |
-
-#### Key Design Decisions
-
-- **E2E tests are UI-only**: No Solana validator is started. Tests use mocked wallet connections and test the frontend rendering, navigation, and user interactions.
-- **Mollusk tests replace integration tests**: Rust in-process SVM tests provide fast, reliable program logic validation without needing a running validator.
-- **Compute unit reporting**: Dedicated job measures CU consumption for all program instructions to ensure transactions stay within the 1.47M CU limit.
-- **Playwright browser caching**: Browsers are cached across runs to reduce install time by ~60 seconds.
-- **Stale run cancellation**: Pushing new commits to the same branch cancels in-progress CI runs to save resources.
-
-#### Running Tests Locally
-
-```bash
-# Solana program tests (mollusk - no validator needed)
-cd sc-solana/programs/sc-solana
-cargo test --test mollusk-tests
-cargo test --test mollusk-lifecycle
-cargo test --test compute-units
-
-# Frontend unit tests
-cd web
-yarn test
-
-# Frontend E2E tests (UI-only, no blockchain)
-cd web
-yarn exec playwright test --project=chromium
 
 ---
 
@@ -1312,144 +1031,61 @@ yarn exec playwright test --project=chromium
 
 ### Common Issues
 
-#### 1. Program Keypair Mismatch
+#### "Program ID mismatch"
 
-**Error:**
 ```
-program keypair does not match program pubkey found in IDL:
-keypair pubkey: '8F8SCnsz...'; IDL pubkey: '7bGrgLgT...'
+Error: Program ID mismatch detected
 ```
 
-**Solution:**
+**Solution:** Ensure the program ID is consistent in:
+1. `sc-solana/programs/sc-solana/src/lib.rs` — `declare_id!()`
+2. `sc-solana/target/idl/sc_solana.json` — `"address"` field
+3. `sc-solana/Anchor.toml` — `[programs.localnet]`
+4. `web/.env.local` — `NEXT_PUBLIC_PROGRAM_ID`
+
+#### "Address already in use" (port 8899)
+
 ```bash
-# Verify consistency
-echo "declare_id!: $(grep 'declare_id!' sc-solana/programs/sc-solana/src/lib.rs)"
-echo "IDL address: $(grep '"address"' sc-solana/target/idl/sc_solana.json)"
-echo "Keypair pubkey: $(solana-keygen pubkey target/deploy/sc_solana-keypair.json)"
-echo "Anchor.toml: $(grep 'sc_solana' sc-solana/Anchor.toml)"
-
-# All should show: 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
-
-# If mismatched, restore keypair from git:
-git show <commit>:sc-solana/target/deploy/sc_solana-keypair.json > sc-solana/target/deploy/sc_solana-keypair.json
+lsof -ti:8899 | xargs kill -9
+surfpool start
 ```
 
-#### 2. Port Conflicts
+#### "Cannot find module '@/generated/...'"
 
-**Error:**
-```
-Address already in use
-```
-
-**Solution:**
 ```bash
-# Check which process uses port 8899
-lsof -i :8899
-
-# Kill the process
-kill -9 <PID>
-
-# Or use different ports in Anchor.toml
-```
-
-#### 3. Anchor Build Fails
-
-**Solution:**
-```bash
-# Clean build artifacts
 cd sc-solana
-rm -rf target/deploy/*.so target/deploy/*-keypair.json target/idl/*.json
-
-# Rebuild
-anchor build
-
-# If still failing, check Rust toolchain
-rustup default stable
-cargo install anchor-cli --locked --force
+anchor build --ignore-keys
+npx codama run --all
 ```
 
-#### 4. Frontend Cannot Connect to Program
+#### "Program not deployed"
 
-**Solution:**
 ```bash
-# Verify validator is running
-solana cluster-version
+# Check if program is deployed
+solana program show --program-id 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb \
+  --url http://localhost:8899
 
-# Check RPC endpoint in .env.local
-cat web/.env.local | grep RPC_URL
-
-# Verify program is deployed
-solana program show --program-id 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
-
-# Check browser console for errors
-# Open DevTools > Console
+# If not deployed, run full initialization
+txtx run sc-solana/runbooks/01-deployment/full-init.tx
 ```
 
-#### 5. Wallet Connection Issues
+#### "Insufficient funds"
 
-**Solution:**
 ```bash
-# Verify wallet adapter is installed
-yarn list @solana/wallet-adapter-react
-
-# Check WalletConnect project ID
-# Visit https://cloud.walletconnect.com for project setup
-
-# For local testing, use Phantom wallet directly (no WalletConnect needed)
+# Airdrop SOL to your wallet (localnet only)
+solana airdrop 100 <YOUR_ADDRESS> --url http://localhost:8899
 ```
 
-### Configuration Reference
+#### Frontend build errors
 
-#### Solana Program (`sc-solana/Anchor.toml`)
-
-```toml
-[toolchain]
-package_manager = "yarn"
-
-[features]
-resolution = true
-skip-lint = false
-
-[programs.localnet]
-sc_solana = "7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb"
-
-[test.validator]
-rpc_port = 8899
+```bash
+cd web
+rm -rf .next node_modules/.cache
+npm run clean-build
 ```
-
-#### Frontend Environment (`.env.local`)
-
-```env
-NEXT_PUBLIC_RPC_URL=http://localhost:8899
-NEXT_PUBLIC_PROGRAM_ID=7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
-```
-
-### Key Files Reference
-
-| File | Purpose |
-|------|---------|
-| [`sc-solana/Anchor.toml`](sc-solana/Anchor.toml) | Anchor program configuration |
-| [`sc-solana/Cargo.toml`](sc-solana/Cargo.toml) | Rust program dependencies |
-| [`sc-solana/programs/sc-solana/src/lib.rs`](sc-solana/programs/sc-solana/src/lib.rs) | Program entry point + `declare_id!` |
-| [`sc-solana/txtx.yml`](sc-solana/txtx.yml) | Surfpool/txtx configuration |
-| [`web/package.json`](web/package.json) | Frontend dependencies |
-| [`web/.env.local`](web/.env.local) | Frontend environment variables |
-| [`web/next.config.mjs`](web/next.config.mjs) | Next.js configuration |
-| [`web/tailwind.config.js`](web/tailwind.config.js) | Tailwind CSS configuration |
 
 ---
 
 ## License
 
-MIT
-
-## Author
-
-Codecrypto
-
-## Acknowledgments
-
-- Migrated from Ethereum/Solidity to Solana/Anchor
-- Built with [Anchor Framework](https://www.anchor-lang.com)
-- Frontend powered by [Next.js 16](https://nextjs.org) and [shadcn/ui](https://ui.shadcn.com)
+MIT License — See [LICENSE](LICENSE) for details.

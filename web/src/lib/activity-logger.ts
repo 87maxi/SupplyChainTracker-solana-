@@ -1,4 +1,11 @@
 // web/src/lib/activity-logger.ts
+/**
+ * Activity Logger v2 — In-memory activity log system
+ *
+ * Issue #211: Migrated from localStorage to in-memory state.
+ * Provides real-time activity tracking without localStorage overhead.
+ * Integrates with React Query for proper caching and invalidation.
+ */
 
 export interface ActivityLog {
   id: string;
@@ -11,57 +18,58 @@ export interface ActivityLog {
   status: 'success' | 'pending' | 'failed';
 }
 
-const ACTIVITY_LOG_KEY = 'supply-chain-activity-logs';
-const MAX_LOGS = 1000; // Máximo número de logs a mantener
+const MAX_LOGS = 100; // In-memory cap for performance
 
-// Obtener logs del localStorage
+// In-memory log store — no localStorage dependency
+const inMemoryLogs: ActivityLog[] = [];
+
+/**
+ * Get all activity logs from in-memory store.
+ * Returns logs sorted by timestamp (newest first).
+ */
 export const getActivityLogs = (): ActivityLog[] => {
-  if (typeof window === 'undefined') return [];
-  
-  // Issue #211: Use in-memory cache instead of localStorage for activity logs
-  // React Query provides proper caching with TTL and invalidation
-  try {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem(ACTIVITY_LOG_KEY) : null;
-    if (!stored) return [];
-    
-    const logs = JSON.parse(stored);
-    return logs.map((log: Record<string, unknown>) => ({
-      ...log,
-      timestamp: new Date(typeof log.timestamp === 'string' ? log.timestamp : String(log.timestamp))
-    }));
-  } catch (error) {
-    console.error('Error reading activity logs:', error);
-    return [];
+  return [...inMemoryLogs].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+};
+
+/**
+ * Add a new activity log entry.
+ * Maintains bounded size (MAX_LOGS) for memory efficiency.
+ */
+export const logActivity = (log: Omit<ActivityLog, 'id' | 'timestamp'>): void => {
+  const newLog: ActivityLog = {
+    ...log,
+    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    timestamp: new Date(),
+  };
+
+  inMemoryLogs.unshift(newLog);
+
+  // Trim to MAX_LOGS
+  if (inMemoryLogs.length > MAX_LOGS) {
+    inMemoryLogs.length = MAX_LOGS;
   }
 };
 
-// Guardar nuevo log
-export const logActivity = (log: Omit<ActivityLog, 'id' | 'timestamp'>): void => {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    const logs = getActivityLogs();
-    const newLog: ActivityLog = {
-      ...log,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date()
-    };
+/**
+ * Clear all activity logs.
+ * Useful for testing or manual reset.
+ */
+export const clearActivityLogs = (): void => {
+  inMemoryLogs.length = 0;
+};
 
-    // Mantener solo los logs más recientes
-    const updatedLogs = [newLog, ...logs].slice(0, MAX_LOGS);
-    
-    // Issue #211: Keep localStorage as optional persistence layer
-    // Primary storage is in-memory; localStorage is fallback only
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(updatedLogs.slice(0, 50))); // Cap at 50 entries
-      } catch {
-        // Silently fail - localStorage is optional
-      }
-    }
-  } catch (error) {
-    console.error('Error saving activity log:', error);
-  }
+/**
+ * Get logs filtered by type.
+ */
+export const getActivityLogsByType = (type: ActivityLog['type']): ActivityLog[] => {
+  return getActivityLogs().filter(log => log.type === type);
+};
+
+/**
+ * Get logs filtered by status.
+ */
+export const getActivityLogsByStatus = (status: ActivityLog['status']): ActivityLog[] => {
+  return getActivityLogs().filter(log => log.status === status);
 };
 
 // Helper functions para tipos específicos de logs
@@ -189,15 +197,15 @@ export const getLogStats = (logs: ActivityLog[]) => {
 
 // Limpiar logs antiguos (más de 30 días)
 export const cleanupOldLogs = (): number => {
-  const logs = getActivityLogs();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const originalLength = inMemoryLogs.length;
   
-  const filteredLogs = logs.filter(log => log.timestamp > thirtyDaysAgo);
-  
-  if (filteredLogs.length !== logs.length) {
-    localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(filteredLogs));
-    return logs.length - filteredLogs.length;
+  // Filter in-place for memory efficiency
+  for (let i = inMemoryLogs.length - 1; i >= 0; i--) {
+    if (inMemoryLogs[i].timestamp < thirtyDaysAgo) {
+      inMemoryLogs.splice(i, 1);
+    }
   }
   
-  return 0;
+  return originalLength - inMemoryLogs.length;
 };

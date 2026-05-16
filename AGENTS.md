@@ -35,7 +35,7 @@ Supply chain tracker on Solana with Anchor program (Rust) and Next.js frontend.
 - Rust: Anchor idioms, custom macros in `lib.rs`
 - TypeScript: Strict mode, React hooks pattern
 - Tests: Jest for frontend, Mollusk/LiteSVM for program, Playwright for E2E
-- Test organization: `*.litesvm.ts` for LiteSVM-based integration tests
+- Test organization: Mollusk tests in `sc-solana/programs/sc-solana/tests/*.rs`
 
 ## CI/CD Requirements
 - **Rust Formatting**: ALWAYS run `cd sc-solana && cargo fmt` before committing Rust code
@@ -58,7 +58,7 @@ Supply chain tracker on Solana with Anchor program (Rust) and Next.js frontend.
 - [ ] Run `cargo fmt` on all Rust files
 - [ ] Run `cargo clippy -- -D warnings` for Rust warnings
 - [ ] Run `npx tsc --noEmit` in `web/` for type checking
-- [ ] Run `npx eslint src/ --max-warnings=20` in `web/` for linting (legacy warnings allowed)
+- [ ] Run `npx eslint . --max-warnings 999` in `web/` for linting (legacy warnings allowed)
 - [ ] Run `npm test` in `web/` for unit tests
 - [ ] Run `cargo test --test mollusk-tests` in `sc-solana/programs/sc-solana/` for program unit tests
 

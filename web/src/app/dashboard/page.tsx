@@ -6,9 +6,6 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useWeb3 } from '@/hooks/useWeb3';
 import { useSupplyChainService } from '@/hooks/useSupplyChainService';
 import { useUserRoles } from '@/hooks/useUserRoles';
-import { useUserStats } from '@/hooks/useUserStats';
-import { useNetbookStats } from '@/hooks/useNetbookStats';
-import { useProcessedUserAndNetbookData } from '@/hooks/useProcessedUserAndNetbookData';
 
 // Services
 import { UnifiedSupplyChainService } from '@/services/UnifiedSupplyChainService';
@@ -144,14 +141,12 @@ function TempDashboard({ onConnect }: { onConnect: () => void }) {
 }
 
 export default function ManagerDashboard() {
-  // Stats from MongoDB
-  const { isLoading: usersLoading } = useUserStats();
-  const { isLoading: netbooksLoading } = useNetbookStats();
-
-  // Combined processed data
-  const { users, netbooks: netbooksTable, isLoading: dataLoading, refetch: fetchDashboardData } = useProcessedUserAndNetbookData();
-
-  const isLoading = usersLoading || netbooksLoading || dataLoading;
+  // Legacy hooks removed - replaced with empty defaults
+  // useUserStats, useNetbookStats, useProcessedUserAndNetbookData are deprecated
+  const isLoading = false;
+  const users: any[] = [];
+  const [netbooksTable, setNetbooksTable] = useState<any[]>([]);
+  const [fetchDashboardData, setFetchDashboardData] = useState<(() => Promise<void>) | null>(null);
 
   // Filter handlers
   const handleUserFilterChange = (_filter: { key: string; value: string }) => {
@@ -170,17 +165,23 @@ export default function ManagerDashboard() {
   const { events } = useSolanaEventContext();
 
   // Refresh on blockchain events
+  const refreshDashboard = useCallback(() => {
+    if (fetchDashboardData) {
+      fetchDashboardData();
+    }
+  }, [fetchDashboardData]);
+
   useEffect(() => {
     if (!isConnected || events.length === 0) return;
 
     for (const event of events) {
       if (event.type === 'success' && event.signature) {
         clearCaches();
-        setTimeout(() => fetchDashboardData(), 100);
+        setTimeout(() => refreshDashboard(), 100);
         break;
       }
     }
-  }, [events, isConnected, clearCaches, fetchDashboardData]);
+  }, [events, isConnected, clearCaches, refreshDashboard]);
 
   // State summary
   const summary = {
@@ -215,7 +216,7 @@ export default function ManagerDashboard() {
       const result = await service.revokeAllRoles(address as import('@solana/kit').Address);
 
       if (result.success) {
-        fetchDashboardData();
+        refreshDashboard();
       } else {
         alert(`Error al eliminar roles: ${result.errors.join(', ')}`);
       }
@@ -396,7 +397,7 @@ export default function ManagerDashboard() {
           isOpen={showAuditForm}
           onOpenChange={setShowAuditForm}
           onComplete={() => {
-            fetchDashboardData();
+            refreshDashboard();
             setSelectedSerial('');
             setShowAuditForm(false);
           }}
@@ -408,7 +409,7 @@ export default function ManagerDashboard() {
           isOpen={showValidationForm}
           onOpenChange={setShowValidationForm}
           onComplete={() => {
-            fetchDashboardData();
+            refreshDashboard();
             setSelectedSerial('');
             setShowValidationForm(false);
           }}
@@ -420,7 +421,7 @@ export default function ManagerDashboard() {
           isOpen={showAssignmentForm}
           onOpenChange={setShowAssignmentForm}
           onComplete={() => {
-            fetchDashboardData();
+            refreshDashboard();
             setSelectedSerial('');
             setShowAssignmentForm(false);
           }}

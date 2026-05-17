@@ -269,17 +269,43 @@ export async function executeAnchorInstruction(
     throw new Error("No connection available for transaction");
   }
 
-  const signature = await sendAndConfirmTransaction(
-    connection,
-    transaction,
-    [payer, ...signers],
-    {
-      skipPreflight: options?.skipPreflight ?? true,
-      commitment: options?.commitment ?? "confirmed",
-    }
-  );
+  // Get latest blockhash and set transaction lifetime
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.lastValidBlockHeight = lastValidBlockHeight;
 
-  return signature;
+  // Sign the transaction with payer and additional signers
+  const signersList = [payer, ...signers];
+  for (const signer of signersList) {
+    transaction.sign(signer);
+  }
+
+  // Send and confirm with retry logic to avoid block height expiration
+  const rawTransaction = transaction.serialize();
+  const signature = await connection.sendRawTransaction(rawTransaction, {
+    skipPreflight: options?.skipPreflight ?? true,
+    preflightCommitment: options?.commitment ?? "confirmed",
+  });
+
+  // Poll for confirmation with timeout to avoid TransactionExpiredBlockheightExceededError
+  const commitment = options?.commitment ?? "confirmed";
+  const maxRetries = 60;
+  for (let i = 0; i < maxRetries; i++) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const status = await connection.getSignatureStatus(signature);
+    if (status?.value) {
+      if (status.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(status.value.err)}`);
+      }
+      if (status.value.confirmationStatus === 'confirmed' ||
+          status.value.confirmationStatus === 'finalized') {
+        return signature;
+      }
+    }
+  }
+
+  throw new Error(`Transaction ${signature} confirmation timed out`);
 }
 
 // ============================================================================

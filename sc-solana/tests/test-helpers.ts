@@ -597,15 +597,24 @@ export async function fundKeypair(
   const safeAmountSol = Math.min(amountSol, 100);
   const lamports = safeAmountSol * LAMPORTS_PER_SOL;
 
-  const airdropSignature = await client.rpc.requestAirdrop({
+  // Access the RPC through the client's internal structure
+  // The TestClient is created with createClient which has rpc property
+  const clientAny = client as any;
+  const rpc = clientAny.rpc || (clientAny as any)._rpc;
+  
+  if (!rpc) {
+    throw new Error("RPC not available on client. Use createTestClient to get a proper client.");
+  }
+
+  const airdropSignature = await rpc.requestAirdrop({
     destination: keypair.publicKey.toBase58() as Address,
     lamports,
-  });
+  }).send();
 
-  await client.rpc.confirmTransaction({
+  await rpc.confirmTransaction({
     signature: airdropSignature,
     commitment: "confirmed",
-  });
+  }).send();
 
   return airdropSignature;
 }

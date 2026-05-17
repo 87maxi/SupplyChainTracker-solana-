@@ -347,7 +347,9 @@ describe("PDA Derivation Security Tests", () => {
       for (let tokenId = 0; tokenId < 100; tokenId++) {
         const pda = await getNetbookPdaAddress(tokenId);
         expect(pda).to.be.a("string");
-        expect(pda.length).to.equal(44);
+        // Solana addresses are Base58 encoded, length varies 32-44 chars
+        expect(pda.length).to.be.at.least(32);
+        expect(pda.length).to.be.at.most(44);
       }
     });
 
@@ -370,7 +372,9 @@ describe("PDA Derivation Security Tests", () => {
         for (let index = 0; index < 10; index++) {
           const pda = await getRoleHolderPdaAddress(role, index);
           expect(pda).to.be.a("string");
-          expect(pda.length).to.equal(44);
+          // Solana addresses are Base58 encoded, length varies 32-44 chars
+          expect(pda.length).to.be.at.least(32);
+          expect(pda.length).to.be.at.most(44);
         }
       }
     });

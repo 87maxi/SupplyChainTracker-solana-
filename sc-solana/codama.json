@@ -1,0 +1,10 @@
+{
+  "idl": "target/idl/sc_solana.json",
+  "programId": "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW",
+  "scripts": {
+    "js": {
+      "from": "@codama/renderers-js",
+      "args": ["src/generated", {"formatCode": true}]
+    }
+  }
+}

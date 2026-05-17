@@ -1,0 +1,172 @@
+// Generate fake/mock test data for SupplyChainTracker
+// Creates multiple netbooks with realistic fake data for testing
+// Usage: surfpool run generate-fake-data --env localnet --browser -f
+//
+// This runbook demonstrates:
+// - Inline fake data generation (no external env vars needed)
+// - Batch registration with pre-defined test data
+// - Multiple serial numbers, batches, and models
+//
+// Prerequisites:
+//   - Program deployed (run deploy-program first)
+//   - Config initialized (run initialize-config first)
+//   - FABRICANTE role granted to deployer
+//   - Source config: source config/config.env
+
+// Addon configuration for Solana/SVM
+addon "svm" {
+  network_id = "localnet"
+  rpc_api_url = "http://localhost:8899"
+}
+
+// Signers
+signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account (must have FABRICANTE role)"
+  keypair_path = env.FABRICANTE_KEYPAIR
+}
+
+// Program artifacts from Anchor project
+variable "program" {
+  description = "Program artifacts (IDL, binary, keypair, program_id)"
+  value = svm::get_program_from_anchor_project("sc_solana")
+}
+
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// FAKE DATA GENERATION
+// ============================================================================
+// All test data is defined inline for reproducibility
+// Modify this section to generate different test scenarios
+
+variable "fake_serial_numbers" {
+  description = "Array of fake serial numbers for test netbooks"
+  value = [
+    "EDU-2024-A001",
+    "EDU-2024-A002",
+    "EDU-2024-A003",
+    "EDU-2024-B001",
+    "EDU-2024-B002",
+    "EDU-2024-B003",
+    "EDU-2024-B004",
+    "EDU-2024-C001",
+    "EDU-2024-C002",
+    "EDU-2024-C003",
+    "EDU-2024-C004",
+    "EDU-2024-C005"
+  ]
+}
+
+variable "fake_batch_ids" {
+  description = "Array of batch IDs (same length as serial_numbers)"
+  value = [
+    "BATCH-2024-Q1-001",
+    "BATCH-2024-Q1-001",
+    "BATCH-2024-Q1-001",
+    "BATCH-2024-Q1-002",
+    "BATCH-2024-Q1-002",
+    "BATCH-2024-Q1-002",
+    "BATCH-2024-Q1-002",
+    "BATCH-2024-Q2-001",
+    "BATCH-2024-Q2-001",
+    "BATCH-2024-Q2-001",
+    "BATCH-2024-Q2-001",
+    "BATCH-2024-Q2-001"
+  ]
+}
+
+variable "fake_model_specs" {
+  description = "Array of model specifications (same length as serial_numbers)"
+  value = [
+    "Educational Pro 14\" Intel i5 8GB 256GB SSD",
+    "Educational Pro 14\" Intel i5 8GB 256GB SSD",
+    "Educational Pro 14\" Intel i5 8GB 256GB SSD",
+    "Educational Lite 14\" AMD E2 4GB 64GB eMMC",
+    "Educational Lite 14\" AMD E2 4GB 64GB eMMC",
+    "Educational Lite 14\" AMD E2 4GB 64GB eMMC",
+    "Educational Lite 14\" AMD E2 4GB 64GB eMMC",
+    "Educational Pro 15.6\" Intel i7 16GB 512GB SSD",
+    "Educational Pro 15.6\" Intel i7 16GB 512GB SSD",
+    "Educational Pro 15.6\" Intel i7 16GB 512GB SSD",
+    "Educational Pro 15.6\" Intel i7 16GB 512GB SSD",
+    "Educational Pro 15.6\" Intel i7 16GB 512GB SSD"
+  ]
+}
+
+// PDA derivation - svm::find_pda(program_id, seeds) returns {pda, bump_seed}
+variable "config_pda" {
+  description = "Config account PDA"
+  value = svm::find_pda(variable.program_id, ["config"])
+}
+
+variable "serial_hashes_pda" {
+  description = "Serial hashes registry PDA"
+  value = svm::find_pda(variable.program_id, ["serial_hashes", variable.config_pda.pda])
+}
+
+// ============================================================================
+// BATCH REGISTRATION ACTION
+// ============================================================================
+
+action "register_fake_netbooks" "svm::process_instructions" {
+  description = "Register multiple fake netbooks in batch"
+  instruction {
+    program_idl = variable.program.idl
+    instruction_name = "register_netbooks_batch"
+    instruction_args = [
+      variable.fake_serial_numbers,
+      variable.fake_batch_ids,
+      variable.fake_model_specs
+    ]
+    accounts = [
+      {
+        public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.serial_hashes_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = signer.fabricante.public_key
+        writable = true
+        signer = true
+      },
+      {
+        public_key = svm::system_program_id()
+        writable = false
+        signer = false
+      }
+    ]
+  }
+  signers = [signer.fabricante]
+}
+
+// ============================================================================
+// OUTPUTS
+// ============================================================================
+
+output "registration_signature" {
+  description = "Batch registration transaction signature"
+  value = action.register_fake_netbooks.signatures | first()
+}
+
+output "serial_numbers_registered" {
+  description = "List of serial numbers registered"
+  value = variable.fake_serial_numbers
+}
+
+output "total_netbooks_created" {
+  description = "Total number of netbooks created"
+  value = len(variable.fake_serial_numbers)
+}
+
+output "unique_batches" {
+  description = "List of unique batch IDs"
+  value = unique(variable.fake_batch_ids)
+}

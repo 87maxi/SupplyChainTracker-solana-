@@ -125,6 +125,10 @@ runbooks:
     description: Complete role request/approval/revocation workflow test
     location: runbooks/04-testing/role-workflow.tx
 
+  - name: generate-fake-data
+    description: Generate fake/mock test data with pre-defined netbooks
+    location: runbooks/04-testing/generate-fake-data.tx
+
 environments:
   localnet:
     network_id: localnet

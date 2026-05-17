@@ -586,15 +586,20 @@ export function createModelSpecs(
 
 /**
  * Fund a keypair with SOL (default 2 SOL)
+ * Uses safe amount to avoid Number.MAX_SAFE_INTEGER overflow
  */
 export async function fundKeypair(
   client: TestClient,
   keypair: Keypair,
   amountSol: number = 2
 ): Promise<string> {
+  // Cap amount to safe value (100 SOL max to avoid overflow)
+  const safeAmountSol = Math.min(amountSol, 100);
+  const lamports = safeAmountSol * LAMPORTS_PER_SOL;
+
   const airdropSignature = await client.rpc.requestAirdrop({
-   destination: keypair.publicKey.toBase58() as Address,
-    lamports: BigInt(amountSol * LAMPORTS_PER_SOL),
+    destination: keypair.publicKey.toBase58() as Address,
+    lamports,
   });
 
   await client.rpc.confirmTransaction({
@@ -864,13 +869,13 @@ export async function approveRoleRequestWithAdminPda(
 export async function grantRoleViaAnchor(
   rpcUrl: string,
   payer: Keypair,
-  adminPda: PublicKey,
+  _adminPda: PublicKey,
   accountToGrant: PublicKey,
   role: string,
   extraSigners?: Keypair[]
 ): Promise<string> {
   const { grantRoleViaAnchor: grantFn } = await import("./anchor-client-wrapper");
-  return await grantFn({ rpcUrl, payer }, adminPda, accountToGrant, role, extraSigners);
+  return await grantFn(rpcUrl, payer, role, accountToGrant as unknown as Keypair, { signers: extraSigners });
 }
 
 /**
@@ -882,7 +887,10 @@ export async function initializeViaAnchor(
   extraSigners?: Keypair[]
 ): Promise<string> {
   const { initializeViaAnchor: initFn } = await import("./anchor-client-wrapper");
-  return await initFn({ rpcUrl, payer }, extraSigners);
+  // Create dummy keypairs for admin and deployer (they're derived as PDAs)
+  const admin = Keypair.generate();
+  const deployer = Keypair.generate();
+  return await initFn(rpcUrl, payer, admin, deployer, { signers: extraSigners });
 }
 
 /**
@@ -895,7 +903,7 @@ export async function fundDeployerViaAnchor(
   extraSigners?: Keypair[]
 ): Promise<string> {
   const { fundDeployerViaAnchor: fundFn } = await import("./anchor-client-wrapper");
-  return await fundFn({ rpcUrl, payer }, BigInt(amount), extraSigners);
+  return await fundFn(rpcUrl, payer, BigInt(amount), { signers: extraSigners });
 }
 
 // ============================================================================

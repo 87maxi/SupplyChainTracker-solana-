@@ -24,15 +24,10 @@ import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@
 import { sendAndConfirmTransaction } from "@solana/web3.js";
 import * as fs from "fs";
 import * as path from "path";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
+import BN from "bn.js";
 
-// CommonJS compatibility for @coral-xyz/anchor ESM exports
-const { Program, AnchorProvider, Wallet, BN } = anchor;
-
-// ESM compatibility
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Get __dirname compatible with ESM
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 // ============================================================================
 // Type Definitions
@@ -54,8 +49,9 @@ export interface AnchorClientConfig {
  * Cached Anchor program instance
  */
 interface CachedProgram {
-  program: Program<any>;
+  program: anchor.Program<any>;
   config: AnchorClientConfig;
+  connection: anchor.web3.Connection;
 }
 
 // ============================================================================
@@ -107,7 +103,7 @@ function loadIdl(): any {
  */
 export async function getAnchorClient(
   config: AnchorClientConfig
-): Promise<Program<any>> {
+): Promise<anchor.Program<any>> {
   // Return cached instance if same RPC URL
   if (cachedProgram && cachedProgram.config.rpcUrl === config.rpcUrl) {
     return cachedProgram.program;
@@ -115,57 +111,37 @@ export async function getAnchorClient(
 
   // Create new instance
   const connection = new anchor.web3.Connection(config.rpcUrl, config.commitment);
-  const wallet = new Wallet(config.payer);
-  const provider = new AnchorProvider(connection, wallet, {
-    commitment: config.commitment ?? "confirmed",
-    skipPreflight: false,
+  const wallet = new anchor.Wallet(config.payer);
+  const provider = new anchor.AnchorProvider(connection, wallet, {
+    commitment: config.commitment,
   });
 
+  anchor.setProvider(provider);
+
   const idl = loadIdl();
-  const programId = new PublicKey(idl.address);
+  const programId = new PublicKey(
+    "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
+  );
 
-  const program = new Program(idl, provider);
+  const program = new anchor.Program(idl, programId);
 
-  // Cache the instance
-  cachedProgram = { program, config };
+  // Cache the instance with connection reference
+  cachedProgram = { program, config, connection };
   lastRpcUrl = config.rpcUrl;
 
   return program;
 }
 
-/**
- * Clear the cached Anchor program instance
- */
-export function clearAnchorCache(): void {
-  cachedProgram = null;
-  lastRpcUrl = null;
-}
-
 // ============================================================================
-// Instruction Execution Helpers
+// Instruction Execution
 // ============================================================================
 
 /**
- * Encode a string argument using Anchor's varint encoding (u32 length prefix + UTF-8 bytes)
- */
-function encodeStringArg(value: string): Buffer {
-  const bytes = Buffer.from(value, "utf-8");
-  const lengthPrefix = new BN(bytes.length).toBuffer("le", 4);
-  const result = Buffer.alloc(lengthPrefix.length + bytes.length);
-  lengthPrefix.copy(result, 0);
-  bytes.copy(result, lengthPrefix.length);
-  return result;
-}
-
-/**
- * Execute an Anchor instruction by building a raw web3.js Transaction
- * and signing it with all required signers.
- *
- * This approach is necessary because Anchor 0.30.1 does not support
- * .signers() for extra signers beyond the wallet.
+ * Execute an Anchor instruction with PDA seed support
+ * This wrapper handles the conversion of BigInt/number args to BN for Anchor compatibility
  */
 export async function executeAnchorInstruction(
-  program: Program<any>,
+  program: anchor.Program<any>,
   instructionName: string,
   accounts: Record<string, any>,
   args: any[] = [],
@@ -173,29 +149,43 @@ export async function executeAnchorInstruction(
     signers?: Keypair[];
     skipPreflight?: boolean;
     commitment?: anchor.web3.Commitment;
+    payer?: Keypair;
   }
 ): Promise<string> {
   // Convert BigInt/number args to BN for Anchor/Borsh compatibility
-  const normalizedArgs = args.map(arg => {
-    if (typeof arg === 'bigint' || typeof arg === 'number') {
+  const normalizedArgs = args.map((arg) => {
+    if (typeof arg === "bigint") {
       return new BN(arg.toString());
+    }
+    if (typeof arg === "number") {
+      return new BN(arg);
     }
     return arg;
   });
 
   // Get the instruction method from the program
-  let methodBuilder = (program.methods as any)[instructionName];
+  const methods = (program as any).methods;
+  let methodBuilder = methods ? methods[instructionName] : undefined;
 
   if (!methodBuilder) {
     // Try camelCase conversion if the exact match failed
-    const camelCaseName = instructionName.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    const altMethod = (program.methods as any)[camelCaseName];
+    const camelCaseName = instructionName.replace(
+      /_([a-z])/g,
+      (_, letter) => letter.toUpperCase()
+    );
+    const altMethod = methods ? methods[camelCaseName] : undefined;
     if (altMethod) {
-      return await executeAnchorInstruction(program, camelCaseName, accounts, args, options);
+      return await executeAnchorInstruction(
+        program,
+        camelCaseName,
+        accounts,
+        args,
+        options
+      );
     }
     throw new Error(
       `Instruction '${instructionName}' not found in program. ` +
-        `Available instructions: ${Object.keys(program.methods || {}).join(", ")}`
+        `Available instructions: ${Object.keys(methods || {}).join(", ")}`
     );
   }
 
@@ -207,100 +197,84 @@ export async function executeAnchorInstruction(
 
   // Extract account metas from the accounts object passed in
   // We need to determine mutability from the IDL instruction definition
-  const idlInstruction = program.idl.instructions.find((i: any) =>
-    i.name.toLowerCase().replace(/_/g, '') === instructionName.toLowerCase().replace(/_/g, '') ||
-    i.name === instructionName ||
-    i.name.replace(/_/g, '') === instructionName.replace(/_/g, '')
+  const idlInstruction = (program.idl as any).instructions.find(
+    (i: any) =>
+      i.name.toLowerCase().replace(/_/g, "") ===
+      instructionName.toLowerCase().replace(/_/g, "") ||
+      i.name === instructionName ||
+      i.name.replace(/_/g, "") === instructionName.replace(/_/g, "")
   );
 
   if (!idlInstruction) {
     throw new Error(`Instruction '${instructionName}' not found in IDL`);
   }
 
-  // Build account metas with proper mutability from IDL
-  const idlAccounts = idlInstruction.accounts || [];
-  let accountMetas: Array<{ pubkey: PublicKey; isSigner: boolean; isWritable: boolean }> = [];
-  
-  // Convert the accounts record to an array with IDL metadata
-  const accountEntries = Object.entries(accounts);
-  accountMetas = accountEntries.map(([name, acc]: [string, any]) => {
-    const idlAccount = idlAccounts.find((ia: any) => ia.name === name);
-    const pubkey = acc instanceof PublicKey ? acc : new PublicKey(acc);
-    return {
-      pubkey: pubkey,
-      isSigner: acc.isSigner || idlAccount?.signer || false,
-      isWritable: idlAccount?.writable || false,
-    };
-  });
-  
-  const dataArgs: any[] = normalizedArgs;
-
-  // Encode discriminator (first 8 bytes from IDL)
-  const discriminator = (idlInstruction as any).discriminator || [0, 0, 0, 0, 0, 0, 0, 0];
-  const dataBuffer = Buffer.alloc(8 + dataArgs.reduce((acc: number, arg: any) => {
-    if (typeof arg === 'string') {
-      return acc + 4 + Buffer.byteLength(arg, 'utf-8');
-    } else if (arg instanceof BN) {
-      return acc + 8;
-    }
-    return acc;
-  }, 0));
-
-  // Write discriminator
-  let offset = 0;
-  for (const byte of discriminator) {
-    dataBuffer[offset++] = byte;
-  }
-
-  // Write arguments
-  for (const arg of dataArgs) {
-    if (typeof arg === 'string') {
-      const encoded = encodeStringArg(arg);
-      encoded.copy(dataBuffer, offset);
-      offset += encoded.length;
-    } else if (arg instanceof BN) {
-      const buf = arg.toBuffer('le', 8);
-      buf.copy(dataBuffer, offset);
-      offset += 8;
-    }
-  }
-
-  // Get program ID
+  // Build custom instruction with explicit account metas
+  const instruction = builder.instruction;
   const programId = program.programId;
 
-  // Create the TransactionInstruction
-  const instruction = new TransactionInstruction({
-    programId: programId,
-    keys: accountMetas.map((acc: any) => ({
-      pubkey: acc.pubkey || acc.key,
-      isSigner: acc.isSigner || false,
-      isWritable: acc.isWritable || false,
-    })),
-    data: dataBuffer,
+  // Combine default accounts with explicit accounts
+  const allAccounts: Record<string, anchor.web3.AccountMeta> = { ...instruction.keys };
+
+  // Add any additional accounts
+  for (const [key, value] of Object.entries(accounts)) {
+    if (value && typeof value === "object" && "pubkey" in value) {
+      const isSigner =
+        "isSigner" in value
+          ? (value as any).isSigner
+          : idlInstruction.accounts?.find((a: any) => a.name === key)?.signer;
+      const isWritable =
+        "isWritable" in value
+          ? (value as any).isWritable
+          : idlInstruction.accounts?.find((a: any) => a.name === key)?.writable;
+
+      allAccounts[key] = {
+        pubkey: (value as any).pubkey,
+        isSigner: isSigner ?? false,
+        isWritable: isWritable ?? true,
+      };
+    }
+  }
+
+  const txInstruction = new TransactionInstruction({
+    programId,
+    keys: Object.values(allAccounts),
+    data: instruction.data,
   });
 
-  // Create a raw web3.js Transaction
-  const transaction = new Transaction();
-  transaction.add(instruction);
+  const transaction = new Transaction().add(txInstruction);
 
-  // Get latest blockhash
-  const { blockhash } = await program.provider.connection.getLatestBlockhash();
-  transaction.recentBlockhash = blockhash;
+  const signers = options?.signers || [];
+  
+  // Get payer from options or fallback to provider wallet
+  let payer = options?.payer;
+  if (!payer) {
+    const provider = (program as any).provider;
+    // anchor.Wallet(keypair) stores the keypair internally
+    // Try different ways to access it
+    if (provider?.wallet) {
+      payer = (provider.wallet as any).keypair || provider.wallet.payer;
+    }
+  }
 
-  // Collect all signers: provider wallet + extra signers
-  const providerWallet = (program.provider as any).wallet?.payer as Keypair | undefined;
-  const allSigners: Keypair[] = [providerWallet, ...(options?.signers || [])].filter(s => s != null) as Keypair[];
+  if (!payer) {
+    throw new Error(
+      "No payer found. Please provide a payer in options or ensure the Anchor provider is properly configured."
+    );
+  }
 
-  // Sign the transaction with all signers
-  transaction.sign(...allSigners);
+  // Get connection from cached program or use the one from config
+  const connection = (cachedProgram as any)?.connection;
+  if (!connection) {
+    throw new Error("No connection available for transaction");
+  }
 
-  // Send and confirm
   const signature = await sendAndConfirmTransaction(
-    program.provider.connection,
+    connection,
     transaction,
-    allSigners,
+    [payer, ...signers],
     {
-      skipPreflight: options?.skipPreflight ?? false,
+      skipPreflight: options?.skipPreflight ?? true,
       commitment: options?.commitment ?? "confirmed",
     }
   );
@@ -309,181 +283,305 @@ export async function executeAnchorInstruction(
 }
 
 // ============================================================================
-// PDA Derivation Helpers
+// Convenience Functions
 // ============================================================================
 
 /**
- * Derive the Admin PDA address
- * Seeds: [b"admin", config.key()]
- */
-export async function deriveAdminPda(
-  configPda: PublicKey,
-  programId?: PublicKey
-): Promise<[PublicKey, number]> {
-  const pid = programId || (await getProgramId());
-  return await PublicKey.findProgramAddress(
-    [Buffer.from("admin"), configPda.toBuffer()],
-    pid
-  );
-}
-
-/**
- * Derive the Deployer PDA address
- * Seeds: [b"deployer"]
- */
-export async function deriveDeployerPda(
-  programId?: PublicKey
-): Promise<[PublicKey, number]> {
-  const pid = programId || (await getProgramId());
-  return await PublicKey.findProgramAddress(
-    [Buffer.from("deployer")],
-    pid
-  );
-}
-
-/**
- * Derive the Netbook PDA address
- * Seeds: [b"netbook", token_id.to_le_bytes()]
- */
-export async function deriveNetbookPda(
-  tokenId: bigint | number,
-  programId?: PublicKey
-): Promise<[PublicKey, number]> {
-  const pid = programId || (await getProgramId());
-  const tokenIdBytes = Buffer.alloc(8);
-  tokenIdBytes.writeBigUInt64LE(BigInt(tokenId), 0);
-  return await PublicKey.findProgramAddress(
-    [Buffer.from("netbook"), tokenIdBytes],
-    pid
-  );
-}
-
-/**
- * Derive the RoleHolder PDA address
- * Seeds: [b"role_holder", account]
- */
-export async function deriveRoleHolderPda(
-  account: PublicKey,
-  programId?: PublicKey
-): Promise<[PublicKey, number]> {
-  const pid = programId || (await getProgramId());
-  return await PublicKey.findProgramAddress(
-    [Buffer.from("role_holder"), account.toBuffer()],
-    pid
-  );
-}
-
-/**
- * Derive the RoleRequest PDA address
- * Seeds: [b"role_request", user]
- */
-export async function deriveRoleRequestPda(
-  user: PublicKey,
-  programId?: PublicKey
-): Promise<[PublicKey, number]> {
-  const pid = programId || (await getProgramId());
-  return await PublicKey.findProgramAddress(
-    [Buffer.from("role_request"), user.toBuffer()],
-    pid
-  );
-}
-
-/**
- * Derive the SerialHashRegistry PDA address
- * Seeds: [b"serial_hashes", config]
- */
-export async function deriveSerialHashRegistryPda(
-  config: PublicKey,
-  programId?: PublicKey
-): Promise<[PublicKey, number]> {
-  const pid = programId || (await getProgramId());
-  return await PublicKey.findProgramAddress(
-    [Buffer.from("serial_hashes"), config.toBuffer()],
-    pid
-  );
-}
-
-/**
- * Derive the Config PDA address
- * Seeds: [b"config"]
- */
-export async function deriveConfigPda(
-  programId?: PublicKey
-): Promise<[PublicKey, number]> {
-  const pid = programId || (await getProgramId());
-  return await PublicKey.findProgramAddress([Buffer.from("config")], pid);
-}
-
-/**
- * Get the program ID from the IDL
- */
-async function getProgramId(): Promise<PublicKey> {
-  const idl = loadIdl();
-  return new PublicKey(idl.address);
-}
-
-// ============================================================================
-// Convenience Functions for Common Operations
-// ============================================================================
-
-/**
- * Grant a role using Anchor (with PDA seeds)
+ * Grant a role using Anchor (with PDA seeds) instead of Codama
+ * This is necessary because Anchor programs verify PDA seeds at runtime
+ * using #[account(seeds = [...], bump = ...)] constraint.
  */
 export async function grantRoleViaAnchor(
-  config: AnchorClientConfig,
-  adminPda: PublicKey,
-  accountToGrant: PublicKey,
+  rpcUrl: string,
+  payer: Keypair,
   role: string,
-  extraSigners?: Keypair[]
+  accountToGrant: Keypair,
+  options?: {
+    signers?: Keypair[];
+    skipPreflight?: boolean;
+  }
 ): Promise<string> {
-  const program = await getAnchorClient(config);
-  const configPda = await deriveConfigPda();
+  const client = await getAnchorClient({ rpcUrl, payer });
 
-  return await executeAnchorInstruction(program, "grantRole", {
-    config: configPda[0],
+  const configPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    client.programId
+  )[0];
+
+  const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("admin"), configPda.toBuffer()],
+    client.programId
+  )[0];
+
+  const signature = await executeAnchorInstruction(client, "grantRole", {
+    config: configPda,
     admin: adminPda,
-    accountToGrant: accountToGrant,
-    systemProgram: SystemProgram.programId,
-  }, [role], { signers: extraSigners });
-}
+    accountToGrant: accountToGrant.publicKey,
+  }, [role], {
+    payer,
+    signers: [accountToGrant, ...(options?.signers || [])],
+    skipPreflight: options?.skipPreflight,
+  });
 
-/**
- * Fund the Deployer PDA using Anchor (with PDA seeds)
- */
-export async function fundDeployerViaAnchor(
-  config: AnchorClientConfig,
-  amount: bigint | number,
-  extraSigners?: Keypair[]
-): Promise<string> {
-  const program = await getAnchorClient(config);
-  const deployerPda = await deriveDeployerPda();
-
-  return await executeAnchorInstruction(program, "fundDeployer", {
-    deployer: deployerPda[0],
-    funder: config.payer.publicKey,
-    systemProgram: SystemProgram.programId,
-  }, [BigInt(amount)], { signers: extraSigners });
+  return signature;
 }
 
 /**
  * Initialize the config using Anchor (with PDA seeds)
  */
 export async function initializeViaAnchor(
-  config: AnchorClientConfig,
-  extraSigners?: Keypair[]
+  rpcUrl: string,
+  payer: Keypair,
+  admin: Keypair,
+  deployer: Keypair,
+  options?: {
+    signers?: Keypair[];
+    skipPreflight?: boolean;
+  }
 ): Promise<string> {
-  const program = await getAnchorClient(config);
-  const configPda = await deriveConfigPda();
-  const deployerPda = await deriveDeployerPda();
+  const client = await getAnchorClient({ rpcUrl, payer });
 
-  // Admin is PDA: [b"admin", config.key()]
-  const [adminPda] = await deriveAdminPda(configPda[0]);
+  const configPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    client.programId
+  )[0];
 
-  return await executeAnchorInstruction(program, "initialize", {
-    config: configPda[0],
+  const serialHashRegistryPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("serial_hash_registry"), configPda.toBuffer()],
+    client.programId
+  )[0];
+
+  const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("admin"), configPda.toBuffer()],
+    client.programId
+  )[0];
+
+  const deployerPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("deployer")],
+    client.programId
+  )[0];
+
+  const signature = await executeAnchorInstruction(client, "initialize", {
+    config: configPda,
+    serialHashRegistry: serialHashRegistryPda,
     admin: adminPda,
-    deployer: deployerPda[0],
-    funder: config.payer.publicKey,
-    systemProgram: SystemProgram.programId,
-  }, [], { signers: extraSigners });
+    deployer: deployerPda,
+  }, [], {
+    payer,
+    signers: [admin, deployer, ...(options?.signers || [])],
+    skipPreflight: options?.skipPreflight,
+  });
+
+  return signature;
+}
+
+/**
+ * Fund the deployer PDA using Anchor (with PDA seeds)
+ */
+export async function fundDeployerViaAnchor(
+  rpcUrl: string,
+  payer: Keypair,
+  amount: bigint,
+  options?: {
+    signers?: Keypair[];
+    skipPreflight?: boolean;
+  }
+): Promise<string> {
+  const client = await getAnchorClient({ rpcUrl, payer });
+
+  const configPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    client.programId
+  )[0];
+
+  const serialHashRegistryPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("serial_hash_registry"), configPda.toBuffer()],
+    client.programId
+  )[0];
+
+  const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("admin"), configPda.toBuffer()],
+    client.programId
+  )[0];
+
+  const deployerPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("deployer")],
+    client.programId
+  )[0];
+
+  const signature = await executeAnchorInstruction(client, "fundDeployer", {
+    deployer: deployerPda,
+    admin: adminPda,
+    config: configPda,
+    serialHashRegistry: serialHashRegistryPda,
+  }, [amount], {
+    payer,
+    signers: options?.signers,
+    skipPreflight: options?.skipPreflight,
+  });
+
+  return signature;
+}
+
+/**
+ * Request a role using Anchor (with PDA seeds)
+ */
+export async function requestRoleViaAnchor(
+  rpcUrl: string,
+  payer: Keypair,
+  role: string,
+  options?: {
+    signers?: Keypair[];
+    skipPreflight?: boolean;
+  }
+): Promise<string> {
+  const client = await getAnchorClient({ rpcUrl, payer });
+
+  const configPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    client.programId
+  )[0];
+
+  const roleRequestPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("role_request"), payer.publicKey.toBuffer()],
+    client.programId
+  )[0];
+
+  const signature = await executeAnchorInstruction(client, "requestRole", {
+    config: configPda,
+    roleRequest: roleRequestPda,
+    user: payer.publicKey,
+  }, [role], {
+    payer,
+    signers: [payer, ...(options?.signers || [])],
+    skipPreflight: options?.skipPreflight,
+  });
+
+  return signature;
+}
+
+/**
+ * Approve a role request using Anchor (with PDA seeds)
+ */
+export async function approveRoleRequestViaAnchor(
+  rpcUrl: string,
+  payer: Keypair,
+  options?: {
+    signers?: Keypair[];
+    skipPreflight?: boolean;
+  }
+): Promise<string> {
+  const client = await getAnchorClient({ rpcUrl, payer });
+
+  const configPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    client.programId
+  )[0];
+
+  // Get the role request from the provider's wallet
+  const roleRequestPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("role_request"), payer.publicKey.toBuffer()],
+    client.programId
+  )[0];
+
+  const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("admin"), configPda.toBuffer()],
+    client.programId
+  )[0];
+
+  const roleHolderPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("role_holder"), payer.publicKey.toBuffer()],
+    client.programId
+  )[0];
+
+  const signature = await executeAnchorInstruction(client, "approveRoleRequest", {
+    config: configPda,
+    admin: adminPda,
+    payer: payer.publicKey,
+    roleRequest: roleRequestPda,
+    roleHolder: roleHolderPda,
+  }, [], {
+    payer,
+    signers: [payer, ...(options?.signers || [])],
+    skipPreflight: options?.skipPreflight,
+  });
+
+  return signature;
+}
+
+/**
+ * Reject a role request using Anchor (with PDA seeds)
+ */
+export async function rejectRoleRequestViaAnchor(
+  rpcUrl: string,
+  payer: Keypair,
+  options?: {
+    signers?: Keypair[];
+    skipPreflight?: boolean;
+  }
+): Promise<string> {
+  const client = await getAnchorClient({ rpcUrl, payer });
+
+  const configPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    client.programId
+  )[0];
+
+  const roleRequestPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("role_request"), payer.publicKey.toBuffer()],
+    client.programId
+  )[0];
+
+  const adminPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("admin"), configPda.toBuffer()],
+    client.programId
+  )[0];
+
+  const signature = await executeAnchorInstruction(client, "rejectRoleRequest", {
+    config: configPda,
+    admin: adminPda,
+    roleRequest: roleRequestPda,
+  }, [], {
+    payer,
+    signers: [payer, ...(options?.signers || [])],
+    skipPreflight: options?.skipPreflight,
+  });
+
+  return signature;
+}
+
+/**
+ * Reset a role request using Anchor (with PDA seeds)
+ */
+export async function resetRoleRequestViaAnchor(
+  rpcUrl: string,
+  payer: Keypair,
+  options?: {
+    signers?: Keypair[];
+    skipPreflight?: boolean;
+  }
+): Promise<string> {
+  const client = await getAnchorClient({ rpcUrl, payer });
+
+  const configPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("config")],
+    client.programId
+  )[0];
+
+  const roleRequestPda = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("role_request"), payer.publicKey.toBuffer()],
+    client.programId
+  )[0];
+
+  const signature = await executeAnchorInstruction(client, "resetRoleRequest", {
+    config: configPda,
+    roleRequest: roleRequestPda,
+    user: payer.publicKey,
+  }, [], {
+    payer,
+    signers: [payer, ...(options?.signers || [])],
+    skipPreflight: options?.skipPreflight,
+  });
+
+  return signature;
 }

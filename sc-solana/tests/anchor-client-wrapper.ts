@@ -20,7 +20,7 @@
 
 import * as anchor from "@coral-xyz/anchor";
 import type { Keypair } from "@solana/web3.js";
-import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { sendAndConfirmTransaction } from "@solana/web3.js";
 import * as fs from "fs";
 import * as path from "path";

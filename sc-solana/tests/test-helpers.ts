@@ -71,7 +71,7 @@ import {
   type RoleHolder,
   type RoleRequest,
   type SerialHashRegistry,
-} from "../src/generated/src/generated";
+} from "../src/generated";
 
 /**
  * Compatibility wrapper: web3.js Keypair -> @solana/signers TransactionSigner

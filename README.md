@@ -159,7 +159,7 @@ cd web && cp .env.example .env.local && npm install && npm run dev
 | Anchor CLI | 0.32.1 | Solana program framework | `cargo install --locked anchor-cli --version 0.32.1` |
 | Node.js | 20 LTS | Frontend development | [`nvm`](https://github.com/nvm-sh/nvm) or [nodejs.org](https://nodejs.org) |
 | npm | 10+ | Package manager | Bundled with Node.js |
-| Solana CLI | 2.1.18 | Solana validator & tools | [`sh -c "$(curl -sSfL https://release.solana.com/stable/install)"`](https://docs.solana.com/cli/install-solana-cli-tools) |
+| Solana CLI | 3.1.13 | Solana validator & tools | [`sh -c "$(curl -sSfL https://release.solana.com/stable/install)"`](https://docs.solana.com/cli/install-solana-cli-tools) |
 | Surfpool | Latest | Local deployment system | `npm install -g @surfpool/cli` |
 | txtx | Latest | Runbook execution engine | `cargo install txtx-cli --locked` |
 
@@ -183,8 +183,8 @@ rustup update stable
 # Install Anchor CLI (version 0.32.1 required)
 cargo install --locked anchor-cli --version 0.32.1
 
-# Install Solana CLI (version 2.1.18)
-sh -c "$(curl -sSfL https://release.solana.com/v2.1.18/install)"
+# Install Solana CLI (version 3.1.13)
+sh -c "$(curl -sSfL https://release.solana.com/v3.1.13/install)"
 source ~/.local/share/solana/install/active_solana/env
 
 # Install Surfpool CLI
@@ -195,7 +195,7 @@ cargo install txtx-cli --locked
 
 # Verify installations
 anchor --version        # Should show 0.32.1
-solana --version        # Should show 2.1.18
+solana --version        # Should show 3.1.13
 surfpool --version
 txtx --version
 cargo --version
@@ -248,7 +248,7 @@ NEXT_PUBLIC_CLUSTER=localnet
 NEXT_PUBLIC_NETWORK=localnet
 
 # Program ID - MUST match declare_id!() in lib.rs
-NEXT_PUBLIC_PROGRAM_ID=7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
+NEXT_PUBLIC_PROGRAM_ID=BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW
 
 # WalletConnect (optional - for Phantom mobile)
 # NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
@@ -326,7 +326,7 @@ txtx run sc-solana/runbooks/01-deployment/grant-all-to-deployer.tx
 
 ```bash
 # Check program is deployed
-solana program show --program-id 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb \
+solana program show --program-id BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW \
   --url http://localhost:8899
 
 # Query config using txtx
@@ -480,7 +480,7 @@ graph LR
 ### Program ID
 
 ```
-Program ID: 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb
+Program ID: BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW
 ```
 
 > **Nota Crítico:** El Program ID debe ser consistente en tres lugares:
@@ -1062,7 +1062,7 @@ npx codama run --all
 
 ```bash
 # Check if program is deployed
-solana program show --program-id 7bGrgLgTDyQY4SMmHpQpdT2VDur8iVCRGBBjSMrcCvrb \
+solana program show --program-id BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW \
   --url http://localhost:8899
 
 # If not deployed, run full initialization

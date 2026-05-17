@@ -11,6 +11,8 @@ pub struct AssignToStudent<'info> {
     pub netbook: Account<'info, Netbook>,
     #[account(
         mut,
+        seeds = [b"config"],
+        bump,
         constraint = config.escuela == school.key() @ crate::errors::SupplyChainError::Unauthorized
     )]
     pub config: Account<'info, SupplyChainConfig>,

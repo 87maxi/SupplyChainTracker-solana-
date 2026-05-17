@@ -1,12 +1,33 @@
-// Addon configuration for Solana/SVM
+// ============================================================================
+// Perform Hardware Audit on Netbook
+// ============================================================================
+// State transition: Fabricada (0) -> HwAprobado (1)
+//
+// Usage: surfpool run audit-hardware --env localnet --browser -f
+//
+// Prerequisites:
+//   - Netbook must be registered (Fabricada state)
+//   - AUDITOR_HW role must be granted to the auditor account
+//   - NETBOOK_TOKEN_ID and NETBOOK_SERIAL must be set in environment
+//
+// Inputs:
+//   - token_id: Token ID of the netbook (from env.NETBOOK_TOKEN_ID)
+//   - serial_number: Serial number (from env.NETBOOK_SERIAL)
+//   - passed: Audit result (default: true)
+//   - report_hash: SHA-256 hash of audit report (32 bytes)
+//
+// Outputs:
+//   - audit_signature: Transaction signature
+//   - new_state: New netbook state (HwAprobado)
+// ============================================================================
+
+// ============================================================================
+// Addon Configuration
+// ============================================================================
 addon "svm" {
   network_id = "localnet"
   rpc_api_url = "http://localhost:8899"
 }
-
-// Perform hardware audit on a netbook
-// State transition: Fabricada (0) -> HwAprobado (1)
-// Usage: surfpool run audit-hardware --env localnet --browser -f
 //
 // Prerequisites:
 //   - Source config: source config/config.env && source runbooks/environments/localnet.env
@@ -106,7 +127,7 @@ action "audit" "svm::process_instructions" {
 // Outputs
 output "audit_signature" {
   description = "Audit transaction signature"
-  value = action.audit.signatures | first()
+  value = action.audit.signatures
 }
 
 output "new_state" {

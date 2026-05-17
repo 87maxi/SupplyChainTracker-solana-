@@ -70,5 +70,5 @@ action "request" "svm::process_instructions" {
 output "request_signature" {
   description = "Request transaction signature"
   // Use first() to safely handle empty signatures array (Issue #129)
-  value = action.request.signatures | first()
+  value = action.request.signatures
 }

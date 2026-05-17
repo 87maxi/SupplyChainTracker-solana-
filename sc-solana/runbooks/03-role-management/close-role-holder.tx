@@ -88,5 +88,5 @@ action "close" "svm::process_instructions" {
 
 output "close_signature" {
   description = "Transaction signature"
-  value = action.close.signatures | first()
+  value = action.close.signatures
 }

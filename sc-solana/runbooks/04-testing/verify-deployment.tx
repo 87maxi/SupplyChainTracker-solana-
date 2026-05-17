@@ -160,15 +160,15 @@ output "admin_wallet_address" {
 
 output "verify_program_signature" {
   description = "Program verification transaction signature"
-  value = action.verify_program.signatures | first()
+  value = action.verify_program.signatures
 }
 
 output "verify_config_signature" {
   description = "Config verification transaction signature"
-  value = action.verify_config.signatures | first()
+  value = action.verify_config.signatures
 }
 
 output "verify_deployer_signature" {
   description = "Deployer verification transaction signature"
-  value = action.verify_deployer.signatures | first()
+  value = action.verify_deployer.signatures
 }

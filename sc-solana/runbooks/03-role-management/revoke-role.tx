@@ -46,6 +46,11 @@ variable "config_pda" {
   value = svm::find_pda(variable.program_id, ["config"])
 }
 
+variable "admin_pda" {
+  description = "Admin PDA derived from config (seeds: [b\"admin\", config.key()])"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
+}
+
 action "revoke" "svm::process_instructions" {
   description = "Revoke role from account"
   instruction {
@@ -54,15 +59,15 @@ action "revoke" "svm::process_instructions" {
     instruction_args = [variable.role_to_revoke]
     accounts = [
       { public_key = variable.config_pda.pda, writable = true, signer = false },
-      { public_key = signer.admin.public_key, writable = true, signer = true },
+      { public_key = variable.admin_pda.pda, writable = false, signer = false },
       { public_key = signer.account_to_revoke.public_key, writable = false, signer = true },
       { public_key = svm::system_program_id(), writable = false, signer = false }
     ]
   }
-  signers = [signer.admin, signer.account_to_revoke]
+  signers = [signer.account_to_revoke]
 }
 
 output "revoke_signature" {
   description = "Revoke transaction signature"
-  value = action.revoke.signatures | first()
+  value = action.revoke.signatures
 }

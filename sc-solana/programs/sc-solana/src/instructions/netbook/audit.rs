@@ -11,6 +11,8 @@ pub struct AuditHardware<'info> {
     pub netbook: Account<'info, Netbook>,
     #[account(
         mut,
+        seeds = [b"config"],
+        bump,
         constraint = config.auditor_hw == auditor.key() @ crate::errors::SupplyChainError::Unauthorized
     )]
     pub config: Account<'info, SupplyChainConfig>,

@@ -1,12 +1,33 @@
-// Addon configuration for Solana/SVM
+// ============================================================================
+// Assign Netbook to Student (Final Lifecycle Step)
+// ============================================================================
+// State transition: SwValidado (2) -> Distribuida (3)
+//
+// Usage: surfpool run assign-student --env localnet --browser -f
+//
+// Prerequisites:
+//   - Netbook must pass software validation (SwValidado state)
+//   - ESCUELA role must be granted to the school account
+//   - NETBOOK_TOKEN_ID and NETBOOK_SERIAL must be set in environment
+//
+// Inputs:
+//   - token_id: Token ID of the netbook (from env.NETBOOK_TOKEN_ID)
+//   - serial_number: Serial number (from env.NETBOOK_SERIAL)
+//   - school_hash: Hash of destination school (32 bytes)
+//   - student_hash: Hash of student ID (32 bytes)
+//
+// Outputs:
+//   - assignment_signature: Transaction signature
+//   - new_state: New netbook state (Distribuida)
+// ============================================================================
+
+// ============================================================================
+// Addon Configuration
+// ============================================================================
 addon "svm" {
   network_id = "localnet"
   rpc_api_url = "http://localhost:8899"
 }
-
-// Assign netbook to a student (final step in lifecycle)
-// State transition: SwValidado (2) -> Distribuida (3)
-// Usage: surfpool run assign-student --env localnet --browser -f
 //
 // Prerequisites:
 //   - Source config: source config/config.env && source runbooks/environments/localnet.env
@@ -106,7 +127,7 @@ action "assign" "svm::process_instructions" {
 // Outputs
 output "assignment_signature" {
   description = "Assignment transaction signature"
-  value = action.assign.signatures | first()
+  value = action.assign.signatures
 }
 
 output "new_state" {

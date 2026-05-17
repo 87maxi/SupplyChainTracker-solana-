@@ -1,12 +1,33 @@
-// Addon configuration for Solana/SVM
+// ============================================================================
+// Validate Software on Netbook
+// ============================================================================
+// State transition: HwAprobado (1) -> SwValidado (2)
+//
+// Usage: surfpool run validate-software --env localnet --browser -f
+//
+// Prerequisites:
+//   - Netbook must pass hardware audit (HwAprobado state)
+//   - TECNICO_SW role must be granted to the technician account
+//   - NETBOOK_TOKEN_ID and NETBOOK_SERIAL must be set in environment
+//
+// Inputs:
+//   - token_id: Token ID of the netbook (from env.NETBOOK_TOKEN_ID)
+//   - serial_number: Serial number (from env.NETBOOK_SERIAL)
+//   - os_version: OS version installed (from env.NETBOOK_OS_VERSION)
+//   - passed: Validation result (default: true)
+//
+// Outputs:
+//   - validation_signature: Transaction signature
+//   - new_state: New netbook state (SwValidado)
+// ============================================================================
+
+// ============================================================================
+// Addon Configuration
+// ============================================================================
 addon "svm" {
   network_id = "localnet"
   rpc_api_url = "http://localhost:8899"
 }
-
-// Validate software on a netbook
-// State transition: HwAprobado (1) -> SwValidado (2)
-// Usage: surfpool run validate-software --env localnet --browser -f
 //
 // Prerequisites:
 //   - Source config: source config/config.env && source runbooks/environments/localnet.env
@@ -106,7 +127,7 @@ action "validate" "svm::process_instructions" {
 // Outputs
 output "validation_signature" {
   description = "Validation transaction signature"
-  value = action.validate.signatures | first()
+  value = action.validate.signatures
 }
 
 output "new_state" {

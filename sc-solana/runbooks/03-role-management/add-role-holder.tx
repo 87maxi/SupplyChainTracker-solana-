@@ -102,11 +102,11 @@ action "add_holder" "svm::process_instructions" {
         writable = true
         signer = false
       },
-      // Admin as PDA - derived from config key
+      // Admin as PDA - derived from config key (cannot sign, so signer = false)
       {
         public_key = variable.admin_pda.pda
-        writable = true
-        signer = true
+        writable = false
+        signer = false
       },
       // role_holder PDA (init, payer = admin) - seeds: [b"role_holder", account_to_add]
       {
@@ -135,7 +135,7 @@ action "add_holder" "svm::process_instructions" {
 // ============================================================================
 output "add_holder_signature" {
   description = "Transaction signature for adding role holder"
-  value = action.add_holder.signatures | first()
+  value = action.add_holder.signatures
 }
 
 output "role_holder_pda" {

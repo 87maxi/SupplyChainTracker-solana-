@@ -59,6 +59,11 @@ variable "config_pda" {
   value = svm::find_pda(variable.program_id, ["config"])
 }
 
+variable "admin_pda" {
+  description = "Admin PDA derived from config (seeds: [b\"admin\", config.key()])"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
+}
+
 variable "role_request_pda" {
   description = "Role request PDA (derived from requester address)"
   value = svm::find_pda(variable.program_id, ["role_request", variable.requester_address])
@@ -74,8 +79,8 @@ action "reject" "svm::process_instructions" {
     instruction_name = "reject_role_request"
     instruction_args = []
     // Account order matches RejectRoleRequest struct in Anchor:
-    // 1. config (mut, has_one = admin)
-    // 2. admin (mut, signer)
+    // 1. config (mut, seeds = [b"config"])
+    // 2. admin PDA (seeds = [b"admin", config.key()]) - cannot sign
     // 3. role_request (mut)
     accounts = [
       {
@@ -84,9 +89,9 @@ action "reject" "svm::process_instructions" {
         signer = false
       },
       {
-        public_key = signer.admin.public_key
-        writable = true
-        signer = true
+        public_key = variable.admin_pda.pda
+        writable = false
+        signer = false
       },
       {
         public_key = variable.role_request_pda.pda
@@ -95,7 +100,7 @@ action "reject" "svm::process_instructions" {
       }
     ]
   }
-  signers = [signer.admin]
+  signers = []
 }
 
 // ============================================================================
@@ -104,7 +109,7 @@ action "reject" "svm::process_instructions" {
 output "reject_signature" {
   description = "Transaction signature for rejecting role request"
   // Use first() to safely handle empty signatures array (Issue #129)
-  value = action.reject.signatures | first()
+  value = action.reject.signatures
 }
 
 output "role_request_pda" {

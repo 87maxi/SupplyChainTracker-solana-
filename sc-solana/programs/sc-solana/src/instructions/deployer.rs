@@ -92,7 +92,11 @@ pub fn fund_deployer(ctx: Context<FundDeployer>, amount: u64) -> Result<()> {
 /// This is useful for cleanup after testing or migration.
 #[derive(Accounts)]
 pub struct CloseDeployer<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     #[account(mut)]
     pub admin: Signer<'info>,

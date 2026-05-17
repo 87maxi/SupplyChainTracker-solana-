@@ -1,12 +1,36 @@
-// Query netbook state
+// ============================================================================
+// Query Netbook State
+// ============================================================================
+// Queries the current state of a netbook by serial number and token ID.
+//
 // Usage: surfpool run query-netbook --env localnet --browser -f
+//
+// Prerequisites:
+//   - Netbook must be registered
+//   - NETBOOK_TOKEN_ID must be set in environment
+//
+// Inputs:
+//   - token_id: Token ID of the netbook (from env.NETBOOK_TOKEN_ID)
+//   - serial_number: Serial number to query (from env.NETBOOK_SERIAL)
+//
+// Outputs:
+//   - query_signature: Transaction signature
+//   - netbook_pda: Derived netbook PDA address
+// ============================================================================
 
+// ============================================================================
+// Addon Configuration
+// ============================================================================
 addon "svm" {
   network_id = "localnet"
   rpc_api_url = "http://localhost:8899"
 }
 
+// ============================================================================
+// Signers
+// ============================================================================
 signer "payer" "svm::web_wallet" {
+  description = "Payer account for the query transaction"
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
@@ -53,7 +77,7 @@ action "query" "svm::process_instructions" {
 
 output "query_signature" {
   description = "Query transaction signature"
-  value = action.query.signatures | first()
+  value = action.query.signatures
 }
 
 output "netbook_pda" {

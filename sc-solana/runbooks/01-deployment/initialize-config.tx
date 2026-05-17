@@ -1,36 +1,61 @@
-// Initialize SupplyChainTracker configuration (PDA-First Architecture)
-// Called after program deployment to set up initial state
+// ============================================================================
+// Initialize SupplyChainTracker Configuration (PDA-First Architecture)
+// ============================================================================
+// Initializes the supply chain configuration, creating:
+//   - Config account (PDA with seed: "config")
+//   - Serial Hash Registry (PDA with seed: "serial_hashes" + config)
+//   - Derives Admin PDA (seed: "admin" + config)
 //
-// PDA-First Pattern:
-// - Deployer PDA: seeds = [b"deployer"] - Payer for account creation
-// - Config PDA: seeds = [b"config"]
-// - Serial Hashes PDA: seeds = [b"serial_hashes", config.key()]
-// - Admin PDA: seeds = [b"admin", config.key()]
+// Usage: surfpool run initialize-config --env localnet --browser -f
 //
-// Flow:
-// 1. fund_deployer - Create and fund deployer PDA (external wallet signer)
-// 2. initialize - All PDAs, fully IDL-derivable
+// Prerequisites:
+//   - Program must be deployed (run deploy-program.tx first)
+//   - Deployer wallet must have SOL for rent/existence
+//
+// CRITICAL LIMITATION (Issue #129):
+//   initialize instruction CANNOT be executed via svm::process_instructions
+//   WORKAROUND: Use solana CLI directly or full-init.tx with manual instruction data
+//
+// Outputs:
+//   - program_id: Deployed program address
+//   - deployer_pda_address: Deployer PDA address
+//   - admin_pda_address: Admin PDA address (derived from config)
+//   - config_pda: Config account PDA address
+//   - serial_hashes_pda: Serial Hash Registry PDA address
+// ============================================================================
 
-// Addon configuration for Solana/SVM
+// ============================================================================
+// Addon Configuration
+// ============================================================================
 addon "svm" {
   network_id = "localnet"
   rpc_api_url = "http://localhost:8899"
 }
 
-// Signer for funding the deployer PDA
+// ============================================================================
+// Signers
+// ============================================================================
 signer "funder" "svm::web_wallet" {
-  description = "Wallet that funds the deployer PDA"
+  description = "Wallet that funds the deployer PDA and signs all transactions"
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
-// Program ID - hardcoded to avoid IDL parsing issues with Anchor 1.0 spec 0.1.0
-// This matches declare_id! in sc-solana/programs/sc-solana/src/lib.rs
-variable "program_id" {
-  description = "Deployed program ID"
-  value = "BTSWNY97FaxeJrUNSq399tRbfMz68iaaY3csJwT9hQQW"
+// ============================================================================
+// Program Configuration
+// ============================================================================
+variable "program" {
+  description = "Program artifacts from Anchor project"
+  value = svm::get_program_from_anchor_project("sc_solana")
 }
 
-// Derive PDAs - all accounts are PDA-derivable from IDL
+variable "program_id" {
+  description = "Deployed program ID"
+  value = variable.program.program_id
+}
+
+// ============================================================================
+// PDA Derivation
+// ============================================================================
 variable "deployer_pda" {
   description = "Deployer PDA (seed: deployer)"
   value = svm::find_pda(variable.program_id, ["deployer"])
@@ -51,96 +76,9 @@ variable "admin_pda" {
   value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
 }
 
-// Helper variables for instruction data (manual discriminators for txtx compatibility)
-// Anchor discriminator for "global:fund_deployer": sha256("global:fund_deployer")[:8]
-// Full instruction data = discriminator (8 bytes) + amount u64 little-endian (8 bytes)
-// Amount: 10000000000 = 0x2540BE40 -> [0, 228, 11, 84, 2, 0, 0, 0]
-variable "fund_deployer_data" {
-  description = "Complete instruction data for fund_deployer (discriminator + amount)"
-  value = [223, 191, 31, 96, 237, 187, 189, 54, 0, 228, 11, 84, 2, 0, 0, 0]
-}
-
-// Anchor discriminator for "global:initialize": sha256("global:initialize")[:8]
-// No arguments - just the 8-byte discriminator
-variable "initialize_data" {
-  description = "Instruction data for initialize (discriminator only, no arguments)"
-  value = [175, 175, 109, 31, 13, 152, 155, 237]
-}
-
-// Step 1: Fund the deployer PDA
-// Uses program_id (not program_idl) because funder is an external signer not derivable from IDL
-action "fund_deployer" "svm::process_instructions" {
-  description = "Create and fund the deployer PDA with SOL"
-  instruction {
-    program_id = variable.program_id
-    instruction_data = variable.fund_deployer_data
-    accounts = [
-      {
-        public_key = variable.deployer_pda.pda
-        writable = true
-        signer = false
-      },
-      {
-        public_key = signer.funder.public_key
-        writable = true
-        signer = true
-      },
-      {
-        public_key = svm::system_program_id()
-        writable = false
-        signer = false
-      }
-    ]
-  }
-  signers = [signer.funder]
-}
-
-// Step 2: Initialize supply chain configuration
-// Uses program_id with manual instruction data (txtx IDL compatibility)
-// Account order: config, serial_hash_registry, admin, deployer, funder, system_program
-action "initialize" "svm::process_instructions" {
-  description = "Initialize supply chain configuration (creates Config, SerialHashRegistry, derives Admin PDA)"
-  depends_on = ["fund_deployer"]
-  instruction {
-    program_id = variable.program_id
-    instruction_data = variable.initialize_data
-    accounts = [
-      {
-        public_key = variable.config_pda.pda
-        writable = true
-        signer = false
-      },
-      {
-        public_key = variable.serial_hashes_pda.pda
-        writable = true
-        signer = false
-      },
-      {
-        public_key = variable.admin_pda.pda
-        writable = false
-        signer = false
-      },
-      {
-        public_key = variable.deployer_pda.pda
-        writable = true
-        signer = false
-      },
-      {
-        public_key = signer.funder.public_key
-        writable = true
-        signer = true
-      },
-      {
-        public_key = svm::system_program_id()
-        writable = false
-        signer = false
-      }
-    ]
-  }
-  signers = [signer.funder]
-}
-
-// Outputs
+// ============================================================================
+// Outputs - PDAs and addresses for manual initialization
+// ============================================================================
 output "program_id" {
   description = "Program ID"
   value = variable.program_id

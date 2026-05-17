@@ -99,11 +99,11 @@ action "approve" "svm::process_instructions" {
         writable = true
         signer = false
       },
-      // Admin as PDA - derived from config key
+      // Admin as PDA - derived from config key (cannot sign, so signer = false)
       {
         public_key = variable.admin_pda.pda
-        writable = true
-        signer = true
+        writable = false
+        signer = false
       },
       {
         public_key = variable.role_request_pda.pda
@@ -130,7 +130,7 @@ action "approve" "svm::process_instructions" {
 // ============================================================================
 output "approve_signature" {
   description = "Transaction signature for approving role request"
-  value = action.approve.signatures | first()
+  value = action.approve.signatures
 }
 
 output "role_request_pda" {

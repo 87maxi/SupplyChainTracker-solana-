@@ -21,7 +21,11 @@ use anchor_lang::prelude::*;
 /// Admin can grant additional roles via `grant_role` with recipient consent.
 #[derive(Accounts)]
 pub struct RequestRole<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     #[account(
         init,
@@ -46,7 +50,11 @@ pub struct RequestRole<'info> {
 /// NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 #[derive(Accounts)]
 pub struct ApproveRoleRequest<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
     #[account(
@@ -78,7 +86,11 @@ pub struct ApproveRoleRequest<'info> {
 /// NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 #[derive(Accounts)]
 pub struct RejectRoleRequest<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
     #[account(
@@ -94,7 +106,11 @@ pub struct RejectRoleRequest<'info> {
 /// Allows users to create a new request after admin approve/reject
 #[derive(Accounts)]
 pub struct ResetRoleRequest<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     #[account(
         mut,

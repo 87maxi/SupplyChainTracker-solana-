@@ -153,7 +153,7 @@ action "register_fake_netbooks" "svm::process_instructions" {
 
 output "registration_signature" {
   description = "Batch registration transaction signature"
-  value = action.register_fake_netbooks.signatures | first()
+  value = action.register_fake_netbooks.signatures
 }
 
 output "serial_numbers_registered" {

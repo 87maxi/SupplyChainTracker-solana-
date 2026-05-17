@@ -1,26 +1,53 @@
-// Deploy SupplyChainTracker program to Solana network
-// Uses Surfpool SVM addon to deploy Anchor-built programs
+// ============================================================================
+// Deploy SupplyChainTracker Program to Solana Network
+// ============================================================================
+// Deploys the SupplyChainTracker Anchor program to the specified network.
+// The program is deployed as non-upgradeable (authority = System Program).
+//
+// Usage: surfpool run deploy-program --env localnet --browser -f
+//
+// Prerequisites:
+//   - Anchor project must be built (cargo build in sc-solana/)
+//   - Deployer wallet must have sufficient SOL for deployment fees
+//
+// Program: sc_solana (SupplyChainTracker)
+// Architecture: PDA-First (Admin PDA, Deployer PDA, Config PDA)
+//
+// Outputs:
+//   - program_id: Deployed program address
+//   - program_idl: Program Interface Definition Language
+//   - signatures: Deployment transaction signatures
+//   - slot: Slot at which the program was deployed
+// ============================================================================
 
-// Addon configuration for Solana/SVM
+// ============================================================================
+// Addon Configuration
+// ============================================================================
 addon "svm" {
   network_id = "localnet"
   rpc_api_url = "http://localhost:8899"
 }
 
-// Signers - deployer and authority
+// ============================================================================
+// Signers
+// ============================================================================
 signer "deployer" "svm::web_wallet" {
-  description = "Deployer/Authority account for the program"
+  description = "Deployer/Authority account for program deployment"
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
-// Get program artifacts from Anchor project
+// ============================================================================
+// Program Configuration
+// ============================================================================
 // svm::get_program_from_anchor_project returns {idl, binary, keypair, program_id}
 variable "program" {
   description = "Program artifacts from Anchor project"
   value = svm::get_program_from_anchor_project("sc_solana")
 }
 
-// Deploy the program (non-upgradeable, authority = System Program)
+// ============================================================================
+// Deployment Action
+// ============================================================================
 // For non-upgradeable programs, upgrade_authority should be null or System Program
 action "deploy" "svm::deploy_program" {
   description = "Deploy SupplyChainTracker program to localnet"
@@ -30,7 +57,9 @@ action "deploy" "svm::deploy_program" {
   auto_extend = true
 }
 
+// ============================================================================
 // Outputs
+// ============================================================================
 output "program_id" {
   description = "Deployed program ID"
   value = action.deploy.program_id

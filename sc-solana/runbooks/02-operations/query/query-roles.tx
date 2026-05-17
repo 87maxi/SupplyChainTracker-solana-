@@ -149,25 +149,25 @@ output "config_pda_address" {
 
 output "query_config_signature" {
   description = "Config query transaction signature"
-  value = action.query_config.signatures | first()
+  value = action.query_config.signatures
 }
 
 output "query_fabricante_signature" {
   description = "FABRICANTE query transaction signature"
-  value = action.query_fabricante.signatures | first()
+  value = action.query_fabricante.signatures
 }
 
 output "query_auditor_hw_signature" {
   description = "AUDITOR_HW query transaction signature"
-  value = action.query_auditor_hw.signatures | first()
+  value = action.query_auditor_hw.signatures
 }
 
 output "query_tecnico_sw_signature" {
   description = "TECNICO_SW query transaction signature"
-  value = action.query_tecnico_sw.signatures | first()
+  value = action.query_tecnico_sw.signatures
 }
 
 output "query_escuela_signature" {
   description = "ESCUELA query transaction signature"
-  value = action.query_escuela.signatures | first()
+  value = action.query_escuela.signatures
 }

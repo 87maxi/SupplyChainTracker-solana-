@@ -17,12 +17,20 @@ runbooks:
     location: runbooks/01-deployment/deploy-program.tx
 
   - name: initialize-config
-    description: Initialize supply chain configuration
+    description: Initialize supply chain configuration (PDA-First)
     location: runbooks/01-deployment/initialize-config.tx
 
   - name: grant-roles
     description: Grant initial roles to administrators
     location: runbooks/01-deployment/grant-roles.tx
+
+  - name: grant-all-to-deployer
+    description: Grant all roles to deployer wallet (single-operator setup)
+    location: runbooks/01-deployment/grant-all-to-deployer.tx
+
+  - name: full-init
+    description: Full initialization (fund + initialize + grant all roles)
+    location: runbooks/01-deployment/full-init.tx
 
   # NOTE: upgrade-program removed - program is deployed as non-upgradeable
   # (upgradeable = false in Anchor.toml, authority = signer.deployer in deploy-program.tx)
@@ -111,23 +119,37 @@ runbooks:
     description: Setup complete test environment with all accounts
     location: runbooks/04-testing/setup-test-env.tx
     state:
-      location: runbooks/states/test
+      location: runbooks/states/setup-test-env
 
   - name: full-lifecycle
     description: Complete lifecycle test from manufacturing to distribution
     location: runbooks/04-testing/full-lifecycle.tx
+    state:
+      location: runbooks/states/full-lifecycle
 
   - name: edge-cases
     description: Edge cases and error handling tests
     location: runbooks/04-testing/edge-cases.tx
+    state:
+      location: runbooks/states/edge-cases
 
   - name: role-workflow
     description: Complete role request/approval/revocation workflow test
     location: runbooks/04-testing/role-workflow.tx
+    state:
+      location: runbooks/states/role-workflow
 
   - name: generate-fake-data
     description: Generate fake/mock test data with pre-defined netbooks
     location: runbooks/04-testing/generate-fake-data.tx
+    state:
+      location: runbooks/states/generate-fake-data
+
+  - name: verify-deployment
+    description: Verify deployment consistency and PDA derivation
+    location: runbooks/04-testing/verify-deployment.tx
+    state:
+      location: runbooks/states/verify-deployment
 
 environments:
   localnet:

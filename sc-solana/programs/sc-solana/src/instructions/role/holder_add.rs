@@ -13,7 +13,11 @@ use anchor_lang::prelude::*;
 /// Add a role holder (multiple role holders per role)
 #[derive(Accounts)]
 pub struct AddRoleHolder<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
     #[account(

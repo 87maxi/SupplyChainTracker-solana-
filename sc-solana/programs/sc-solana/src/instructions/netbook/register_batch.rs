@@ -15,7 +15,11 @@ fn compute_serial_hash(serial_number: &str) -> [u8; 32] {
 /// Batch register netbooks (creates individual PDAs via individual calls)
 #[derive(Accounts)]
 pub struct RegisterNetbooksBatch<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     #[account(mut)]
     pub serial_hash_registry: AccountLoader<'info, SerialHashRegistry>,

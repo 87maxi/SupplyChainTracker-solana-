@@ -6,6 +6,7 @@ use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct QueryConfig<'info> {
+    #[account(seeds = [b"config"], bump)]
     pub config: Account<'info, SupplyChainConfig>,
 }
 

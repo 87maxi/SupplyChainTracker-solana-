@@ -57,6 +57,11 @@ variable "config_pda" {
   value = svm::find_pda(variable.program_id, ["config"])
 }
 
+variable "admin_pda" {
+  description = "Admin PDA derived from config (seeds: [b\"admin\", config.key()])"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
+}
+
 variable "role_request_pda" {
   description = "Role request PDA"
   value = svm::find_pda(variable.program_id, ["role_request", signer.requester.public_key])
@@ -71,15 +76,20 @@ action "step1_request" "svm::process_instructions" {
     program_idl = variable.program.idl
     instruction_name = "request_role"
     instruction_args = [variable.role_to_request]
+    // Account order matches RequestRole struct in Anchor:
+    // 1. config (mut, seeds = [b"config"])
+    // 2. role_request (init)
+    // 3. user (mut, signer)
+    // 4. system_program
     accounts = [
       {
-        public_key = variable.role_request_pda.pda
+        public_key = variable.config_pda.pda
         writable = true
         signer = false
       },
       {
-        public_key = variable.config_pda.pda
-        writable = false
+        public_key = variable.role_request_pda.pda
+        writable = true
         signer = false
       },
       {
@@ -106,9 +116,21 @@ action "step2_approve" "svm::process_instructions" {
     program_idl = variable.program.idl
     instruction_name = "approve_role_request"
     instruction_args = []
+    // Account order matches ApproveRoleRequest struct in Anchor:
+    // 1. config (mut, seeds = [b"config"])
+    // 2. admin PDA (seeds = [b"admin", config.key()]) - cannot sign
+    // 3. payer (mut, signer)
+    // 4. role_request (mut)
+    // 5. role_holder (init)
+    // 6. system_program
     accounts = [
       {
         public_key = variable.config_pda.pda
+        writable = true
+        signer = false
+      },
+      {
+        public_key = variable.admin_pda.pda
         writable = false
         signer = false
       },
@@ -119,11 +141,6 @@ action "step2_approve" "svm::process_instructions" {
       },
       {
         public_key = variable.role_request_pda.pda
-        writable = true
-        signer = false
-      },
-      {
-        public_key = signer.requester.public_key
         writable = true
         signer = false
       },
@@ -163,9 +180,9 @@ action "step3_verify" "svm::process_instructions" {
 output "workflow_signatures" {
   description = "All transaction signatures from the workflow"
   value = {
-    request: action.step1_request.signatures | first(),
-    approve: action.step2_approve.signatures | first(),
-    verify: action.step3_verify.signatures | first()
+    request: action.step1_request.signatures,
+    approve: action.step2_approve.signatures,
+    verify: action.step3_verify.signatures
   }
 }
 

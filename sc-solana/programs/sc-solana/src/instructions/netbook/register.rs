@@ -16,7 +16,11 @@ fn compute_serial_hash(serial_number: &str) -> [u8; 32] {
 /// Uses config.next_token_id as part of PDA seed to ensure unique PDAs per netbook
 #[derive(Accounts)]
 pub struct RegisterNetbook<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     #[account(mut)]
     pub serial_hash_registry: AccountLoader<'info, SerialHashRegistry>,

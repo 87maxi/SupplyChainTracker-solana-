@@ -65,15 +65,18 @@ For detailed instructions, see the Quick Start section above or the deployment r
 runbooks/
 ├── README.md                           # This file (main documentation)
 ├── _templates/                         # Reusable templates
+│   ├── standard-runbook.tx            # Standard runbook template (SurfPool IaC compliant)
 │   ├── common.tx                       # Common patterns for all runbooks
 │   ├── pda-derivation.tx              # PDA derivation patterns
 │   └── env-vars.tx                    # Environment variable patterns
+├── states/                            # State management snapshots
+│   └── README.md                       # State management documentation
 ├── 01-deployment/                     # Phase 1: Deployment
 │   ├── deploy-program.tx              # Deploy the program
-│   ├── initialize-config.tx           # Initialize configuration
+│   ├── full-init.tx                   # Full initialization (fund + init + grant all)
+│   ├── initialize-config.tx           # Initialize configuration (PDA-First)
 │   ├── grant-roles.tx                 # Grant initial roles to separate keypairs
-│   ├── grant-all-to-deployer.tx       # Grant all roles to single deployer wallet
-│   └── full-init.tx                   # Full initialization (fund + init + grant all)
+│   └── grant-all-to-deployer.tx       # Grant all roles to single deployer wallet
 ├── 02-operations/                     # Phase 2: Operations
 │   ├── netbook/                       # Netbook lifecycle operations
 │   │   ├── register-netbook.tx        # Register single netbook
@@ -91,15 +94,19 @@ runbooks/
 │   ├── reject-role-request.tx         # Reject role request
 │   ├── add-role-holder.tx             # Add role holder
 │   ├── remove-role-holder.tx          # Remove role holder
+│   ├── request-role.tx                # Request a role
+│   ├── reset-role-request.tx          # Reset a role request
 │   ├── revoke-role.tx                 # Revoke a role
 │   └── transfer-admin.tx              # Transfer admin ownership
 ├── 04-testing/                        # Phase 4: Testing
 │   ├── full-lifecycle.tx              # Full lifecycle test
 │   ├── edge-cases.tx                  # Edge case tests
+│   ├── generate-fake-data.tx          # Generate fake test data
 │   ├── role-workflow.tx               # Role workflow test
+│   ├── setup-test-env.tx              # Setup test environment
 │   └── verify-deployment.tx           # Verify deployment consistency
-├── testing/                           # Legacy testing runbooks (deprecated)
-│   └── setup-test-env.tx              # Setup test environment
+├── 05-ci/                             # Phase 5: CI/CD
+│   └── runbook-tests.sh               # CI runbook test script
 └── environments/                      # Environment configurations
     ├── localnet.env                   # Localnet (Surfpool)
     ├── devnet.env                     # Devnet
@@ -189,14 +196,48 @@ All configuration is centralized in `config/config.env`:
 
 ## Templates
 
-The `_templates/` directory contains reusable code patterns (snippets) that illustrate the standardized configuration used across tracking modules:
+The `_templates/` directory contains reusable code patterns designed to be **copied and pasted** into new runbook files:
 
+- [`standard-runbook.tx`](_templates/standard-runbook.tx) - **Standard SurfPool IaC compliant template** with complete header, signers, PDA derivation, actions, and outputs structure. Use this as the starting point for all new runbooks.
 - [`common.tx`](_templates/common.tx) - Common patterns for all runbooks, such as dynamic Program ID fetch.
 - [`pda-derivation.tx`](_templates/pda-derivation.tx) - PDA derivation patterns ensuring seed consistency with Anchor.
 - [`env-vars.tx`](_templates/env-vars.tx) - Environment variables and keypair patterns.
 
 **How to Use Templates:**
-Because Txtx does not natively support `include` or `module` directives for partial syntax injection in these runbooks, these templates are designed to be **copied and pasted** at the top of new runbook files to ensure consistent variable names, signers, and PDA derivations across the project. Do not modify the variable names defined in these templates to maintain project-wide coherence.
+Because Txtx does not natively support `include` or `module` directives, templates are designed to be **copied and pasted** at the top of new runbook files. The `standard-runbook.tx` template includes:
+- Complete header with Usage, Prerequisites, Inputs, and Outputs documentation
+- Standardized section separators (`===`)
+- SurfPool/txtx limitations (Issue #129) documentation
+- Consistent signer, variable, PDA, action, and output patterns
+
+## State Management
+
+The `states/` directory stores state snapshots for runbooks configured with state management in `txtx.yml`.
+
+### Enabled State Management
+
+The following runbooks have state management enabled:
+
+| Runbook | State Location | Purpose |
+|---------|---------------|---------|
+| `setup-test-env` | `states/setup-test-env/` | Test environment setup |
+| `full-lifecycle` | `states/full-lifecycle/` | Lifecycle test state |
+| `edge-cases` | `states/edge-cases/` | Edge case testing |
+| `role-workflow` | `states/role-workflow/` | Role workflow testing |
+| `generate-fake-data` | `states/generate-fake-data/` | Fake data generation |
+| `verify-deployment` | `states/verify-deployment/` | Deployment verification |
+
+### Using State Management
+
+When state management is enabled, SurfPool/txtx will:
+1. Load the previous state before execution
+2. Compare current inputs against saved state
+3. Skip unchanged actions for faster re-runs
+
+To clear a runbook's state:
+```bash
+rm -rf runbooks/states/<runbook-name>/*
+```
 
 ## Best Practices
 

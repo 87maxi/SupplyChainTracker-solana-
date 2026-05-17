@@ -72,5 +72,5 @@ action "reset" "svm::process_instructions" {
 
 output "reset_signature" {
   description = "Transaction signature"
-  value = action.reset.signatures | first()
+  value = action.reset.signatures
 }

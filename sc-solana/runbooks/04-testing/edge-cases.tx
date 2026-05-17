@@ -1,17 +1,39 @@
-// Edge cases and error handling tests
-// Tests various error conditions
+// ============================================================================
+// Edge Cases and Error Handling Tests
+// ============================================================================
+// Tests various error conditions and expected error codes.
+//
 // Usage: surfpool run edge-cases --env localnet --browser -f
+//
+// Prerequisites:
+//   - Config must be initialized
+//   - FABRICANTE and ESCUELA roles must be granted
+//
+// Tests:
+//   - Unauthorized access (escuela trying to grant role)
+//
+// Outputs:
+//   - error_codes: Reference of all error codes (6000-6014)
+// ============================================================================
 
+// ============================================================================
+// Addon Configuration
+// ============================================================================
 addon "svm" {
   network_id = "localnet"
   rpc_api_url = "http://localhost:8899"
 }
 
+// ============================================================================
+// Signers
+// ============================================================================
 signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account (must have FABRICANTE role)"
   keypair_path = env.FABRICANTE_KEYPAIR
 }
 
 signer "escuela" "svm::web_wallet" {
+  description = "School account (should NOT have grant permissions)"
   keypair_path = env.ESCUELA_KEYPAIR
 }
 
@@ -32,6 +54,11 @@ variable "config_pda" {
   value = svm::find_pda(variable.program_id, ["config"])
 }
 
+variable "admin_pda" {
+  description = "Admin PDA derived from config (seeds: [b\"admin\", config.key()])"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
+}
+
 // Test: Unauthorized access (escuela trying to grant role)
 action "test_unauthorized" "svm::process_instructions" {
   description = "Test: Escuela trying to grant role (should fail with Unauthorized=6000)"
@@ -41,32 +68,17 @@ action "test_unauthorized" "svm::process_instructions" {
     instruction_args = ["AUDITOR_HW"]
     accounts = [
       { public_key = variable.config_pda.pda, writable = true, signer = false },
-      { public_key = signer.escuela.public_key, writable = true, signer = true },
+      { public_key = variable.admin_pda.pda, writable = false, signer = false },
       { public_key = signer.fabricante.public_key, writable = false, signer = true },
       { public_key = svm::system_program_id(), writable = false, signer = false }
     ]
   }
-  signers = [signer.escuela, signer.fabricante]
+  signers = [signer.fabricante]
   expected_error = 6000
 }
 
 // Error codes reference
 output "error_codes" {
-  value = {
-    Unauthorized: 6000,
-    InvalidStateTransition: 6001,
-    NetbookNotFound: 6002,
-    InvalidInput: 6003,
-    DuplicateSerial: 6004,
-    ArrayLengthMismatch: 6005,
-    RoleAlreadyGranted: 6006,
-    RoleNotFound: 6007,
-    InvalidSignature: 6008,
-    EmptySerial: 6009,
-    StringTooLong: 6010,
-    MaxRoleHoldersReached: 6011,
-    RoleHolderNotFound: 6012,
-    InvalidRequestState: 6013,
-    RateLimited: 6014
-  }
+  description = "Reference of all error codes (6000-6014)"
+  value = "6000-6014"
 }

@@ -65,6 +65,11 @@ variable "config_pda" {
   value = svm::find_pda(variable.program_id, ["config"])
 }
 
+variable "admin_pda" {
+  description = "Admin PDA derived from config (seeds: [b\"admin\", config.key()])"
+  value = svm::find_pda(variable.program_id, ["admin", variable.config_pda.pda])
+}
+
 variable "role_holder_pda" {
   description = "Role holder PDA (seed: 'role_holder' const + account_to_remove)"
   value = svm::find_pda(variable.program_id, ["role_holder", signer.holder.public_key])
@@ -80,11 +85,10 @@ action "remove_holder" "svm::process_instructions" {
     instruction_name = "remove_role_holder"
     instruction_args = [variable.role]
     // Account order matches RemoveRoleHolder struct in Anchor:
-    // 1. config (mut, has_one = admin)
-    // 2. admin (mut, signer)
+    // 1. config (mut, seeds = [b"config"])
+    // 2. admin PDA (seeds = [b"admin", config.key()]) - cannot sign
     // 3. role_holder (mut, seeds = [b"role_holder", role_holder.account], close = admin)
     // 4. system_program
-    // NOTE: holder signers is NOT part of the Anchor struct - only admin signs
     accounts = [
       {
         public_key = variable.config_pda.pda
@@ -92,9 +96,9 @@ action "remove_holder" "svm::process_instructions" {
         signer = false
       },
       {
-        public_key = signer.admin.public_key
-        writable = true
-        signer = true
+        public_key = variable.admin_pda.pda
+        writable = false
+        signer = false
       },
       {
         public_key = variable.role_holder_pda.pda
@@ -108,7 +112,7 @@ action "remove_holder" "svm::process_instructions" {
       }
     ]
   }
-  signers = [signer.admin]
+  signers = []
 }
 
 // ============================================================================
@@ -117,7 +121,7 @@ action "remove_holder" "svm::process_instructions" {
 output "remove_holder_signature" {
   description = "Transaction signature for removing role holder"
   // Use first() to safely handle empty signatures array (Issue #129)
-  value = action.remove_holder.signatures | first()
+  value = action.remove_holder.signatures
 }
 
 output "role_holder_pda" {

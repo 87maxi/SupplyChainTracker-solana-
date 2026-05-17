@@ -17,24 +17,31 @@ addon "svm" {
   rpc_api_url = "http://localhost:8899"
 }
 
-// All role signers from centralized config
+// ============================================================================
+// Signers - All role wallets from centralized config
+// ============================================================================
 signer "admin" "svm::web_wallet" {
+  description = "Admin/Deployer account (config admin and transaction funder)"
   keypair_path = env.DEPLOYER_KEYPAIR
 }
 
 signer "fabricante" "svm::web_wallet" {
+  description = "Manufacturer account performing hardware registration"
   keypair_path = env.FABRICANTE_KEYPAIR
 }
 
 signer "auditor_hw" "svm::web_wallet" {
+  description = "Hardware auditor account performing hardware audits"
   keypair_path = env.AUDITOR_HW_KEYPAIR
 }
 
 signer "tecnico_sw" "svm::web_wallet" {
+  description = "Software technician account validating software"
   keypair_path = env.TECNICO_SW_KEYPAIR
 }
 
 signer "escuela" "svm::web_wallet" {
+  description = "School account receiving assigned netbooks"
   keypair_path = env.ESCUELA_KEYPAIR
 }
 
@@ -80,13 +87,26 @@ variable "netbook_pda" {
   value = svm::find_pda(variable.program_id, ["netbook", variable.serial_number])
 }
 
+// Instruction Data (Manual Discriminators from full-init.tx)
+// fund_deployer: discriminator + amount (u64 LE)
+// Amount: 10 SOL = 10000000000 lamports = 0x00496A3200000000
+variable "fund_deployer_data" {
+  description = "Complete instruction data for fund_deployer (discriminator + amount)"
+  value = [223, 191, 31, 96, 237, 187, 189, 54, 0, 228, 11, 84, 1, 0, 0, 0]
+}
+
+// initialize: discriminator only, no arguments
+variable "initialize_data" {
+  description = "Instruction data for initialize (discriminator only, no arguments)"
+  value = [175, 175, 109, 31, 13, 152, 155, 237]
+}
+
 // Step 0: Fund Deployer PDA (PDA-First Architecture)
 action "step0_fund_deployer" "svm::process_instructions" {
   description = "Step 0: Fund the deployer PDA with SOL"
   instruction {
     program_id = variable.program_id
-    instruction_data = program_idl + instruction_name("fund_deployer")
-    instruction_args = [10000000000]
+    instruction_data = variable.fund_deployer_data
     accounts = [
       { public_key = variable.deployer_pda.pda, writable = true, signer = false },
       { public_key = signer.admin.public_key, writable = true, signer = true },
@@ -102,16 +122,16 @@ action "step1_initialize" "svm::process_instructions" {
   depends_on = ["step0_fund_deployer"]
   instruction {
     program_id = variable.program_id
-    instruction_data = program_idl + instruction_name("initialize")
+    instruction_data = variable.initialize_data
     accounts = [
       { public_key = variable.config_pda.pda, writable = true, signer = false },
       { public_key = variable.serial_hashes_pda.pda, writable = true, signer = false },
-      { public_key = variable.admin_pda.pda, writable = false, signer = true },
+      { public_key = variable.admin_pda.pda, writable = false, signer = false },
       { public_key = variable.deployer_pda.pda, writable = true, signer = false },
       { public_key = svm::system_program_id(), writable = false, signer = false }
     ]
   }
-  signers = []
+  signers = [signer.admin]
 }
 
 // Step 2: Grant FABRICANTE Role
@@ -123,7 +143,7 @@ action "step2_grant_fabricante" "svm::process_instructions" {
     instruction_args = ["FABRICANTE"]
     accounts = [
       { public_key = variable.config_pda.pda, writable = true, signer = false },
-      { public_key = variable.admin_pda.pda, writable = false, signer = true },
+      { public_key = variable.admin_pda.pda, writable = false, signer = false },
       { public_key = signer.fabricante.public_key, writable = false, signer = true },
       { public_key = svm::system_program_id(), writable = false, signer = false }
     ]
@@ -201,28 +221,42 @@ action "step6_assign" "svm::process_instructions" {
 }
 
 // Outputs
-output "lifecycle_signatures" {
-  description = "Transaction signatures for each lifecycle step"
-  value = {
-    fund_deployer: action.step0_fund_deployer.signatures | first(),
-    initialize: action.step1_initialize.signatures | first(),
-    grant_fabricante: action.step2_grant_fabricante.signatures | first(),
-    register: action.step3_register.signatures | first(),
-    audit: action.step4_audit.signatures | first(),
-    validate: action.step5_validate.signatures | first(),
-    assign: action.step6_assign.signatures | first()
-  }
+output "fund_deployer_signature" {
+  description = "Fund deployer transaction signature"
+  value = action.step0_fund_deployer.signatures
+}
+
+output "initialize_signature" {
+  description = "Initialize config transaction signature"
+  value = action.step1_initialize.signatures
+}
+
+output "grant_fabricante_signature" {
+  description = "FABRICANTE role grant signature"
+  value = action.step2_grant_fabricante.signatures
+}
+
+output "register_signature" {
+  description = "Register netbook transaction signature"
+  value = action.step3_register.signatures
+}
+
+output "audit_signature" {
+  description = "Audit hardware transaction signature"
+  value = action.step4_audit.signatures
+}
+
+output "validate_signature" {
+  description = "Validate software transaction signature"
+  value = action.step5_validate.signatures
+}
+
+output "assign_signature" {
+  description = "Assign to student transaction signature"
+  value = action.step6_assign.signatures
 }
 
 output "state_transitions" {
   description = "State transitions for the full lifecycle"
-  value = {
-    step_0: "Deployer PDA funded",
-    step_1: "Config initialized",
-    step_2: "FABRICANTE role granted",
-    step_3: "Netbook registered -> Fabricada (0)",
-    step_4: "Hardware audited -> HwAprobado (1)",
-    step_5: "Software validated -> SwValidado (2)",
-    step_6: "Student assigned -> Distribuida (3)"
-  }
+  value = "Fabricada(0) -> HwAprobado(1) -> SwValidado(2) -> Distribuida(3)"
 }

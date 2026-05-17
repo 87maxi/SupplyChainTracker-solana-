@@ -1,14 +1,39 @@
-// Register a single netbook in the supply chain
-// This is the first step in the netbook lifecycle
+// ============================================================================
+// Register Single Netbook in Supply Chain
+// ============================================================================
+// This is the first step in the netbook lifecycle. Creates a new netbook
+// account with state Fabricada (0).
+//
 // Usage: surfpool run register-netbook --env localnet --browser -f
+//
+// Prerequisites:
+//   - Config must be initialized
+//   - FABRICANTE role must be granted to the manufacturer account
+//   - NETBOOK_TOKEN_ID must be set in environment (starts at 1)
+//
+// Inputs:
+//   - serial_number: Serial number (from env.NETBOOK_SERIAL)
+//   - batch_id: Batch identifier (from env.NETBOOK_BATCH)
+//   - model_specs: Model specifications (from env.NETBOOK_MODEL)
+//   - token_id: Current token ID (from env.NETBOOK_TOKEN_ID)
+//
+// Outputs:
+//   - serial_number: Registered serial number
+//   - registration_signature: Transaction signature
+//   - netbook_pda: Derived netbook PDA address
+// ============================================================================
 
-// Addon configuration for Solana/SVM
+// ============================================================================
+// Addon Configuration
+// ============================================================================
 addon "svm" {
   network_id = "localnet"
   rpc_api_url = "http://localhost:8899"
 }
 
+// ============================================================================
 // Signers
+// ============================================================================
 signer "fabricante" "svm::web_wallet" {
   description = "Manufacturer account (must have FABRICANTE role)"
   keypair_path = env.FABRICANTE_KEYPAIR
@@ -128,7 +153,7 @@ output "serial_number" {
 
 output "registration_signature" {
   description = "Transaction signature"
-  value = action.register.signatures | first()
+  value = action.register.signatures
 }
 
 output "netbook_pda" {

@@ -18,7 +18,11 @@ use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct GrantRole<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
     #[account(

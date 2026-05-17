@@ -17,7 +17,11 @@ use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct RevokeRole<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
     #[account(
@@ -87,7 +91,11 @@ pub fn revoke_role(ctx: Context<RevokeRole>, role: String) -> Result<()> {
 /// NOTE (Issue #186): Admin is now UncheckedAccount with seed verification
 #[derive(Accounts)]
 pub struct CloseRoleHolder<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
     #[account(

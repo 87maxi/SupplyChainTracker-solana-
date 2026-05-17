@@ -107,7 +107,7 @@ action "transfer" "svm::process_instructions" {
 output "transfer_signature" {
   description = "Transaction signature for the admin transfer"
   // Use first() to safely handle empty signatures array
-  value = action.transfer.signatures | first()
+  value = action.transfer.signatures
 }
 
 output "new_admin_address" {

@@ -13,7 +13,11 @@ use anchor_lang::prelude::*;
 /// Current admin is derived as PDA with seeds [b"admin", config.key()]
 #[derive(Accounts)]
 pub struct TransferAdmin<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     #[account(mut)]
     pub current_admin: Signer<'info>,

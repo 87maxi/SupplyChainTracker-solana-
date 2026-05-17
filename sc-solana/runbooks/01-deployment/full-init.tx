@@ -1,5 +1,8 @@
+// ============================================================================
 // Full Initialization Runbook
+// ============================================================================
 // Combines: fund deployer + initialize config + grant all roles
+//
 // Usage: surfpool run full-init --env localnet --browser -f
 //
 // This runbook replaces the following scripts:
@@ -17,6 +20,14 @@
 //   4. Grant AUDITOR_HW role
 //   5. Grant TECNICO_SW role
 //   6. Grant ESCUELA role
+//
+// Outputs:
+//   - program_id: Deployed program address
+//   - deployer_pda_address: Deployer PDA address
+//   - config_pda_address: Config account PDA address
+//   - admin_pda_address: Admin PDA address
+//   - *_signature: Transaction signatures for each step
+// ============================================================================
 
 // ============================================================================
 // Addon Configuration
@@ -198,9 +209,9 @@ action "grant_fabricante" "svm::process_instructions" {
         signer = false
       },
       {
-        public_key = signer.funder.public_key
-        writable = true
-        signer = true
+        public_key = variable.admin_pda.pda
+        writable = false
+        signer = false
       },
       {
         public_key = signer.fabricante.public_key
@@ -214,7 +225,7 @@ action "grant_fabricante" "svm::process_instructions" {
       }
     ]
   }
-  signers = [signer.funder, signer.fabricante]
+  signers = [signer.fabricante]
 }
 
 // ============================================================================
@@ -234,9 +245,9 @@ action "grant_auditor_hw" "svm::process_instructions" {
         signer = false
       },
       {
-        public_key = signer.funder.public_key
-        writable = true
-        signer = true
+        public_key = variable.admin_pda.pda
+        writable = false
+        signer = false
       },
       {
         public_key = signer.auditor_hw.public_key
@@ -250,7 +261,7 @@ action "grant_auditor_hw" "svm::process_instructions" {
       }
     ]
   }
-  signers = [signer.funder, signer.auditor_hw]
+  signers = [signer.auditor_hw]
 }
 
 // ============================================================================
@@ -270,9 +281,9 @@ action "grant_tecnico_sw" "svm::process_instructions" {
         signer = false
       },
       {
-        public_key = signer.funder.public_key
-        writable = true
-        signer = true
+        public_key = variable.admin_pda.pda
+        writable = false
+        signer = false
       },
       {
         public_key = signer.tecnico_sw.public_key
@@ -286,7 +297,7 @@ action "grant_tecnico_sw" "svm::process_instructions" {
       }
     ]
   }
-  signers = [signer.funder, signer.tecnico_sw]
+  signers = [signer.tecnico_sw]
 }
 
 // ============================================================================
@@ -306,9 +317,9 @@ action "grant_escuela" "svm::process_instructions" {
         signer = false
       },
       {
-        public_key = signer.funder.public_key
-        writable = true
-        signer = true
+        public_key = variable.admin_pda.pda
+        writable = false
+        signer = false
       },
       {
         public_key = signer.escuela.public_key
@@ -322,7 +333,7 @@ action "grant_escuela" "svm::process_instructions" {
       }
     ]
   }
-  signers = [signer.funder, signer.escuela]
+  signers = [signer.escuela]
 }
 
 // ============================================================================
@@ -350,30 +361,30 @@ output "admin_pda_address" {
 
 output "fund_deployer_signature" {
   description = "Fund deployer transaction signature"
-  value = action.fund_deployer.signatures | first()
+  value = action.fund_deployer.signatures
 }
 
 output "initialize_signature" {
   description = "Initialize config transaction signature"
-  value = action.initialize.signatures | first()
+  value = action.initialize.signatures
 }
 
 output "grant_fabricante_signature" {
   description = "FABRICANTE role grant signature"
-  value = action.grant_fabricante.signatures | first()
+  value = action.grant_fabricante.signatures
 }
 
 output "grant_auditor_hw_signature" {
   description = "AUDITOR_HW role grant signature"
-  value = action.grant_auditor_hw.signatures | first()
+  value = action.grant_auditor_hw.signatures
 }
 
 output "grant_tecnico_sw_signature" {
   description = "TECNICO_SW role grant signature"
-  value = action.grant_tecnico_sw.signatures | first()
+  value = action.grant_tecnico_sw.signatures
 }
 
 output "grant_escuela_signature" {
   description = "ESCUELA role grant signature"
-  value = action.grant_escuela.signatures | first()
+  value = action.grant_escuela.signatures
 }

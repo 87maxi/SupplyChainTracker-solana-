@@ -11,6 +11,8 @@ pub struct ValidateSoftware<'info> {
     pub netbook: Account<'info, Netbook>,
     #[account(
         mut,
+        seeds = [b"config"],
+        bump,
         constraint = config.tecnico_sw == technician.key() @ crate::errors::SupplyChainError::Unauthorized
     )]
     pub config: Account<'info, SupplyChainConfig>,

@@ -17,7 +17,11 @@ use anchor_lang::prelude::*;
 /// Only the admin PDA can call this instruction
 #[derive(Accounts)]
 pub struct RemoveRoleHolder<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"config"],
+        bump
+    )]
     pub config: Account<'info, SupplyChainConfig>,
     /// CHECK: Admin PDA verified via seeds [b"admin", config.key()] with bump from config
     #[account(

@@ -1,14 +1,37 @@
-// Addon configuration for Solana/SVM
+// ============================================================================
+// Register Multiple Netbooks in Batch
+// ============================================================================
+// Registers multiple netbooks in a single transaction. All arrays must have
+// the same length.
+//
+// Usage: surfpool run register-netbooks-batch --env localnet --browser -f
+//
+// Prerequisites:
+//   - Config must be initialized
+//   - FABRICANTE role must be granted
+//   - All input arrays must have matching lengths
+//
+// Inputs:
+//   - serial_numbers: Array of serial numbers (from env.NETBOOK_SERIALS)
+//   - batch_ids: Array of batch IDs (from env.NETBOOK_BATCHES)
+//   - model_specs: Array of model specs (from env.NETBOOK_MODELS)
+//
+// Outputs:
+//   - batch_signature: Transaction signature
+//   - serial_numbers_registered: List of registered serial numbers
+// ============================================================================
+
+// ============================================================================
+// Addon Configuration
+// ============================================================================
 addon "svm" {
   network_id = "localnet"
   rpc_api_url = "http://localhost:8899"
 }
 
-// Register multiple netbooks in batch
-// All arrays must have the same length
-// Usage: surfpool run register-netbooks-batch --env localnet --browser -f
-
+// ============================================================================
 // Signers
+// ============================================================================
 signer "fabricante" "svm::web_wallet" {
   description = "Manufacturer account (must have FABRICANTE role)"
   keypair_path = env.FABRICANTE_KEYPAIR
@@ -92,7 +115,7 @@ action "register_batch" "svm::process_instructions" {
 // Outputs
 output "batch_signature" {
   description = "Batch registration transaction signature"
-  value = action.register_batch.signatures | first()
+  value = action.register_batch.signatures
 }
 
 output "serial_numbers_registered" {

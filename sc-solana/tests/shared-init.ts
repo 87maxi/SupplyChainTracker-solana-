@@ -78,20 +78,18 @@ export async function fundAccounts(
     const pubkey = account instanceof Keypair ? account.publicKey.toBase58() : account;
 
     // Check if account already has sufficient balance
-    const balance = await client.rpc.getBalance(pubkey);
+    const balance = await client.rpc.getBalance(pubkey).send();
     if (balance >= BigInt(amount)) {
       return;
     }
 
     const needed = BigInt(amount) - balance;
-    const sig = await client.rpc.requestAirdrop({
-      destination: pubkey,
-      lamports: needed,
-    });
+    // Use positional parameters: requestAirdrop(address, lamports).send()
+    const sig = await client.rpc.requestAirdrop(pubkey, needed).send();
     await client.rpc.confirmTransaction({
       signature: sig,
       commitment: "confirmed",
-    });
+    }).send();
   });
 
   await Promise.all(promises);

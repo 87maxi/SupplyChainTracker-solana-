@@ -587,6 +587,9 @@ export function createModelSpecs(
 /**
  * Fund a keypair with SOL (default 2 SOL)
  * Uses safe amount to avoid Number.MAX_SAFE_INTEGER overflow
+ *
+ * Uses the EXACT same pattern as createTestClient airdrop (line 227):
+ * rpc.requestAirdrop(address, lamports).send()
  */
 export async function fundKeypair(
   client: TestClient,
@@ -595,9 +598,10 @@ export async function fundKeypair(
 ): Promise<string> {
   // Cap amount to safe value (100 SOL max to avoid overflow)
   const safeAmountSol = Math.min(amountSol, 100);
-  const lamports = safeAmountSol * LAMPORTS_PER_SOL;
+  // Use BigInt for lamports - @solana/kit RPC expects BigInt
+  const lamports = BigInt(safeAmountSol) * BigInt(LAMPORTS_PER_SOL);
 
-  // Access RPC through the TestClient (same pattern as shared-init.ts)
+  // Access RPC through the TestClient (same pattern as createTestClient:211-241)
   const clientAny = client as any;
   const rpc = clientAny?.rpc;
   
@@ -605,23 +609,18 @@ export async function fundKeypair(
     throw new Error("RPC not available on client. Ensure client was created with createTestClient.");
   }
 
-  const destination = keypair.publicKey.toBase58() as Address;
+  const destination = keypair.publicKey.toBase58();
   
-  // Request airdrop
-  const airdropSignature = await rpc.requestAirdrop({
-    destination,
-    lamports,
-  }).send();
+  // Request airdrop - match createTestClient pattern: rpc.requestAirdrop(address, lamports).send()
+  const sig = await rpc.requestAirdrop(destination, lamports).send();
 
-  // Confirm transaction with blockheight
-  const { lastValidBlockHeight } = await rpc.getLatestBlockhash().send();
+  // Confirm transaction - match createTestClient pattern
   await rpc.confirmTransaction({
-    signature: airdropSignature,
-    lastValidBlockHeight,
-    commitment: "confirmed" as any,
+    signature: sig,
+    commitment: "confirmed",
   }).send();
 
-  return airdropSignature;
+  return sig;
 }
 
 /**

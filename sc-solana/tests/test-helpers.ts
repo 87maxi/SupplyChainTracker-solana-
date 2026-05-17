@@ -589,7 +589,7 @@ export function createModelSpecs(
  * Uses safe amount to avoid Number.MAX_SAFE_INTEGER overflow
  */
 export async function fundKeypair(
-  clientOrRpc: TestClient | any,
+  client: TestClient,
   keypair: Keypair,
   amountSol: number = 2
 ): Promise<string> {
@@ -597,30 +597,27 @@ export async function fundKeypair(
   const safeAmountSol = Math.min(amountSol, 100);
   const lamports = safeAmountSol * LAMPORTS_PER_SOL;
 
-  // Try to get RPC from client or use directly if client is RPC
-  let rpc: any;
+  // Access RPC through the TestClient (same pattern as shared-init.ts)
+  const clientAny = client as any;
+  const rpc = clientAny?.rpc;
   
-  // Check if first argument is actually an RPC object (has send method)
-  if (typeof clientOrRpc?.send === 'function') {
-    rpc = clientOrRpc;
-  } else {
-    // Try to access RPC through the client's internal structure
-    const clientAny = clientOrRpc as any;
-    // The createClient from @solana/kit stores rpc internally
-    // Try common patterns: _rpc, rpc, or nested structures
-    rpc = clientAny?.rpc ?? clientAny?._rpc ?? clientAny?.context?.rpc;
-    
-    if (!rpc) {
-      throw new Error("RPC not available. Pass an RPC instance directly or use a proper TestClient.");
-    }
+  if (!rpc) {
+    throw new Error("RPC not available on client. Ensure client was created with createTestClient.");
   }
 
   const destination = keypair.publicKey.toBase58() as Address;
-  const airdropSignature = await rpc.requestAirdrop(destination, lamports).send();
+  
+  // Request airdrop
+  const airdropSignature = await rpc.requestAirdrop({
+    destination,
+    lamports,
+  }).send();
 
+  // Confirm transaction with blockheight
+  const { lastValidBlockHeight } = await rpc.getLatestBlockhash().send();
   await rpc.confirmTransaction({
     signature: airdropSignature,
-    lastValidBlockHeight: (await rpc.getLatestBlockhash().send()).value.lastValidBlockHeight,
+    lastValidBlockHeight,
     commitment: "confirmed" as any,
   }).send();
 

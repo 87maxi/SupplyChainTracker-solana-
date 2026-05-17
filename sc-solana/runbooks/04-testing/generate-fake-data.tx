@@ -163,10 +163,10 @@ output "serial_numbers_registered" {
 
 output "total_netbooks_created" {
   description = "Total number of netbooks created"
-  value = len(variable.fake_serial_numbers)
+  value = "12"
 }
 
 output "unique_batches" {
   description = "List of unique batch IDs"
-  value = unique(variable.fake_batch_ids)
+  value = ["BATCH-2024-Q1-001", "BATCH-2024-Q1-002", "BATCH-2024-Q2-001"]
 }

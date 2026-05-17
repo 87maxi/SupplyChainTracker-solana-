@@ -589,7 +589,7 @@ export function createModelSpecs(
  * Uses safe amount to avoid Number.MAX_SAFE_INTEGER overflow
  */
 export async function fundKeypair(
-  client: TestClient,
+  clientOrRpc: TestClient | any,
   keypair: Keypair,
   amountSol: number = 2
 ): Promise<string> {
@@ -597,23 +597,31 @@ export async function fundKeypair(
   const safeAmountSol = Math.min(amountSol, 100);
   const lamports = safeAmountSol * LAMPORTS_PER_SOL;
 
-  // Access the RPC through the client's internal structure
-  // The TestClient is created with createClient which has rpc property
-  const clientAny = client as any;
-  const rpc = clientAny.rpc || (clientAny as any)._rpc;
+  // Try to get RPC from client or use directly if client is RPC
+  let rpc: any;
   
-  if (!rpc) {
-    throw new Error("RPC not available on client. Use createTestClient to get a proper client.");
+  // Check if first argument is actually an RPC object (has send method)
+  if (typeof clientOrRpc?.send === 'function') {
+    rpc = clientOrRpc;
+  } else {
+    // Try to access RPC through the client's internal structure
+    const clientAny = clientOrRpc as any;
+    // The createClient from @solana/kit stores rpc internally
+    // Try common patterns: _rpc, rpc, or nested structures
+    rpc = clientAny?.rpc ?? clientAny?._rpc ?? clientAny?.context?.rpc;
+    
+    if (!rpc) {
+      throw new Error("RPC not available. Pass an RPC instance directly or use a proper TestClient.");
+    }
   }
 
-  const airdropSignature = await rpc.requestAirdrop({
-    destination: keypair.publicKey.toBase58() as Address,
-    lamports,
-  }).send();
+  const destination = keypair.publicKey.toBase58() as Address;
+  const airdropSignature = await rpc.requestAirdrop(destination, lamports).send();
 
   await rpc.confirmTransaction({
     signature: airdropSignature,
-    commitment: "confirmed",
+    lastValidBlockHeight: (await rpc.getLatestBlockhash().send()).value.lastValidBlockHeight,
+    commitment: "confirmed" as any,
   }).send();
 
   return airdropSignature;

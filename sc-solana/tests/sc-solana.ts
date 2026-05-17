@@ -60,9 +60,8 @@ describe("SupplyChainTracker Solana", () => {
   before(async () => {
     // Generate admin account
     admin = Keypair.generate();
-    await fundKeypair(client, admin, 20);
 
-    // Create test client
+    // Create test client first
     client = await createTestClient("http://localhost:8899", admin);
 
     // Reset initialization state for fresh test run
